@@ -49,4 +49,36 @@ void main() {
     final g = saved.getOrElse(() => throw StateError('save failed'));
     expect((g.runsSucceeded, g.runsFailed, g.runsSkipped), (0, 0, 0));
   });
+
+  test('the no-knowledge choice is stored and read back', () async {
+    await repo.upsertGana(aGana(noKnowledge: true));
+
+    final got = (await repo.getGanaById('gana-1')).getOrElse(
+      () => throw StateError('missing'),
+    );
+
+    expect(got.noKnowledge, isTrue);
+    expect(got.manasIds, isEmpty);
+  });
+
+  test('a Gana is not no-knowledge unless it was saved that way', () async {
+    await repo.upsertGana(aGana());
+
+    final got = (await repo.getGanaById('gana-1')).getOrElse(
+      () => throw StateError('missing'),
+    );
+
+    expect(got.noKnowledge, isFalse);
+  });
+
+  test('editing back from no knowledge to Brahma clears the flag', () async {
+    await repo.upsertGana(aGana(noKnowledge: true));
+    await repo.upsertGana(aGana(noKnowledge: false));
+
+    final got = (await repo.getGanaById('gana-1')).getOrElse(
+      () => throw StateError('missing'),
+    );
+
+    expect(got.noKnowledge, isFalse);
+  });
 }

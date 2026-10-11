@@ -369,11 +369,21 @@ Future<void> _runOneGana({
     gana: gana,
     selfPubkeyHex: selfPubkeyHex,
     selfOutputs: selfOutputs,
-    loadKnowledge: (_) => ManasContextLoader.packNewest(
-      isar: isar,
-      manasIds: gana.manasIds,
-      budget: GanaPromptBuilder.defaultMaxTokens ~/ 2,
-    ),
+    loadKnowledge: (_) async {
+      if (gana.noKnowledge) return const <PackedNote>[];
+      if (gana.manasIds.isEmpty) {
+        return ManasContextLoader.packAllNewest(
+          isar: isar,
+          selfPubkey: selfPubkeyHex,
+          budget: GanaPromptBuilder.defaultMaxTokens ~/ 2,
+        );
+      }
+      return ManasContextLoader.packNewest(
+        isar: isar,
+        manasIds: gana.manasIds,
+        budget: GanaPromptBuilder.defaultMaxTokens ~/ 2,
+      );
+    },
   );
   if (prepared == null) {
     _log('  SKIPPED: noNewInput (cursor caught up, nothing to do)');
@@ -389,8 +399,13 @@ Future<void> _runOneGana({
   }
   final inputs = prepared.inputs;
   final prompt = prepared.prompt;
-  _log('  input: ${inputs.length} note(s); Manas: '
-      '${prepared.manasNames.join(", ")}; prompt: ${prompt.length} chars '
+  final scope = gana.noKnowledge
+      ? 'none'
+      : gana.manasIds.isEmpty
+          ? 'Brahma'
+          : prepared.manasNames.join(', ');
+  _log('  input: ${inputs.length} note(s); scope: '
+      '$scope; prompt: ${prompt.length} chars '
       '(~${prompt.length ~/ 4} tokens)');
 
   if (DateTime.now().isAfter(budgetEnd)) {

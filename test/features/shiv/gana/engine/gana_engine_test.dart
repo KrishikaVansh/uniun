@@ -20,6 +20,7 @@ import 'package:uniun/domain/entities/ai_model/ai_model_entity.dart';
 import 'package:uniun/domain/entities/llm/llm_backend_type.dart';
 import 'package:uniun/domain/entities/llm/llm_model_info.dart';
 import 'package:uniun/domain/entities/llm/llm_task_kind.dart';
+import 'package:uniun/domain/entities/note/note_entity.dart';
 import 'package:uniun/domain/usecases/create_group_message_usecase.dart';
 import 'package:uniun/domain/usecases/dm_usecases.dart';
 import 'package:uniun/domain/usecases/llm_usecases.dart';
@@ -69,7 +70,7 @@ class _MockGateway extends Mock implements FlutterGemmaGateway {}
 /// dm); the reactive input-filter path (fires on a matching new note, skips
 /// `noNewInput` on a non-matching one); and the recurring `maxOutputs` cap
 /// (skips + auto-disables ahead of even a genuinely new input).
-void main() {
+void main({bool routingMatrixOnly = false}) {
   setUpAll(() {
     registerFallbackValue(aNote());
     registerFallbackValue(const GenerateOneShotInput(prompt: ''));
@@ -136,6 +137,11 @@ void main() {
           budget: any(named: 'budget'),
           relevanceQuery: any(named: 'relevanceQuery'),
         )).thenAnswer((_) async => const []);
+    when(() => manasLoader.mergeAll(
+          selfPubkey: any(named: 'selfPubkey'),
+          budget: any(named: 'budget'),
+          relevanceQuery: any(named: 'relevanceQuery'),
+        )).thenAnswer((_) async => const []);
 
     engine = GanaEngine(
       isar,
@@ -181,6 +187,8 @@ void main() {
     GanaTriggerMode triggerMode = GanaTriggerMode.oneShot,
     int? maxOutputs,
     int? triggerIntervalMinutes,
+    List<String> manasIds = const [],
+    bool noKnowledge = false,
   }) async {
     final now = DateTime.now();
     await isar.writeTxn(() async {
@@ -188,6 +196,8 @@ void main() {
         GanaModel()
           ..ganaId = ganaId
           ..name = 'Test Gana'
+          ..manasIds = manasIds
+          ..noKnowledge = noKnowledge
           ..taskPrompt = 'Say something'
           ..outputType = outputType
           ..outputGroupId = outputGroupId
@@ -215,11 +225,15 @@ void main() {
     required String ganaId,
     LlmBackendType? desiredBackend,
     String? desiredModelId,
+    List<String> manasIds = const [],
+    bool noKnowledge = false,
   }) =>
       seedGana(
         ganaId: ganaId,
         desiredBackend: desiredBackend,
         desiredModelId: desiredModelId,
+        manasIds: manasIds,
+        noKnowledge: noKnowledge,
       );
 
   Future<void> seedNote({
@@ -257,7 +271,137 @@ void main() {
     return null;
   }
 
-  group('cloud-pinned Gana', () {
+  void registerCoreGroup(String name, void Function() body) {
+    if (!routingMatrixOnly) {
+      group(name, body);
+    }
+  }
+
+  registerCoreGroup('cloud-pinned Gana', () {
+    test('Brahma scope loads whole knowledge and labels the prompt Brahma',
+        () async {
+      when(() => isCloudConnected.call()).thenAnswer((_) async => true);
+      when(() => manasLoader.mergeAll(
+            selfPubkey: any(named: 'selfPubkey'),
+            budget: any(named: 'budget'),
+            relevanceQuery: any(named: 'relevanceQuery'),
+          )).thenAnswer((_) async => [
+            PackedNote(
+              id: 'note-knowledge',
+              content: 'A private insight',
+              created: DateTime(2026),
+              source: PackedNoteSource.own,
+            ),
+          ]);
+      when(() => generateOneShot.call(any()))
+          .thenAnswer((_) async => const Right('A short reply'));
+      await seedStandaloneGana(
+        ganaId: 'brahma-scope-1',
+        desiredBackend: LlmBackendType.uniunCloud,
+        desiredModelId: 'claude-cloud-mini',
+      );
+
+      await engine.start();
+      final run = await waitForRun('brahma-scope-1');
+
+      expect(run?.status, GanaRunStatus.succeeded);
+      verify(() => manasLoader.mergeAll(
+            selfPubkey: any(named: 'selfPubkey'),
+            budget: any(named: 'budget'),
+            relevanceQuery: any(named: 'relevanceQuery'),
+          )).called(1);
+      verifyNever(() => manasLoader.merge(
+            manasIds: any(named: 'manasIds'),
+            budget: any(named: 'budget'),
+            relevanceQuery: any(named: 'relevanceQuery'),
+          ));
+      final request = verify(() => generateOneShot.call(captureAny()))
+          .captured.single as GenerateOneShotInput;
+      expect(request.prompt, contains('KNOWLEDGE — the user\'s notes (Brahma):'));
+      expect(request.prompt, contains('A private insight'));
+    });
+
+    test('no knowledge loads nothing and leaves the knowledge section out',
+        () async {
+      when(() => isCloudConnected.call()).thenAnswer((_) async => true);
+      when(() => generateOneShot.call(any()))
+          .thenAnswer((_) async => const Right('A short reply'));
+      await seedStandaloneGana(
+        ganaId: 'no-knowledge-1',
+        desiredBackend: LlmBackendType.uniunCloud,
+        desiredModelId: 'claude-cloud-mini',
+        noKnowledge: true,
+      );
+
+      await engine.start();
+      final run = await waitForRun('no-knowledge-1');
+
+      expect(run?.status, GanaRunStatus.succeeded);
+      verifyNever(() => manasLoader.mergeAll(
+            selfPubkey: any(named: 'selfPubkey'),
+            budget: any(named: 'budget'),
+            relevanceQuery: any(named: 'relevanceQuery'),
+          ));
+      verifyNever(() => manasLoader.merge(
+            manasIds: any(named: 'manasIds'),
+            budget: any(named: 'budget'),
+            relevanceQuery: any(named: 'relevanceQuery'),
+          ));
+      final request = verify(() => generateOneShot.call(captureAny()))
+          .captured.single as GenerateOneShotInput;
+      expect(request.prompt, isNot(contains('KNOWLEDGE — the user')));
+      expect(request.prompt, isNot(contains('(Brahma)')));
+    });
+
+    test('no knowledge wins over a leftover Manas list', () async {
+      when(() => isCloudConnected.call()).thenAnswer((_) async => true);
+      when(() => generateOneShot.call(any()))
+          .thenAnswer((_) async => const Right('A short reply'));
+      await seedStandaloneGana(
+        ganaId: 'no-knowledge-2',
+        desiredBackend: LlmBackendType.uniunCloud,
+        desiredModelId: 'claude-cloud-mini',
+        manasIds: const ['m-stale'],
+        noKnowledge: true,
+      );
+
+      await engine.start();
+      await waitForRun('no-knowledge-2');
+
+      verifyNever(() => manasLoader.merge(
+            manasIds: any(named: 'manasIds'),
+            budget: any(named: 'budget'),
+            relevanceQuery: any(named: 'relevanceQuery'),
+          ));
+    });
+
+    test('a selected Manas still uses the scoped loader, not Brahma',
+        () async {
+      when(() => isCloudConnected.call()).thenAnswer((_) async => true);
+      when(() => generateOneShot.call(any()))
+          .thenAnswer((_) async => const Right('A short reply'));
+      await seedStandaloneGana(
+        ganaId: 'scoped-1',
+        desiredBackend: LlmBackendType.uniunCloud,
+        desiredModelId: 'claude-cloud-mini',
+        manasIds: const ['m-1'],
+      );
+
+      await engine.start();
+      await waitForRun('scoped-1');
+
+      verify(() => manasLoader.merge(
+            manasIds: ['m-1'],
+            budget: any(named: 'budget'),
+            relevanceQuery: any(named: 'relevanceQuery'),
+          )).called(1);
+      verifyNever(() => manasLoader.mergeAll(
+            selfPubkey: any(named: 'selfPubkey'),
+            budget: any(named: 'budget'),
+            relevanceQuery: any(named: 'relevanceQuery'),
+          ));
+    });
+
     test('not connected to UNIUN Cloud → skipped(cloudUnavailable), never '
         'calls generateOneShot or publishes', () async {
       when(() => isCloudConnected.call()).thenAnswer((_) async => false);
@@ -328,7 +472,7 @@ void main() {
     });
   });
 
-  group('local (non-cloud) Gana — unaffected by the cloud gate', () {
+  registerCoreGroup('local (non-cloud) Gana — unaffected by the cloud gate', () {
     test('no active on-device model in this test process → '
         'skipped(noActiveModel), never touches the cloud use cases',
         () async {
@@ -346,7 +490,7 @@ void main() {
     });
   });
 
-  group('fully unset Gana (no pin at all) follows the global active backend',
+  registerCoreGroup('fully unset Gana (no pin at all) follows the global active backend',
       () {
     test('global active backend is cloud → routes through cloud using the '
         'globally active cloud model, without ever pinging the local gate',
@@ -426,7 +570,7 @@ void main() {
     });
   });
 
-  group('one-shot auto-disable', () {
+  registerCoreGroup('one-shot auto-disable', () {
     test('a one-shot Gana disables itself after a successful publish',
         () async {
       when(() => isCloudConnected.call()).thenAnswer((_) async => true);
@@ -459,7 +603,7 @@ void main() {
     });
   });
 
-  group('cloud output routing — every GanaOutputType', () {
+  registerCoreGroup('cloud output routing — every GanaOutputType', () {
     test('group output publishes via CreateGroupMessageUseCase with the '
         'cloud-generated body', () async {
       when(() => isCloudConnected.call()).thenAnswer((_) async => true);
@@ -549,7 +693,331 @@ void main() {
     });
   });
 
-  group('reactive (input-driven) cloud Gana', () {
+  group('input and output routing matrix', () {
+    const body = 'Shared generated matrix reply';
+    for (final input in GanaInputType.values) {
+      for (final output in GanaOutputType.values) {
+        test('${input.name} input to ${output.name} output', () async {
+          when(() => isCloudConnected.call()).thenAnswer((_) async => true);
+          when(() => generateOneShot.call(any()))
+              .thenAnswer((_) async => const Right(body));
+          when(() => groupMessage.call(any()))
+              .thenAnswer((_) async => Right(aNote()));
+          when(() => privateGroup.execute(
+                groupId: any(named: 'groupId'),
+                content: any(named: 'content'),
+                authorPubkey: any(named: 'authorPubkey'),
+                privkeyHex: any(named: 'privkeyHex'),
+              )).thenAnswer((_) async {});
+          when(() => dm.call(any())).thenAnswer((_) async => const Right(unit));
+
+          final conversation = DmConversationModel()
+            ..otherPubkey = 'matrix-recipient';
+          await isar.writeTxn(() async {
+            await isar.dmConversationModels.put(conversation);
+          });
+          final inputRef = switch (input) {
+            GanaInputType.group => 'matrix-input-group',
+            GanaInputType.privateGroup => 'matrix-input-private',
+            GanaInputType.dm => '${conversation.id}',
+            GanaInputType.user => 'matrix-author',
+            GanaInputType.followedNote => 'matrix-root',
+          };
+          final ganaId = 'matrix-${input.name}-${output.name}';
+          await seedGana(
+            ganaId: ganaId,
+            desiredBackend: LlmBackendType.uniunCloud,
+            desiredModelId: 'claude-cloud-mini',
+            inputType: input,
+            inputRefId: inputRef,
+            outputType: output,
+            outputGroupId: output == GanaOutputType.group
+                ? 'matrix-output-group'
+                : null,
+            outputPrivateGroupId: output == GanaOutputType.privateGroup
+                ? 'matrix-output-private'
+                : null,
+            outputDmConversationId:
+                output == GanaOutputType.dm ? conversation.id : null,
+            triggerReactive: true,
+            triggerMode: GanaTriggerMode.recurring,
+            triggerIntervalMinutes: 1,
+          );
+          await engine.start();
+
+          final source = 'Matrix source from ${input.name}';
+          await isar.writeTxn(() async {
+            await isar.noteModels.put(NoteModel(
+              eventId: 'matrix-input-event',
+              sig: 'sig',
+              authorPubkey:
+                  input == GanaInputType.user ? inputRef : 'matrix-peer',
+              content: source,
+              kind: switch (input) {
+                GanaInputType.group => kGroupMessageKind,
+                GanaInputType.privateGroup => kPrivateGroupKind,
+                GanaInputType.dm => kDmTextKind,
+                _ => kNoteKind,
+              },
+              groupId: input == GanaInputType.group ? inputRef : null,
+              privateGroupId:
+                  input == GanaInputType.privateGroup ? inputRef : null,
+              conversationId:
+                  input == GanaInputType.dm ? conversation.id : null,
+              eTagRefs: input == GanaInputType.followedNote
+                  ? const ['matrix-root']
+                  : const [],
+              type: NoteType.text,
+              pTagRefs: const [],
+              tTags: const [],
+              created: DateTime.now(),
+            ));
+          });
+
+          await engine.debugMaybeRunInterval(ganaId);
+          final run = await waitForRun(ganaId);
+          expect(run?.status, GanaRunStatus.succeeded);
+          expect(run?.inputEventIds, ['matrix-input-event']);
+          final request = verify(() => generateOneShot.call(captureAny()))
+              .captured.single as GenerateOneShotInput;
+          expect(request.prompt, contains(source));
+
+          switch (output) {
+            case GanaOutputType.feed:
+              final published = verify(() => publishNote.call(captureAny()))
+                  .captured.single as NoteEntity;
+              expect(published.content, body);
+            case GanaOutputType.group:
+              final published = verify(() => groupMessage.call(captureAny()))
+                  .captured.single as CreateGroupMessageInput;
+              expect(published.groupId, 'matrix-output-group');
+              expect(published.content, body);
+            case GanaOutputType.privateGroup:
+              verify(() => privateGroup.execute(
+                    groupId: 'matrix-output-private',
+                    content: body,
+                    authorPubkey: any(named: 'authorPubkey'),
+                    privkeyHex: any(named: 'privkeyHex'),
+                  )).called(1);
+            case GanaOutputType.dm:
+              final published = verify(() => dm.call(captureAny()))
+                  .captured.single as SendDmParams;
+              expect(published.otherPubkey, 'matrix-recipient');
+              expect(published.content, body);
+          }
+          if (output != GanaOutputType.feed) {
+            verifyNever(() => publishNote.call(any()));
+          }
+          if (output != GanaOutputType.group) {
+            verifyNever(() => groupMessage.call(any()));
+          }
+          if (output != GanaOutputType.privateGroup) {
+            verifyNever(() => privateGroup.execute(
+                  groupId: any(named: 'groupId'),
+                  content: any(named: 'content'),
+                  authorPubkey: any(named: 'authorPubkey'),
+                  privkeyHex: any(named: 'privkeyHex'),
+                ));
+          }
+          if (output != GanaOutputType.dm) {
+            verifyNever(() => dm.call(any()));
+          }
+        });
+      }
+    }
+  });
+
+  registerCoreGroup('reactive (input-driven) cloud Gana', () {
+    test('private-group input can drive Brahma scope to a private-group output',
+        () async {
+      when(() => isCloudConnected.call()).thenAnswer((_) async => true);
+      when(() => generateOneShot.call(any()))
+          .thenAnswer((_) async => const Right('Private cross reply'));
+      when(() => privateGroup.execute(
+            groupId: any(named: 'groupId'),
+            content: any(named: 'content'),
+            authorPubkey: any(named: 'authorPubkey'),
+            privkeyHex: any(named: 'privkeyHex'),
+          )).thenAnswer((_) async {});
+      await seedGana(
+        ganaId: 'private-cross-1',
+        desiredBackend: LlmBackendType.uniunCloud,
+        desiredModelId: 'claude-cloud-mini',
+        inputType: GanaInputType.privateGroup,
+        inputRefId: 'pg-input',
+        outputType: GanaOutputType.privateGroup,
+        outputPrivateGroupId: 'pg-output',
+        triggerReactive: true,
+        triggerMode: GanaTriggerMode.oneShot,
+      );
+
+      await engine.start();
+      await isar.writeTxn(() async {
+        await isar.noteModels.put(NoteModel(
+          eventId: 'private-input-event',
+          sig: '',
+          authorPubkey: 'other-member',
+          content: 'Private group question',
+          kind: kPrivateGroupKind,
+          privateGroupId: 'pg-input',
+          type: NoteType.text,
+          eTagRefs: const [],
+          pTagRefs: const [],
+          tTags: const [],
+          created: DateTime.now(),
+        ));
+      });
+
+      final run = await waitForRun('private-cross-1',
+          timeout: const Duration(seconds: 8));
+      expect(run?.status, GanaRunStatus.succeeded);
+      expect(run?.inputEventIds, ['private-input-event']);
+      verify(() => manasLoader.mergeAll(
+            selfPubkey: any(named: 'selfPubkey'),
+            budget: any(named: 'budget'),
+            relevanceQuery: 'Private group question',
+          )).called(1);
+      verify(() => privateGroup.execute(
+            groupId: 'pg-output',
+            content: 'Private cross reply',
+            authorPubkey: any(named: 'authorPubkey'),
+            privkeyHex: any(named: 'privkeyHex'),
+          )).called(1);
+    });
+
+    test('followed-note input can drive a DM output', () async {
+      when(() => isCloudConnected.call()).thenAnswer((_) async => true);
+      when(() => generateOneShot.call(any()))
+          .thenAnswer((_) async => const Right('Followed note DM reply'));
+      when(() => dm.call(any())).thenAnswer((_) async => const Right(unit));
+      final conv = DmConversationModel()..otherPubkey = 'dm-peer';
+      await isar.writeTxn(() async {
+        await isar.dmConversationModels.put(conv);
+      });
+      await seedGana(
+        ganaId: 'followed-to-dm-1',
+        desiredBackend: LlmBackendType.uniunCloud,
+        desiredModelId: 'claude-cloud-mini',
+        inputType: GanaInputType.followedNote,
+        inputRefId: 'followed-root',
+        outputType: GanaOutputType.dm,
+        outputDmConversationId: conv.id,
+        triggerReactive: true,
+        triggerMode: GanaTriggerMode.oneShot,
+      );
+
+      await engine.start();
+      await isar.writeTxn(() async {
+        await isar.noteModels.put(NoteModel(
+          eventId: 'followed-reply-event',
+          sig: 'sig',
+          authorPubkey: 'other-member',
+          content: 'Reply to followed note',
+          kind: kNoteKind,
+          type: NoteType.text,
+          eTagRefs: const ['followed-root'],
+          pTagRefs: const [],
+          tTags: const [],
+          created: DateTime.now(),
+        ));
+      });
+
+      final run = await waitForRun('followed-to-dm-1',
+          timeout: const Duration(seconds: 8));
+      expect(run?.status, GanaRunStatus.succeeded);
+      expect(run?.inputEventIds, ['followed-reply-event']);
+      final sent = verify(() => dm.call(captureAny())).captured.single
+          as SendDmParams;
+      expect(sent.otherPubkey, 'dm-peer');
+      expect(sent.content, 'Followed note DM reply');
+    });
+
+    test('one-shot waits for the first matching message, then disables and '
+        'ignores later messages', () async {
+      when(() => isCloudConnected.call()).thenAnswer((_) async => true);
+      when(() => generateOneShot.call(any()))
+          .thenAnswer((_) async => const Right('First reply'));
+      await seedGana(
+        ganaId: 'first-message-1',
+        desiredBackend: LlmBackendType.uniunCloud,
+        desiredModelId: 'claude-cloud-mini',
+        inputType: GanaInputType.user,
+        inputRefId: 'watched-first',
+        triggerReactive: true,
+        triggerMode: GanaTriggerMode.oneShot,
+      );
+
+      await engine.start();
+      expect(await waitForRun('first-message-1',
+          timeout: const Duration(milliseconds: 700)), isNull);
+      await seedNote(eventId: 'first-message', authorPubkey: 'watched-first');
+      final first = await waitForRun('first-message-1',
+          timeout: const Duration(seconds: 8));
+      expect(first?.status, GanaRunStatus.succeeded);
+      expect(first?.inputEventIds, ['first-message']);
+      final gana = await isar.ganaModels
+          .filter()
+          .ganaIdEqualTo('first-message-1')
+          .findFirst();
+      expect(gana?.enabled, isFalse);
+
+      await seedNote(eventId: 'second-message', authorPubkey: 'watched-first');
+      await Future<void>.delayed(const Duration(seconds: 4));
+      expect(await isar.ganaRunModels
+          .filter()
+          .ganaIdEqualTo('first-message-1')
+          .count(), 1);
+      verify(() => generateOneShot.call(any())).called(1);
+    });
+
+    test('recurring input uses each new message once and advances its cursor',
+        () async {
+      when(() => isCloudConnected.call()).thenAnswer((_) async => true);
+      when(() => generateOneShot.call(any()))
+          .thenAnswer((_) async => const Right('Recurring reply'));
+      await seedGana(
+        ganaId: 'every-message-1',
+        desiredBackend: LlmBackendType.uniunCloud,
+        desiredModelId: 'claude-cloud-mini',
+        inputType: GanaInputType.user,
+        inputRefId: 'watched-recurring',
+        triggerReactive: true,
+        triggerMode: GanaTriggerMode.recurring,
+        maxOutputs: 3,
+      );
+
+      await engine.start();
+      await seedNote(eventId: 'recurring-first',
+          authorPubkey: 'watched-recurring');
+      final first = await waitForRun('every-message-1',
+          timeout: const Duration(seconds: 8));
+      expect(first?.status, GanaRunStatus.succeeded);
+      expect(first?.inputEventIds, ['recurring-first']);
+
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await seedNote(eventId: 'recurring-second',
+          authorPubkey: 'watched-recurring');
+      final deadline = DateTime.now().add(const Duration(seconds: 8));
+      List<GanaRunModel> runs = const [];
+      while (DateTime.now().isBefore(deadline)) {
+        runs = await isar.ganaRunModels
+            .filter()
+            .ganaIdEqualTo('every-message-1')
+            .findAll();
+        if (runs.length >= 2) break;
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+      expect(runs.length, 2);
+      expect(runs.map((r) => r.inputEventIds.single).toSet(),
+          {'recurring-first', 'recurring-second'});
+      final gana = await isar.ganaModels
+          .filter()
+          .ganaIdEqualTo('every-message-1')
+          .findFirst();
+      expect(gana?.enabled, isTrue);
+      verify(() => generateOneShot.call(any())).called(2);
+    });
+
     test('a new note from the watched user fires the Gana via the cloud '
         'override', () async {
       when(() => isCloudConnected.call()).thenAnswer((_) async => true);
@@ -609,7 +1077,7 @@ void main() {
     });
   });
 
-  group('recurring maxOutputs cap', () {
+  registerCoreGroup('recurring maxOutputs cap', () {
     test('a recurring Gana already at its maxOutputs cap skips and '
         'auto-disables, even with genuinely new input waiting', () async {
       when(() => isCloudConnected.call()).thenAnswer((_) async => true);
@@ -676,7 +1144,7 @@ void main() {
     });
   });
 
-  group('no active user', () {
+  registerCoreGroup('no active user', () {
     test('skipped(noActiveModel) with a "no active user" error, never '
         'reaches inference', () async {
       userRepo.keys = null;
@@ -698,7 +1166,7 @@ void main() {
     });
   });
 
-  group('fully-unset Gana whose global-model lookup fails', () {
+  registerCoreGroup('fully-unset Gana whose global-model lookup fails', () {
     test('a getActiveLlmModel failure degrades to null (fold\'s Left '
         'branch), falling through to the local gate', () async {
       when(() => getActiveLlmModel.call())
@@ -715,7 +1183,7 @@ void main() {
     });
   });
 
-  group('local (on-device) generation — gateway reports an active model',
+  registerCoreGroup('local (on-device) generation — gateway reports an active model',
       () {
     setUp(() {
       when(() => gateway.hasActiveModel()).thenReturn(true);
@@ -782,7 +1250,7 @@ void main() {
     });
   });
 
-  group('inference failure / noop (cloud path — no gateway needed)', () {
+  registerCoreGroup('inference failure / noop (cloud path — no gateway needed)', () {
     test('a cloud generateOneShot Left surfaces as a failed run', () async {
       when(() => isCloudConnected.call()).thenAnswer((_) async => true);
       when(() => generateOneShot.call(any()))
@@ -823,7 +1291,7 @@ void main() {
     });
   });
 
-  group('publish failures surface as a failed run', () {
+  registerCoreGroup('publish failures surface as a failed run', () {
     test('publishNote throwing directly is caught as a failed run',
         () async {
       when(() => isCloudConnected.call()).thenAnswer((_) async => true);
@@ -999,7 +1467,7 @@ void main() {
     });
   });
 
-  group('publish success resolves the real eventId over the synthetic '
+  registerCoreGroup('publish success resolves the real eventId over the synthetic '
       'fallback', () {
     test('privateGroup: a matching NoteModel written by the (mocked) '
         'transport is picked up as the real outputEventId', () async {
@@ -1089,12 +1557,12 @@ void main() {
     });
   });
 
-  group('unexpected exception inside a run', () {
-    test('a manasLoader.merge throw is caught by _runIfPossible\'s outer '
+  registerCoreGroup('unexpected exception inside a run', () {
+    test('a Brahma knowledge loader throw is caught by _runIfPossible\'s outer '
         'guard — no run log, no crash, mutex released', () async {
       when(() => isCloudConnected.call()).thenAnswer((_) async => true);
-      when(() => manasLoader.merge(
-            manasIds: any(named: 'manasIds'),
+      when(() => manasLoader.mergeAll(
+            selfPubkey: any(named: 'selfPubkey'),
             budget: any(named: 'budget'),
             relevanceQuery: any(named: 'relevanceQuery'),
           )).thenThrow(Exception('vector index corrupt'));
@@ -1111,7 +1579,7 @@ void main() {
     });
   });
 
-  group('schedule reacts to config changes and interval timers', () {
+  registerCoreGroup('schedule reacts to config changes and interval timers', () {
     test('an interval-configured Gana installs a periodic timer without '
         'crashing, and stop() tears it down cleanly', () async {
       await seedGana(

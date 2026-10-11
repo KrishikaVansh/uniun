@@ -12,6 +12,10 @@ abstract class GanaEntity with _$GanaEntity {
     required String ganaId,
     required String name,
     @Default(<String>[]) List<String> manasIds,
+
+    /// Run without any knowledge. When false, an empty [manasIds] means the
+    /// whole Brahma knowledge base.
+    @Default(false) bool noKnowledge,
     required String taskPrompt,
 
     // Input

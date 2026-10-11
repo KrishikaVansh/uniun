@@ -9,6 +9,7 @@ class GanaFormState {
     this.ganaId,
     this.name = '',
     this.selectedManasId,
+    this.noKnowledge = false,
     this.taskPrompt = '',
     this.inputType,
     this.inputRefId,
@@ -39,9 +40,11 @@ class GanaFormState {
 
   final String name;
 
-  /// Single Manas backing the Gana (null until picked). Persisted as a
-  /// one-element `manasIds` list on the entity.
+  /// A selected Manas, or null for the whole Brahma knowledge base.
   final String? selectedManasId;
+
+  /// The Gana runs with no knowledge. Wins over [selectedManasId].
+  final bool noKnowledge;
   final String taskPrompt;
 
   final GanaInputType? inputType;
@@ -95,7 +98,6 @@ class GanaFormState {
   bool get canSave {
     if (name.trim().isEmpty) return false;
     if (taskPrompt.trim().isEmpty) return false;
-    if (selectedManasId == null) return false;
     if (inputType != null && (inputRefId == null || inputRefId!.isEmpty)) {
       return false;
     }
@@ -148,7 +150,6 @@ class GanaFormState {
   /// "no reason; save should be possible".
   String? saveBlocker(AppLocalizations l10n) {
     if (name.trim().isEmpty) return l10n.ganaFormBlockerName;
-    if (selectedManasId == null) return l10n.ganaFormBlockerManas;
     if (taskPrompt.trim().isEmpty) return l10n.ganaFormBlockerTask;
     if (inputType != null && (inputRefId == null || inputRefId!.isEmpty)) {
       return l10n.ganaFormBlockerInputRef;
@@ -189,6 +190,13 @@ class GanaFormState {
     return null;
   }
 
+  /// Brahma (every note) is the scope and a cloud model is pinned: the notes
+  /// would leave the device.
+  bool get sendsBrahmaToCloud =>
+      desiredBackend == LlmBackendType.uniunCloud &&
+      selectedManasId == null &&
+      !noKnowledge;
+
   GanaFormState copyWith({
     GanaFormStatus? status,
     bool? isEditMode,
@@ -196,6 +204,7 @@ class GanaFormState {
     String? name,
     String? selectedManasId,
     bool clearSelectedManasId = false,
+    bool? noKnowledge,
     String? taskPrompt,
     GanaInputType? inputType,
     bool clearInputType = false,
@@ -236,6 +245,7 @@ class GanaFormState {
       selectedManasId: clearSelectedManasId
           ? null
           : (selectedManasId ?? this.selectedManasId),
+      noKnowledge: noKnowledge ?? this.noKnowledge,
       taskPrompt: taskPrompt ?? this.taskPrompt,
       inputType: clearInputType ? null : (inputType ?? this.inputType),
       inputRefId: clearInputRefId ? null : (inputRefId ?? this.inputRefId),

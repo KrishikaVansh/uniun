@@ -3257,7 +3257,7 @@
   "@ganaListNew": {
     "description": "Label for the create-new-Gana button on the Gana list page"
   },
-  "ganaListSubtitle": "情報源を監視し、Manasを使って考え、あなたに代わって公開する自律型エージェントです。",
+  "ganaListSubtitle": "情報源を監視し、ブラフマーまたはManasを使って考え、あなたに代わって公開する自律型エージェントです。",
   "@ganaListSubtitle": {
     "description": "Intro line below the app bar on the Gana list page"
   },
@@ -3265,7 +3265,7 @@
   "@ganaListPaused": {
     "description": "Status line on a Gana card when the agent is disabled"
   },
-  "ganaListScopeAll": "すべてのノート",
+  "ganaListScopeAll": "ブラフマー",
   "@ganaListScopeAll": {
     "description": "Gana card scope label when no Manas is selected (whole library)"
   },
@@ -3576,17 +3576,25 @@
   "@ganaFormManasSectionTitle": {
     "description": "Section title above the Manas picker"
   },
-  "ganaFormManasSectionSubtitle": "このGanaが考えるために使うManasです。",
+  "ganaFormManasSectionSubtitle": "すべての知識にはブラフマー、特定のコレクションにはManas、または知識なしを選んでください。",
   "@ganaFormManasSectionSubtitle": {
     "description": "Helper text under the section title"
   },
-  "ganaFormManasEmpty": "Manasがまだありません。Ganaが考えるには知識ベースが必要です。先にManasを作成してください。",
+  "ganaFormManasEmpty": "Manasはまだありません。ブラフマーを使うか、特定のコレクション用にManasを作成できます。",
   "@ganaFormManasEmpty": {
     "description": "Empty-state when the user has no Manases"
   },
   "ganaFormManasCreateNew": "Manasを作成",
   "@ganaFormManasCreateNew": {
     "description": "Inline CTA to open the Manas form from the Gana form"
+  },
+  "ganaScopeNone": "知識なし",
+  "@ganaScopeNone": {
+    "description": "Gana scope label and form chip when the agent uses no notes at all"
+  },
+  "ganaFormBrahmaCloudWarning": "ブラフマーは、選んだクラウドモデルにあなたのノートを送ります。端末内に留めるには、Manasまたは知識なしを選んでください。",
+  "@ganaFormBrahmaCloudWarning": {
+    "description": "Warning under the knowledge scope when a cloud model is pinned and Brahma is selected"
   },
   "ganaFormModeRecurring": "繰り返し",
   "@ganaFormModeRecurring": {
@@ -3607,10 +3615,6 @@
   "ganaFormBlockerName": "続行するには名前を追加してください。",
   "@ganaFormBlockerName": {
     "description": "Save-blocker hint: missing name"
-  },
-  "ganaFormBlockerManas": "Manasを1つ以上選択してください。Ganaが考えるには知識が必要です。",
-  "@ganaFormBlockerManas": {
-    "description": "Save-blocker hint: no Manas selected"
   },
   "ganaFormBlockerTask": "Ganaが何をするか分かるように、指示を入力してください。",
   "@ganaFormBlockerTask": {
@@ -4086,10 +4090,6 @@
   "graphEmptyHint": "ノートを保存してナレッジ グラフを構築します。\n\nエッジは、あるノートが別のノートを参照するときに表示されます。",
   "@graphEmptyHint": {
     "description": "Empty-state message shown on the knowledge graph canvas when there are no notes yet"
-  },
-  "ganaDetailManasesLabel": "マナセス",
-  "@ganaDetailManasesLabel": {
-    "description": "Label on the Gana detail card for the number of Manases the agent draws from"
   },
   "settingsAppearance": "外観",
   "@settingsAppearance": {

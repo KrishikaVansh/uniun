@@ -4695,7 +4695,7 @@ abstract class AppLocalizations {
   /// Intro line below the app bar on the Gana list page
   ///
   /// In en, this message translates to:
-  /// **'Autonomous agents that watch a surface, reason over a Manas, and publish for you.'**
+  /// **'Autonomous agents that watch a surface, use Brahma or a Manas, and publish for you.'**
   String get ganaListSubtitle;
 
   /// Status line on a Gana card when the agent is disabled
@@ -4707,7 +4707,7 @@ abstract class AppLocalizations {
   /// Gana card scope label when no Manas is selected (whole library)
   ///
   /// In en, this message translates to:
-  /// **'All notes'**
+  /// **'Brahma'**
   String get ganaListScopeAll;
 
   /// Gana card scope label showing how many Manas the agent reasons over
@@ -5067,13 +5067,13 @@ abstract class AppLocalizations {
   /// Helper text under the section title
   ///
   /// In en, this message translates to:
-  /// **'The Manas this Gana reasons over.'**
+  /// **'Choose Brahma for all your knowledge, a Manas for one collection, or no knowledge.'**
   String get ganaFormManasSectionSubtitle;
 
   /// Empty-state when the user has no Manases
   ///
   /// In en, this message translates to:
-  /// **'No Manases yet. A Gana needs a knowledge base to reason over — create one to continue.'**
+  /// **'No Manases yet. You can use Brahma or create a Manas for a focused collection.'**
   String get ganaFormManasEmpty;
 
   /// Inline CTA to open the Manas form from the Gana form
@@ -5081,6 +5081,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Create Manas'**
   String get ganaFormManasCreateNew;
+
+  /// Gana scope label and form chip when the agent uses no notes at all
+  ///
+  /// In en, this message translates to:
+  /// **'No knowledge'**
+  String get ganaScopeNone;
+
+  /// Warning under the knowledge scope when a cloud model is pinned and Brahma is selected
+  ///
+  /// In en, this message translates to:
+  /// **'Brahma sends your notes to the cloud model you picked. Choose a Manas or No knowledge to keep them on this device.'**
+  String get ganaFormBrahmaCloudWarning;
 
   /// Cron-job mode label
   ///
@@ -5111,12 +5123,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Add a name to continue.'**
   String get ganaFormBlockerName;
-
-  /// Save-blocker hint: no Manas selected
-  ///
-  /// In en, this message translates to:
-  /// **'Pick at least one Manas — a Gana needs knowledge to reason over.'**
-  String get ganaFormBlockerManas;
 
   /// Save-blocker hint: empty task prompt
   ///
@@ -5807,12 +5813,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Save notes to build your knowledge graph.\n\nEdges appear when one note references another.'**
   String get graphEmptyHint;
-
-  /// Label on the Gana detail card for the number of Manases the agent draws from
-  ///
-  /// In en, this message translates to:
-  /// **'Manases'**
-  String get ganaDetailManasesLabel;
 
   /// Settings section label for appearance-related options (theme mode)
   ///

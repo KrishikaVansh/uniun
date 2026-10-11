@@ -2567,13 +2567,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ganaListSubtitle =>
-      'Autonomous agents that watch a surface, reason over a Manas, and publish for you.';
+      'Autonomous agents that watch a surface, use Brahma or a Manas, and publish for you.';
 
   @override
   String get ganaListPaused => 'Paused';
 
   @override
-  String get ganaListScopeAll => 'All notes';
+  String get ganaListScopeAll => 'Brahma';
 
   @override
   String ganaListScopeCount(int count) {
@@ -2804,14 +2804,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ganaFormManasSectionSubtitle =>
-      'The Manas this Gana reasons over.';
+      'Choose Brahma for all your knowledge, a Manas for one collection, or no knowledge.';
 
   @override
   String get ganaFormManasEmpty =>
-      'No Manases yet. A Gana needs a knowledge base to reason over — create one to continue.';
+      'No Manases yet. You can use Brahma or create a Manas for a focused collection.';
 
   @override
   String get ganaFormManasCreateNew => 'Create Manas';
+
+  @override
+  String get ganaScopeNone => 'No knowledge';
+
+  @override
+  String get ganaFormBrahmaCloudWarning =>
+      'Brahma sends your notes to the cloud model you picked. Choose a Manas or No knowledge to keep them on this device.';
 
   @override
   String get ganaFormModeRecurring => 'Recurring';
@@ -2829,10 +2836,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ganaFormBlockerName => 'Add a name to continue.';
-
-  @override
-  String get ganaFormBlockerManas =>
-      'Pick at least one Manas — a Gana needs knowledge to reason over.';
 
   @override
   String get ganaFormBlockerTask =>
@@ -3209,9 +3212,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get graphEmptyHint =>
       'Save notes to build your knowledge graph.\n\nEdges appear when one note references another.';
-
-  @override
-  String get ganaDetailManasesLabel => 'Manases';
 
   @override
   String get settingsAppearance => 'Appearance';

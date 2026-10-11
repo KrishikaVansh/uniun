@@ -3257,7 +3257,7 @@
   "@ganaListNew": {
     "description": "Label for the create-new-Gana button on the Gana list page"
   },
-  "ganaListSubtitle": "સ્વાયત્ત એજન્ટો જે સપાટીને જુએ છે, માનસ પર તર્ક આપે છે અને તમારા માટે પ્રકાશિત કરે છે.",
+  "ganaListSubtitle": "સ્વાયત્ત એજન્ટો જે માહિતી જુએ છે, બ્રહ્મા અથવા માનસનો ઉપયોગ કરે છે અને તમારા માટે પ્રકાશિત કરે છે.",
   "@ganaListSubtitle": {
     "description": "Intro line below the app bar on the Gana list page"
   },
@@ -3265,7 +3265,7 @@
   "@ganaListPaused": {
     "description": "Status line on a Gana card when the agent is disabled"
   },
-  "ganaListScopeAll": "બધી નોંધો",
+  "ganaListScopeAll": "બ્રહ્મા",
   "@ganaListScopeAll": {
     "description": "Gana card scope label when no Manas is selected (whole library)"
   },
@@ -3576,17 +3576,25 @@
   "@ganaFormManasSectionTitle": {
     "description": "Section title above the Manas picker"
   },
-  "ganaFormManasSectionSubtitle": "માનસ આ ગણ ઉપર કારણ આપે છે.",
+  "ganaFormManasSectionSubtitle": "બધા જ્ઞાન માટે બ્રહ્મા, એક સંગ્રહ માટે માનસ, અથવા કોઈ જ્ઞાન નહીં પસંદ કરો.",
   "@ganaFormManasSectionSubtitle": {
     "description": "Helper text under the section title"
   },
-  "ganaFormManasEmpty": "હજુ સુધી કોઈ માનેસ નથી. ગણને તર્ક માટે જ્ઞાન આધારની જરૂર હોય છે - ચાલુ રાખવા માટે એક બનાવો.",
+  "ganaFormManasEmpty": "હજુ કોઈ માનસ નથી. તમે બ્રહ્માનો ઉપયોગ કરી શકો છો અથવા ચોક્કસ સંગ્રહ માટે માનસ બનાવી શકો છો.",
   "@ganaFormManasEmpty": {
     "description": "Empty-state when the user has no Manases"
   },
   "ganaFormManasCreateNew": "માનસ બનાવો",
   "@ganaFormManasCreateNew": {
     "description": "Inline CTA to open the Manas form from the Gana form"
+  },
+  "ganaScopeNone": "કોઈ જ્ઞાન નહીં",
+  "@ganaScopeNone": {
+    "description": "Gana scope label and form chip when the agent uses no notes at all"
+  },
+  "ganaFormBrahmaCloudWarning": "બ્રહ્મા તમારી નોંધો તમે પસંદ કરેલા ક્લાઉડ મોડલને મોકલે છે. તેમને આ ઉપકરણ પર રાખવા માટે માનસ અથવા કોઈ જ્ઞાન નહીં પસંદ કરો.",
+  "@ganaFormBrahmaCloudWarning": {
+    "description": "Warning under the knowledge scope when a cloud model is pinned and Brahma is selected"
   },
   "ganaFormModeRecurring": "રિકરિંગ",
   "@ganaFormModeRecurring": {
@@ -3607,10 +3615,6 @@
   "ganaFormBlockerName": "ચાલુ રાખવા માટે નામ ઉમેરો.",
   "@ganaFormBlockerName": {
     "description": "Save-blocker hint: missing name"
-  },
-  "ganaFormBlockerManas": "ઓછામાં ઓછું એક માનસ પસંદ કરો - ગણને તર્ક માટે જ્ઞાનની જરૂર હોય છે.",
-  "@ganaFormBlockerManas": {
-    "description": "Save-blocker hint: no Manas selected"
   },
   "ganaFormBlockerTask": "ટાસ્ક પ્રોમ્પ્ટ લખો જેથી ગણને ખબર પડે કે શું કરવું.",
   "@ganaFormBlockerTask": {
@@ -4086,10 +4090,6 @@
   "graphEmptyHint": "તમારા જ્ઞાનનો ગ્રાફ બનાવવા માટે નોંધો સાચવો.\n\nજ્યારે એક નોંધ બીજી નોંધનો સંદર્ભ આપે છે ત્યારે ધાર દેખાય છે.",
   "@graphEmptyHint": {
     "description": "Empty-state message shown on the knowledge graph canvas when there are no notes yet"
-  },
-  "ganaDetailManasesLabel": "માનસેસ",
-  "@ganaDetailManasesLabel": {
-    "description": "Label on the Gana detail card for the number of Manases the agent draws from"
   },
   "settingsAppearance": "દેખાવ",
   "@settingsAppearance": {

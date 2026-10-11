@@ -52,9 +52,23 @@ class GanaFormBloc extends Bloc<GanaFormEvent, GanaFormState> {
     this._requestProfileFetch,
   ) : super(const GanaFormState()) {
     on<GanaFormLoadEvent>(_onLoad);
+    on<GanaFormRefreshManasesEvent>((event, emit) async {
+      final result = await _getManases.call();
+      result.fold((_) {}, (manases) => emit(state.copyWith(manases: manases)));
+    });
     on<GanaFormNameChangedEvent>((e, em) =>
         em(state.copyWith(name: e.value, clearError: true)));
     on<GanaFormToggleManasEvent>(_onToggleManas);
+    on<GanaFormSelectBrahmaEvent>(
+      (event, emit) => emit(
+        state.copyWith(clearSelectedManasId: true, noKnowledge: false),
+      ),
+    );
+    on<GanaFormSelectNoKnowledgeEvent>(
+      (event, emit) => emit(
+        state.copyWith(clearSelectedManasId: true, noKnowledge: true),
+      ),
+    );
     on<GanaFormTaskPromptChangedEvent>(
         (e, em) => em(state.copyWith(taskPrompt: e.value)));
     on<GanaFormInputTypeChangedEvent>(_onInputType);
@@ -171,6 +185,7 @@ class GanaFormBloc extends Bloc<GanaFormEvent, GanaFormState> {
       ganaId: gana.ganaId,
       name: gana.name,
       selectedManasId: gana.manasIds.isEmpty ? null : gana.manasIds.first,
+      noKnowledge: gana.noKnowledge,
       taskPrompt: gana.taskPrompt,
       inputType: gana.inputType,
       inputRefId: gana.inputRefId,
@@ -200,9 +215,9 @@ class GanaFormBloc extends Bloc<GanaFormEvent, GanaFormState> {
     // Single-select: tapping the active Manas clears it; tapping another
     // replaces the selection.
     if (state.selectedManasId == event.manasId) {
-      emit(state.copyWith(clearSelectedManasId: true));
+      emit(state.copyWith(clearSelectedManasId: true, noKnowledge: false));
     } else {
-      emit(state.copyWith(selectedManasId: event.manasId));
+      emit(state.copyWith(selectedManasId: event.manasId, noKnowledge: false));
     }
   }
 
@@ -313,8 +328,10 @@ class GanaFormBloc extends Bloc<GanaFormEvent, GanaFormState> {
     final entity = GanaEntity(
       ganaId: state.ganaId ?? const Uuid().v4(),
       name: state.name.trim(),
-      manasIds:
-          state.selectedManasId == null ? const [] : [state.selectedManasId!],
+      manasIds: state.noKnowledge || state.selectedManasId == null
+          ? const []
+          : [state.selectedManasId!],
+      noKnowledge: state.noKnowledge,
       taskPrompt: state.taskPrompt.trim(),
       inputType: state.inputType,
       inputRefId: state.inputRefId,

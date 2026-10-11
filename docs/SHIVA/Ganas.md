@@ -1,4 +1,4 @@
-# Ganas — User-Owned AI Agents on Top of Manas
+# Ganas — User-Owned AI Agents with Brahma or Manas Knowledge
 
 > **Status**: Phase 2 (shipped foreground; background tick installed; background inference gated on `flutter_gemma_bg_isolate_test.dart`).
 > **Lives in**: Shiv (the AI assistant tab).
@@ -11,7 +11,7 @@
 > background-tick path is unchanged (it has its own ephemeral isolate
 > spawned by the OS).
 
-A **Gana** ("गण" — a band, group, or attendant in Sanskrit) is a user-defined AI worker. The user gives it knowledge (one or more **Manases**), instructions (a **task prompt**), an **input** to watch, an **output** to publish to, and **triggers**. Once enabled, the Gana runs by itself — on-device — and publishes results as real Nostr events.
+A **Gana** ("गण" — a band, group, or attendant in Sanskrit) is a user-defined AI worker. The user gives it knowledge (the whole **Brahma** knowledge base or a **Manas**), instructions (a **task prompt**), an **input** to watch, an **output** to publish to, and **triggers**. Once enabled, the Gana runs by itself — on-device — and publishes results as real Nostr events.
 
 Ganas are **purely local config** — they never broadcast as Nostr events. Two devices with the same identity have independent Gana sets.
 
@@ -42,7 +42,8 @@ Ganas are **purely local config** — they never broadcast as Nostr events. Two 
 |---|---|
 | `name` | required, ≤60 chars |
 | `description` | optional |
-| `manasIds` | **one or more** Manases — context is merged across all of them under a shared budget |
+| `manasIds` | Empty means Brahma (whole knowledge base); the form selects at most one Manas. Rows that already hold several Manases still merge their context at run time, but editing and saving such a Gana in the form keeps only the first one. |
+| `noKnowledge` | `true` runs the Gana with no knowledge at all (no notes in the prompt, nothing loaded); it wins over `manasIds`. `false` on every older row. Synced in the mesh body (`noKnowledge`; an older device ignores it). |
 | `taskPrompt` | user-authored instructions injected into every prompt |
 | `inputType` + `inputRefId` | input surface — `channel`, `privateChannel`, `dm`, `user`, `followedNote`, or `null` (standalone) |
 | `outputType` + ref | destination — `feed`, `channel`, `privateChannel`, `dm` (exactly one is published per run) |
@@ -300,6 +301,19 @@ the right semantic for "reply with the most relevant note."
 
 Standalone Ganas (no input) still use newest-first — there's nothing to
 score against.
+
+For a Gana with empty `manasIds`, the foreground engine uses `mergeAll` and
+the background worker uses `packAllNewest`. Both use `loadAll` to collect
+saved notes, the active user's own notes, drafts, and notes linked to any
+Manas, then dedupe and pack under the same token budget. The foreground
+path ranks against an input message when one is available. The form treats
+empty `manasIds` as the explicit Brahma choice; returning from Manas creation
+refreshes only the picker so an unsaved Gana draft stays intact.
+
+The form offers three choices: **No knowledge** (`noKnowledge: true`),
+**Brahma** (empty `manasIds`, the default) and one Manas. A Gana pinned to a
+cloud model with Brahma selected shows a warning that its notes are sent to
+that model; the other two choices keep them on the device.
 
 ---
 

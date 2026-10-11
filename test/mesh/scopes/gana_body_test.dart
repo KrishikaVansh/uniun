@@ -54,6 +54,25 @@ void main() {
     expect(body['updatedAt'], 1720001000000);
   });
 
+  test('the no-knowledge choice round-trips through the wire body', () {
+    final body = GanaBody.forActive(makeRow()..noKnowledge = true);
+
+    expect(body['noKnowledge'], isTrue);
+    expect(GanaBody.applyBody(body, ganaId: 'gana-1').noKnowledge, isTrue);
+  });
+
+  test('a body from an older device (no noKnowledge key) means false', () {
+    final body = GanaBody.forActive(makeRow())..remove('noKnowledge');
+
+    expect(GanaBody.applyBody(body, ganaId: 'gana-1').noKnowledge, isFalse);
+  });
+
+  test('a malformed noKnowledge value falls back to false', () {
+    final body = GanaBody.forActive(makeRow())..['noKnowledge'] = 'yes';
+
+    expect(GanaBody.applyBody(body, ganaId: 'gana-1').noKnowledge, isFalse);
+  });
+
   test('forActive does NOT leak runtime cursor state onto the wire', () {
     final body = GanaBody.forActive(makeRow());
     // Per-device cursors are intentionally excluded from the mesh wire.

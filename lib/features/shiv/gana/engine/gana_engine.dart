@@ -427,11 +427,21 @@ class GanaEngine {
       gana: g,
       selfPubkeyHex: keys.pubkeyHex,
       selfOutputs: selfOutputs,
-      loadKnowledge: (query) => _manasLoader.merge(
-        manasIds: g.manasIds,
-        budget: GanaPromptBuilder.defaultMaxTokens ~/ 2,
-        relevanceQuery: query,
-      ),
+      loadKnowledge: (query) async {
+        if (g.noKnowledge) return const <PackedNote>[];
+        if (g.manasIds.isEmpty) {
+          return _manasLoader.mergeAll(
+            selfPubkey: keys.pubkeyHex,
+            budget: GanaPromptBuilder.defaultMaxTokens ~/ 2,
+            relevanceQuery: query,
+          );
+        }
+        return _manasLoader.merge(
+          manasIds: g.manasIds,
+          budget: GanaPromptBuilder.defaultMaxTokens ~/ 2,
+          relevanceQuery: query,
+        );
+      },
     );
     if (prepared == null) {
       debugPrint('[gana]   SKIPPED: noNewInput');
@@ -446,8 +456,13 @@ class GanaEngine {
     }
     final inputs = prepared.inputs;
     final prompt = prepared.prompt;
+    final scope = g.noKnowledge
+        ? 'none'
+        : g.manasIds.isEmpty
+            ? 'Brahma'
+            : prepared.manasNames.join(', ');
     debugPrint('[gana]   input filter: ${inputs.length} note(s); '
-        'Manas: ${prepared.manasNames.join(", ")}; '
+        'scope: $scope; '
         'prompt: ${prompt.length} chars (~${prompt.length ~/ 4} tokens)');
 
     // Inference — direct call, no SendPort.

@@ -3249,7 +3249,7 @@
   "@ganaListNew": {
     "description": "Label for the create-new-Gana button on the Gana list page"
   },
-  "ganaListSubtitle": "Autonomous agents that watch a surface, reason over a Manas, and publish for you.",
+  "ganaListSubtitle": "Autonomous agents that watch a surface, use Brahma or a Manas, and publish for you.",
   "@ganaListSubtitle": {
     "description": "Intro line below the app bar on the Gana list page"
   },
@@ -3257,7 +3257,7 @@
   "@ganaListPaused": {
     "description": "Status line on a Gana card when the agent is disabled"
   },
-  "ganaListScopeAll": "All notes",
+  "ganaListScopeAll": "Brahma",
   "@ganaListScopeAll": {
     "description": "Gana card scope label when no Manas is selected (whole library)"
   },
@@ -3568,17 +3568,25 @@
   "@ganaFormManasSectionTitle": {
     "description": "Section title above the Manas picker"
   },
-  "ganaFormManasSectionSubtitle": "The Manas this Gana reasons over.",
+  "ganaFormManasSectionSubtitle": "Choose Brahma for all your knowledge, a Manas for one collection, or no knowledge.",
   "@ganaFormManasSectionSubtitle": {
     "description": "Helper text under the section title"
   },
-  "ganaFormManasEmpty": "No Manases yet. A Gana needs a knowledge base to reason over — create one to continue.",
+  "ganaFormManasEmpty": "No Manases yet. You can use Brahma or create a Manas for a focused collection.",
   "@ganaFormManasEmpty": {
     "description": "Empty-state when the user has no Manases"
   },
   "ganaFormManasCreateNew": "Create Manas",
   "@ganaFormManasCreateNew": {
     "description": "Inline CTA to open the Manas form from the Gana form"
+  },
+  "ganaScopeNone": "No knowledge",
+  "@ganaScopeNone": {
+    "description": "Gana scope label and form chip when the agent uses no notes at all"
+  },
+  "ganaFormBrahmaCloudWarning": "Brahma sends your notes to the cloud model you picked. Choose a Manas or No knowledge to keep them on this device.",
+  "@ganaFormBrahmaCloudWarning": {
+    "description": "Warning under the knowledge scope when a cloud model is pinned and Brahma is selected"
   },
   "ganaFormModeRecurring": "Recurring",
   "@ganaFormModeRecurring": {
@@ -3599,10 +3607,6 @@
   "ganaFormBlockerName": "Add a name to continue.",
   "@ganaFormBlockerName": {
     "description": "Save-blocker hint: missing name"
-  },
-  "ganaFormBlockerManas": "Pick at least one Manas — a Gana needs knowledge to reason over.",
-  "@ganaFormBlockerManas": {
-    "description": "Save-blocker hint: no Manas selected"
   },
   "ganaFormBlockerTask": "Write a task prompt so the Gana knows what to do.",
   "@ganaFormBlockerTask": {
@@ -4078,10 +4082,6 @@
   "graphEmptyHint": "Save notes to build your knowledge graph.\n\nEdges appear when one note references another.",
   "@graphEmptyHint": {
     "description": "Empty-state message shown on the knowledge graph canvas when there are no notes yet"
-  },
-  "ganaDetailManasesLabel": "Manases",
-  "@ganaDetailManasesLabel": {
-    "description": "Label on the Gana detail card for the number of Manases the agent draws from"
   },
   "settingsAppearance": "Appearance",
   "@settingsAppearance": {

@@ -26,6 +26,8 @@ Future<void>? _coreReady;
 /// escapes the mock) into a temp file that is atomically renamed into place,
 /// so concurrent isolates/shards are all safe at any --concurrency.
 Future<void> ensureIsarCore() => _coreReady ??= () async {
+      // Mobile builds bundle IsarCore with the app's native libraries.
+      if (Platform.isAndroid || Platform.isIOS) return;
       final localName = Platform.isMacOS
           ? 'libisar.dylib'
           : Platform.isWindows

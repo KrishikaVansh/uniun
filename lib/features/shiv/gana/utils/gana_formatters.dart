@@ -60,6 +60,8 @@ IconData ganaTriggerIcon(GanaEntity g) =>
     ? Icons.bolt_rounded
     : Icons.schedule_rounded;
 
-String ganaScopeLabel(GanaEntity g, AppLocalizations l10n) => g.manasIds.isEmpty
-    ? l10n.ganaListScopeAll
-    : l10n.ganaListScopeCount(g.manasIds.length);
+String ganaScopeLabel(GanaEntity g, AppLocalizations l10n) => g.noKnowledge
+    ? l10n.ganaScopeNone
+    : g.manasIds.isEmpty
+        ? l10n.ganaListScopeAll
+        : l10n.ganaListScopeCount(g.manasIds.length);

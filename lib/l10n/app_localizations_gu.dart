@@ -2584,13 +2584,13 @@ class AppLocalizationsGu extends AppLocalizations {
 
   @override
   String get ganaListSubtitle =>
-      'સ્વાયત્ત એજન્ટો જે સપાટીને જુએ છે, માનસ પર તર્ક આપે છે અને તમારા માટે પ્રકાશિત કરે છે.';
+      'સ્વાયત્ત એજન્ટો જે માહિતી જુએ છે, બ્રહ્મા અથવા માનસનો ઉપયોગ કરે છે અને તમારા માટે પ્રકાશિત કરે છે.';
 
   @override
   String get ganaListPaused => 'થોભાવ્યું';
 
   @override
-  String get ganaListScopeAll => 'બધી નોંધો';
+  String get ganaListScopeAll => 'બ્રહ્મા';
 
   @override
   String ganaListScopeCount(int count) {
@@ -2820,14 +2820,22 @@ class AppLocalizationsGu extends AppLocalizations {
   String get ganaFormManasSectionTitle => 'જ્ઞાન';
 
   @override
-  String get ganaFormManasSectionSubtitle => 'માનસ આ ગણ ઉપર કારણ આપે છે.';
+  String get ganaFormManasSectionSubtitle =>
+      'બધા જ્ઞાન માટે બ્રહ્મા, એક સંગ્રહ માટે માનસ, અથવા કોઈ જ્ઞાન નહીં પસંદ કરો.';
 
   @override
   String get ganaFormManasEmpty =>
-      'હજુ સુધી કોઈ માનેસ નથી. ગણને તર્ક માટે જ્ઞાન આધારની જરૂર હોય છે - ચાલુ રાખવા માટે એક બનાવો.';
+      'હજુ કોઈ માનસ નથી. તમે બ્રહ્માનો ઉપયોગ કરી શકો છો અથવા ચોક્કસ સંગ્રહ માટે માનસ બનાવી શકો છો.';
 
   @override
   String get ganaFormManasCreateNew => 'માનસ બનાવો';
+
+  @override
+  String get ganaScopeNone => 'કોઈ જ્ઞાન નહીં';
+
+  @override
+  String get ganaFormBrahmaCloudWarning =>
+      'બ્રહ્મા તમારી નોંધો તમે પસંદ કરેલા ક્લાઉડ મોડલને મોકલે છે. તેમને આ ઉપકરણ પર રાખવા માટે માનસ અથવા કોઈ જ્ઞાન નહીં પસંદ કરો.';
 
   @override
   String get ganaFormModeRecurring => 'રિકરિંગ';
@@ -2845,10 +2853,6 @@ class AppLocalizationsGu extends AppLocalizations {
 
   @override
   String get ganaFormBlockerName => 'ચાલુ રાખવા માટે નામ ઉમેરો.';
-
-  @override
-  String get ganaFormBlockerManas =>
-      'ઓછામાં ઓછું એક માનસ પસંદ કરો - ગણને તર્ક માટે જ્ઞાનની જરૂર હોય છે.';
 
   @override
   String get ganaFormBlockerTask =>
@@ -3227,9 +3231,6 @@ class AppLocalizationsGu extends AppLocalizations {
   @override
   String get graphEmptyHint =>
       'તમારા જ્ઞાનનો ગ્રાફ બનાવવા માટે નોંધો સાચવો.\n\nજ્યારે એક નોંધ બીજી નોંધનો સંદર્ભ આપે છે ત્યારે ધાર દેખાય છે.';
-
-  @override
-  String get ganaDetailManasesLabel => 'માનસેસ';
 
   @override
   String get settingsAppearance => 'દેખાવ';

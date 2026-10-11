@@ -37,6 +37,7 @@ class GanaBody {
       'state': state.wire,
       'name': g.name,
       'manasIds': List<String>.from(g.manasIds),
+      'noKnowledge': g.noKnowledge,
       'taskPrompt': g.taskPrompt,
       'inputType': g.inputType?.name,
       'inputRefId': g.inputRefId,
@@ -72,6 +73,7 @@ class GanaBody {
     row.ganaId = ganaId;
     row.name = (body['name'] as String?) ?? '';
     row.manasIds = _asStringList(body['manasIds']);
+    row.noKnowledge = body['noKnowledge'] == true;
     row.taskPrompt = (body['taskPrompt'] as String?) ?? '';
     row.inputType = _parseInputType(body['inputType']);
     row.inputRefId = body['inputRefId'] as String?;
