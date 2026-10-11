@@ -2765,9 +2765,6 @@ class AppLocalizationsJa extends AppLocalizations {
   String get ganaFormBlockerName => '続行するには名前を追加してください。';
 
   @override
-  String get ganaFormBlockerManas => 'Manasを1つ以上選択してください。Ganaが考えるには知識が必要です。';
-
-  @override
   String get ganaFormBlockerTask => 'Ganaが何をするか分かるように、指示を入力してください。';
 
   @override
@@ -3126,9 +3123,6 @@ class AppLocalizationsJa extends AppLocalizations {
   @override
   String get graphEmptyHint =>
       'ノートを保存してナレッジ グラフを構築します。\n\nエッジは、あるノートが別のノートを参照するときに表示されます。';
-
-  @override
-  String get ganaDetailManasesLabel => 'マナセス';
 
   @override
   String get settingsAppearance => '外観';

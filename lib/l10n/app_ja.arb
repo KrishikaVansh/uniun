@@ -3608,10 +3608,6 @@
   "@ganaFormBlockerName": {
     "description": "Save-blocker hint: missing name"
   },
-  "ganaFormBlockerManas": "Manasを1つ以上選択してください。Ganaが考えるには知識が必要です。",
-  "@ganaFormBlockerManas": {
-    "description": "Save-blocker hint: no Manas selected"
-  },
   "ganaFormBlockerTask": "Ganaが何をするか分かるように、指示を入力してください。",
   "@ganaFormBlockerTask": {
     "description": "Save-blocker hint: empty task prompt"
@@ -4086,10 +4082,6 @@
   "graphEmptyHint": "ノートを保存してナレッジ グラフを構築します。\n\nエッジは、あるノートが別のノートを参照するときに表示されます。",
   "@graphEmptyHint": {
     "description": "Empty-state message shown on the knowledge graph canvas when there are no notes yet"
-  },
-  "ganaDetailManasesLabel": "マナセス",
-  "@ganaDetailManasesLabel": {
-    "description": "Label on the Gana detail card for the number of Manases the agent draws from"
   },
   "settingsAppearance": "外観",
   "@settingsAppearance": {

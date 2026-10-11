@@ -2849,10 +2849,6 @@ class AppLocalizationsHi extends AppLocalizations {
   String get ganaFormBlockerName => 'जारी रखने के लिए एक नाम जोड़ें।';
 
   @override
-  String get ganaFormBlockerManas =>
-      'कम से कम एक मानस चुनें — एक गण को तर्क करने के लिए ज्ञान चाहिए।';
-
-  @override
   String get ganaFormBlockerTask =>
       'एक टास्क प्रॉम्प्ट लिखें ताकि गण को पता हो कि क्या करना है।';
 
@@ -3226,9 +3222,6 @@ class AppLocalizationsHi extends AppLocalizations {
   @override
   String get graphEmptyHint =>
       'अपना नॉलेज ग्राफ़ बनाने के लिए नोट्स सहेजें।\n\nजब कोई नोट किसी दूसरे नोट का संदर्भ देता है, तब एजेस दिखाई देते हैं।';
-
-  @override
-  String get ganaDetailManasesLabel => 'मानस';
 
   @override
   String get settingsAppearance => 'दिखावट';

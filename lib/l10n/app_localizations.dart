@@ -5112,12 +5112,6 @@ abstract class AppLocalizations {
   /// **'Add a name to continue.'**
   String get ganaFormBlockerName;
 
-  /// Save-blocker hint: no Manas selected
-  ///
-  /// In en, this message translates to:
-  /// **'Pick at least one Manas — a Gana needs knowledge to reason over.'**
-  String get ganaFormBlockerManas;
-
   /// Save-blocker hint: empty task prompt
   ///
   /// In en, this message translates to:
@@ -5807,12 +5801,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Save notes to build your knowledge graph.\n\nEdges appear when one note references another.'**
   String get graphEmptyHint;
-
-  /// Label on the Gana detail card for the number of Manases the agent draws from
-  ///
-  /// In en, this message translates to:
-  /// **'Manases'**
-  String get ganaDetailManasesLabel;
 
   /// Settings section label for appearance-related options (theme mode)
   ///

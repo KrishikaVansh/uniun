@@ -3608,10 +3608,6 @@
   "@ganaFormBlockerName": {
     "description": "Save-blocker hint: missing name"
   },
-  "ganaFormBlockerManas": "ઓછામાં ઓછું એક માનસ પસંદ કરો - ગણને તર્ક માટે જ્ઞાનની જરૂર હોય છે.",
-  "@ganaFormBlockerManas": {
-    "description": "Save-blocker hint: no Manas selected"
-  },
   "ganaFormBlockerTask": "ટાસ્ક પ્રોમ્પ્ટ લખો જેથી ગણને ખબર પડે કે શું કરવું.",
   "@ganaFormBlockerTask": {
     "description": "Save-blocker hint: empty task prompt"
@@ -4086,10 +4082,6 @@
   "graphEmptyHint": "તમારા જ્ઞાનનો ગ્રાફ બનાવવા માટે નોંધો સાચવો.\n\nજ્યારે એક નોંધ બીજી નોંધનો સંદર્ભ આપે છે ત્યારે ધાર દેખાય છે.",
   "@graphEmptyHint": {
     "description": "Empty-state message shown on the knowledge graph canvas when there are no notes yet"
-  },
-  "ganaDetailManasesLabel": "માનસેસ",
-  "@ganaDetailManasesLabel": {
-    "description": "Label on the Gana detail card for the number of Manases the agent draws from"
   },
   "settingsAppearance": "દેખાવ",
   "@settingsAppearance": {

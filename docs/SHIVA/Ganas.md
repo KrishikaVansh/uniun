@@ -42,7 +42,7 @@ Ganas are **purely local config** — they never broadcast as Nostr events. Two 
 |---|---|
 | `name` | required, ≤60 chars |
 | `description` | optional |
-| `manasIds` | Empty means Brahma (whole knowledge base); the form can select one Manas. Older rows with several Manases still merge their context under a shared budget. |
+| `manasIds` | Empty means Brahma (whole knowledge base); the form selects at most one Manas. Rows that already hold several Manases still merge their context at run time, but editing and saving such a Gana in the form keeps only the first one. |
 | `taskPrompt` | user-authored instructions injected into every prompt |
 | `inputType` + `inputRefId` | input surface — `channel`, `privateChannel`, `dm`, `user`, `followedNote`, or `null` (standalone) |
 | `outputType` + ref | destination — `feed`, `channel`, `privateChannel`, `dm` (exactly one is published per run) |

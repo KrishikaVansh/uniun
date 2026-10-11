@@ -3600,10 +3600,6 @@
   "@ganaFormBlockerName": {
     "description": "Save-blocker hint: missing name"
   },
-  "ganaFormBlockerManas": "Pick at least one Manas — a Gana needs knowledge to reason over.",
-  "@ganaFormBlockerManas": {
-    "description": "Save-blocker hint: no Manas selected"
-  },
   "ganaFormBlockerTask": "Write a task prompt so the Gana knows what to do.",
   "@ganaFormBlockerTask": {
     "description": "Save-blocker hint: empty task prompt"
@@ -4078,10 +4074,6 @@
   "graphEmptyHint": "Save notes to build your knowledge graph.\n\nEdges appear when one note references another.",
   "@graphEmptyHint": {
     "description": "Empty-state message shown on the knowledge graph canvas when there are no notes yet"
-  },
-  "ganaDetailManasesLabel": "Manases",
-  "@ganaDetailManasesLabel": {
-    "description": "Label on the Gana detail card for the number of Manases the agent draws from"
   },
   "settingsAppearance": "Appearance",
   "@settingsAppearance": {

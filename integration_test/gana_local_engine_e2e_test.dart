@@ -1,3 +1,15 @@
+// Full end-to-end run of a LOCAL (on-device) Brahma Gana against the real app:
+// real DI, the on-device Isar, the real GanaEngine and GatewayBootstrap, and a
+// real flutter_gemma inference call (Gemma 4 E2B, provisioned by
+// `provisionTestModel`). Verifies the published note used the seeded knowledge.
+//
+// SIDE EFFECT: every run publishes one real, PERMANENT Kind-1 note from the
+// device's identity to the relay (Feed Freedom, no delete). The Gana, its run
+// log and the note stay in local Isar; only the seeded saved note is removed.
+// This file is part of all_tests.dart, so a full device run posts one too.
+//
+//   scripts/device_test.sh run integration_test/gana_local_engine_e2e_test.dart
+
 import 'package:flutter_gemma/flutter_gemma.dart';
 import 'package:flutter_gemma_litertlm/flutter_gemma_litertlm.dart';
 import 'package:flutter_gemma_mediapipe/flutter_gemma_mediapipe.dart';

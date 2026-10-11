@@ -2831,10 +2831,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get ganaFormBlockerName => 'Add a name to continue.';
 
   @override
-  String get ganaFormBlockerManas =>
-      'Pick at least one Manas — a Gana needs knowledge to reason over.';
-
-  @override
   String get ganaFormBlockerTask =>
       'Write a task prompt so the Gana knows what to do.';
 
@@ -3209,9 +3205,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get graphEmptyHint =>
       'Save notes to build your knowledge graph.\n\nEdges appear when one note references another.';
-
-  @override
-  String get ganaDetailManasesLabel => 'Manases';
 
   @override
   String get settingsAppearance => 'Appearance';
