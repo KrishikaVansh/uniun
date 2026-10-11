@@ -70,7 +70,7 @@ class _MockGateway extends Mock implements FlutterGemmaGateway {}
 /// dm); the reactive input-filter path (fires on a matching new note, skips
 /// `noNewInput` on a non-matching one); and the recurring `maxOutputs` cap
 /// (skips + auto-disables ahead of even a genuinely new input).
-void main() {
+void main({bool routingMatrixOnly = false}) {
   setUpAll(() {
     registerFallbackValue(aNote());
     registerFallbackValue(const GenerateOneShotInput(prompt: ''));
@@ -263,7 +263,13 @@ void main() {
     return null;
   }
 
-  group('cloud-pinned Gana', () {
+  void registerCoreGroup(String name, void Function() body) {
+    if (!routingMatrixOnly) {
+      group(name, body);
+    }
+  }
+
+  registerCoreGroup('cloud-pinned Gana', () {
     test('Brahma scope loads whole knowledge and labels the prompt Brahma',
         () async {
       when(() => isCloudConnected.call()).thenAnswer((_) async => true);
@@ -377,7 +383,7 @@ void main() {
     });
   });
 
-  group('local (non-cloud) Gana — unaffected by the cloud gate', () {
+  registerCoreGroup('local (non-cloud) Gana — unaffected by the cloud gate', () {
     test('no active on-device model in this test process → '
         'skipped(noActiveModel), never touches the cloud use cases',
         () async {
@@ -395,7 +401,7 @@ void main() {
     });
   });
 
-  group('fully unset Gana (no pin at all) follows the global active backend',
+  registerCoreGroup('fully unset Gana (no pin at all) follows the global active backend',
       () {
     test('global active backend is cloud → routes through cloud using the '
         'globally active cloud model, without ever pinging the local gate',
@@ -475,7 +481,7 @@ void main() {
     });
   });
 
-  group('one-shot auto-disable', () {
+  registerCoreGroup('one-shot auto-disable', () {
     test('a one-shot Gana disables itself after a successful publish',
         () async {
       when(() => isCloudConnected.call()).thenAnswer((_) async => true);
@@ -508,7 +514,7 @@ void main() {
     });
   });
 
-  group('cloud output routing — every GanaOutputType', () {
+  registerCoreGroup('cloud output routing — every GanaOutputType', () {
     test('group output publishes via CreateGroupMessageUseCase with the '
         'cloud-generated body', () async {
       when(() => isCloudConnected.call()).thenAnswer((_) async => true);
@@ -732,7 +738,7 @@ void main() {
     }
   });
 
-  group('reactive (input-driven) cloud Gana', () {
+  registerCoreGroup('reactive (input-driven) cloud Gana', () {
     test('private-group input can drive Brahma scope to a private-group output',
         () async {
       when(() => isCloudConnected.call()).thenAnswer((_) async => true);
@@ -982,7 +988,7 @@ void main() {
     });
   });
 
-  group('recurring maxOutputs cap', () {
+  registerCoreGroup('recurring maxOutputs cap', () {
     test('a recurring Gana already at its maxOutputs cap skips and '
         'auto-disables, even with genuinely new input waiting', () async {
       when(() => isCloudConnected.call()).thenAnswer((_) async => true);
@@ -1049,7 +1055,7 @@ void main() {
     });
   });
 
-  group('no active user', () {
+  registerCoreGroup('no active user', () {
     test('skipped(noActiveModel) with a "no active user" error, never '
         'reaches inference', () async {
       userRepo.keys = null;
@@ -1071,7 +1077,7 @@ void main() {
     });
   });
 
-  group('fully-unset Gana whose global-model lookup fails', () {
+  registerCoreGroup('fully-unset Gana whose global-model lookup fails', () {
     test('a getActiveLlmModel failure degrades to null (fold\'s Left '
         'branch), falling through to the local gate', () async {
       when(() => getActiveLlmModel.call())
@@ -1088,7 +1094,7 @@ void main() {
     });
   });
 
-  group('local (on-device) generation — gateway reports an active model',
+  registerCoreGroup('local (on-device) generation — gateway reports an active model',
       () {
     setUp(() {
       when(() => gateway.hasActiveModel()).thenReturn(true);
@@ -1155,7 +1161,7 @@ void main() {
     });
   });
 
-  group('inference failure / noop (cloud path — no gateway needed)', () {
+  registerCoreGroup('inference failure / noop (cloud path — no gateway needed)', () {
     test('a cloud generateOneShot Left surfaces as a failed run', () async {
       when(() => isCloudConnected.call()).thenAnswer((_) async => true);
       when(() => generateOneShot.call(any()))
@@ -1196,7 +1202,7 @@ void main() {
     });
   });
 
-  group('publish failures surface as a failed run', () {
+  registerCoreGroup('publish failures surface as a failed run', () {
     test('publishNote throwing directly is caught as a failed run',
         () async {
       when(() => isCloudConnected.call()).thenAnswer((_) async => true);
@@ -1372,7 +1378,7 @@ void main() {
     });
   });
 
-  group('publish success resolves the real eventId over the synthetic '
+  registerCoreGroup('publish success resolves the real eventId over the synthetic '
       'fallback', () {
     test('privateGroup: a matching NoteModel written by the (mocked) '
         'transport is picked up as the real outputEventId', () async {
@@ -1462,7 +1468,7 @@ void main() {
     });
   });
 
-  group('unexpected exception inside a run', () {
+  registerCoreGroup('unexpected exception inside a run', () {
     test('a Brahma knowledge loader throw is caught by _runIfPossible\'s outer '
         'guard — no run log, no crash, mutex released', () async {
       when(() => isCloudConnected.call()).thenAnswer((_) async => true);
@@ -1484,7 +1490,7 @@ void main() {
     });
   });
 
-  group('schedule reacts to config changes and interval timers', () {
+  registerCoreGroup('schedule reacts to config changes and interval timers', () {
     test('an interval-configured Gana installs a periodic timer without '
         'crashing, and stop() tears it down cleanly', () async {
       await seedGana(

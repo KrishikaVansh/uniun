@@ -429,6 +429,12 @@ flutter test --no-uninstall integration_test/<file>.dart
 also keeps the screen on and unlocked (a sleeping screen runs the app on slow
 cores, several times slower).
 
+The Gana input/output matrix can run on a device without a model or live
+publishing: `scripts/device_test.sh run integration_test/gana_routing_matrix_e2e_test.dart`.
+It covers all five input types against all four output types using isolated
+Isar data and mocked inference/publish calls. It is also included in
+`integration_test/all_tests.dart`.
+
 - **Default model: Gemma 4 E2B** — it reads images and is small enough for most
   phones, so one model covers chat, Gana, scheduler and image tests. Qwen3 0.6B
   is enough for tests that only need text.
