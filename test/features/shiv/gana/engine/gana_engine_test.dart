@@ -20,6 +20,7 @@ import 'package:uniun/domain/entities/ai_model/ai_model_entity.dart';
 import 'package:uniun/domain/entities/llm/llm_backend_type.dart';
 import 'package:uniun/domain/entities/llm/llm_model_info.dart';
 import 'package:uniun/domain/entities/llm/llm_task_kind.dart';
+import 'package:uniun/domain/entities/note/note_entity.dart';
 import 'package:uniun/domain/usecases/create_group_message_usecase.dart';
 import 'package:uniun/domain/usecases/dm_usecases.dart';
 import 'package:uniun/domain/usecases/llm_usecases.dart';
@@ -595,6 +596,140 @@ void main() {
       expect(captured.otherPubkey, 'bob-pubkey');
       expect(captured.content, 'DM reply');
     });
+  });
+
+  group('input and output routing matrix', () {
+    const body = 'Shared generated matrix reply';
+    for (final input in GanaInputType.values) {
+      for (final output in GanaOutputType.values) {
+        test('${input.name} input to ${output.name} output', () async {
+          when(() => isCloudConnected.call()).thenAnswer((_) async => true);
+          when(() => generateOneShot.call(any()))
+              .thenAnswer((_) async => const Right(body));
+          when(() => groupMessage.call(any()))
+              .thenAnswer((_) async => Right(aNote()));
+          when(() => privateGroup.execute(
+                groupId: any(named: 'groupId'),
+                content: any(named: 'content'),
+                authorPubkey: any(named: 'authorPubkey'),
+                privkeyHex: any(named: 'privkeyHex'),
+              )).thenAnswer((_) async {});
+          when(() => dm.call(any())).thenAnswer((_) async => const Right(unit));
+
+          final conversation = DmConversationModel()
+            ..otherPubkey = 'matrix-recipient';
+          await isar.writeTxn(() async {
+            await isar.dmConversationModels.put(conversation);
+          });
+          final inputRef = switch (input) {
+            GanaInputType.group => 'matrix-input-group',
+            GanaInputType.privateGroup => 'matrix-input-private',
+            GanaInputType.dm => '${conversation.id}',
+            GanaInputType.user => 'matrix-author',
+            GanaInputType.followedNote => 'matrix-root',
+          };
+          final ganaId = 'matrix-${input.name}-${output.name}';
+          await seedGana(
+            ganaId: ganaId,
+            desiredBackend: LlmBackendType.uniunCloud,
+            desiredModelId: 'claude-cloud-mini',
+            inputType: input,
+            inputRefId: inputRef,
+            outputType: output,
+            outputGroupId: output == GanaOutputType.group
+                ? 'matrix-output-group'
+                : null,
+            outputPrivateGroupId: output == GanaOutputType.privateGroup
+                ? 'matrix-output-private'
+                : null,
+            outputDmConversationId:
+                output == GanaOutputType.dm ? conversation.id : null,
+            triggerReactive: true,
+            triggerMode: GanaTriggerMode.recurring,
+            triggerIntervalMinutes: 1,
+          );
+          await engine.start();
+
+          final source = 'Matrix source from ${input.name}';
+          await isar.writeTxn(() async {
+            await isar.noteModels.put(NoteModel(
+              eventId: 'matrix-input-event',
+              sig: 'sig',
+              authorPubkey:
+                  input == GanaInputType.user ? inputRef : 'matrix-peer',
+              content: source,
+              kind: switch (input) {
+                GanaInputType.group => kGroupMessageKind,
+                GanaInputType.privateGroup => kPrivateGroupKind,
+                GanaInputType.dm => kDmTextKind,
+                _ => kNoteKind,
+              },
+              groupId: input == GanaInputType.group ? inputRef : null,
+              privateGroupId:
+                  input == GanaInputType.privateGroup ? inputRef : null,
+              conversationId:
+                  input == GanaInputType.dm ? conversation.id : null,
+              eTagRefs: input == GanaInputType.followedNote
+                  ? const ['matrix-root']
+                  : const [],
+              type: NoteType.text,
+              pTagRefs: const [],
+              tTags: const [],
+              created: DateTime.now(),
+            ));
+          });
+
+          await engine.debugMaybeRunInterval(ganaId);
+          final run = await waitForRun(ganaId);
+          expect(run?.status, GanaRunStatus.succeeded);
+          expect(run?.inputEventIds, ['matrix-input-event']);
+          final request = verify(() => generateOneShot.call(captureAny()))
+              .captured.single as GenerateOneShotInput;
+          expect(request.prompt, contains(source));
+
+          switch (output) {
+            case GanaOutputType.feed:
+              final published = verify(() => publishNote.call(captureAny()))
+                  .captured.single as NoteEntity;
+              expect(published.content, body);
+            case GanaOutputType.group:
+              final published = verify(() => groupMessage.call(captureAny()))
+                  .captured.single as CreateGroupMessageInput;
+              expect(published.groupId, 'matrix-output-group');
+              expect(published.content, body);
+            case GanaOutputType.privateGroup:
+              verify(() => privateGroup.execute(
+                    groupId: 'matrix-output-private',
+                    content: body,
+                    authorPubkey: any(named: 'authorPubkey'),
+                    privkeyHex: any(named: 'privkeyHex'),
+                  )).called(1);
+            case GanaOutputType.dm:
+              final published = verify(() => dm.call(captureAny()))
+                  .captured.single as SendDmParams;
+              expect(published.otherPubkey, 'matrix-recipient');
+              expect(published.content, body);
+          }
+          if (output != GanaOutputType.feed) {
+            verifyNever(() => publishNote.call(any()));
+          }
+          if (output != GanaOutputType.group) {
+            verifyNever(() => groupMessage.call(any()));
+          }
+          if (output != GanaOutputType.privateGroup) {
+            verifyNever(() => privateGroup.execute(
+                  groupId: any(named: 'groupId'),
+                  content: any(named: 'content'),
+                  authorPubkey: any(named: 'authorPubkey'),
+                  privkeyHex: any(named: 'privkeyHex'),
+                ));
+          }
+          if (output != GanaOutputType.dm) {
+            verifyNever(() => dm.call(any()));
+          }
+        });
+      }
+    }
   });
 
   group('reactive (input-driven) cloud Gana', () {
