@@ -43,6 +43,7 @@ Ganas are **purely local config** — they never broadcast as Nostr events. Two 
 | `name` | required, ≤60 chars |
 | `description` | optional |
 | `manasIds` | Empty means Brahma (whole knowledge base); the form selects at most one Manas. Rows that already hold several Manases still merge their context at run time, but editing and saving such a Gana in the form keeps only the first one. |
+| `noKnowledge` | `true` runs the Gana with no knowledge at all (no notes in the prompt, nothing loaded); it wins over `manasIds`. `false` on every older row. Synced in the mesh body (`noKnowledge`; an older device ignores it). |
 | `taskPrompt` | user-authored instructions injected into every prompt |
 | `inputType` + `inputRefId` | input surface — `channel`, `privateChannel`, `dm`, `user`, `followedNote`, or `null` (standalone) |
 | `outputType` + ref | destination — `feed`, `channel`, `privateChannel`, `dm` (exactly one is published per run) |
@@ -308,6 +309,11 @@ Manas, then dedupe and pack under the same token budget. The foreground
 path ranks against an input message when one is available. The form treats
 empty `manasIds` as the explicit Brahma choice; returning from Manas creation
 refreshes only the picker so an unsaved Gana draft stays intact.
+
+The form offers three choices: **No knowledge** (`noKnowledge: true`),
+**Brahma** (empty `manasIds`, the default) and one Manas. A Gana pinned to a
+cloud model with Brahma selected shows a warning that its notes are sent to
+that model; the other two choices keep them on the device.
 
 ---
 

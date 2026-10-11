@@ -106,7 +106,7 @@ Future<GanaPreparedRun?> prepareGanaRun({
   final prompt = GanaPromptBuilder.build(
     taskPrompt: gana.taskPrompt,
     manasNames: manasNames,
-    brahmaScope: gana.manasIds.isEmpty,
+    brahmaScope: gana.manasIds.isEmpty && !gana.noKnowledge,
     knowledge: knowledge,
     inputMessagesByOldestFirst: inputs,
     replyAncestry: ancestry,

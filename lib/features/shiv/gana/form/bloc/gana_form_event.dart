@@ -28,6 +28,11 @@ class GanaFormSelectBrahmaEvent extends GanaFormEvent {
   const GanaFormSelectBrahmaEvent();
 }
 
+/// Run the Gana with no knowledge at all.
+class GanaFormSelectNoKnowledgeEvent extends GanaFormEvent {
+  const GanaFormSelectNoKnowledgeEvent();
+}
+
 class GanaFormTaskPromptChangedEvent extends GanaFormEvent {
   const GanaFormTaskPromptChangedEvent(this.value);
   final String value;

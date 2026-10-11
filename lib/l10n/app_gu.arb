@@ -3576,7 +3576,7 @@
   "@ganaFormManasSectionTitle": {
     "description": "Section title above the Manas picker"
   },
-  "ganaFormManasSectionSubtitle": "બધા જ્ઞાન માટે બ્રહ્મા અથવા એક સંગ્રહ માટે માનસ પસંદ કરો.",
+  "ganaFormManasSectionSubtitle": "બધા જ્ઞાન માટે બ્રહ્મા, એક સંગ્રહ માટે માનસ, અથવા કોઈ જ્ઞાન નહીં પસંદ કરો.",
   "@ganaFormManasSectionSubtitle": {
     "description": "Helper text under the section title"
   },
@@ -3587,6 +3587,14 @@
   "ganaFormManasCreateNew": "માનસ બનાવો",
   "@ganaFormManasCreateNew": {
     "description": "Inline CTA to open the Manas form from the Gana form"
+  },
+  "ganaScopeNone": "કોઈ જ્ઞાન નહીં",
+  "@ganaScopeNone": {
+    "description": "Gana scope label and form chip when the agent uses no notes at all"
+  },
+  "ganaFormBrahmaCloudWarning": "બ્રહ્મા તમારી નોંધો તમે પસંદ કરેલા ક્લાઉડ મોડલને મોકલે છે. તેમને આ ઉપકરણ પર રાખવા માટે માનસ અથવા કોઈ જ્ઞાન નહીં પસંદ કરો.",
+  "@ganaFormBrahmaCloudWarning": {
+    "description": "Warning under the knowledge scope when a cloud model is pinned and Brahma is selected"
   },
   "ganaFormModeRecurring": "રિકરિંગ",
   "@ganaFormModeRecurring": {

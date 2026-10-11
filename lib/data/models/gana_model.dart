@@ -27,6 +27,10 @@ class GanaModel {
   /// it as a union so legacy multi-Manas rows keep working.
   List<String> manasIds = const [];
 
+  /// True when the Gana is set to use no knowledge at all. Empty [manasIds]
+  /// then does NOT mean Brahma. False on every row written before this field.
+  bool noKnowledge = false;
+
   /// User-authored instructions injected into every prompt.
   late String taskPrompt;
 
@@ -150,6 +154,7 @@ extension GanaModelExtension on GanaModel {
         ganaId: ganaId,
         name: name,
         manasIds: manasIds,
+        noKnowledge: noKnowledge,
         taskPrompt: taskPrompt,
         inputType: inputType,
         inputRefId: inputRefId,

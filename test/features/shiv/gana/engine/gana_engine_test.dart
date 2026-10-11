@@ -187,6 +187,8 @@ void main({bool routingMatrixOnly = false}) {
     GanaTriggerMode triggerMode = GanaTriggerMode.oneShot,
     int? maxOutputs,
     int? triggerIntervalMinutes,
+    List<String> manasIds = const [],
+    bool noKnowledge = false,
   }) async {
     final now = DateTime.now();
     await isar.writeTxn(() async {
@@ -194,6 +196,8 @@ void main({bool routingMatrixOnly = false}) {
         GanaModel()
           ..ganaId = ganaId
           ..name = 'Test Gana'
+          ..manasIds = manasIds
+          ..noKnowledge = noKnowledge
           ..taskPrompt = 'Say something'
           ..outputType = outputType
           ..outputGroupId = outputGroupId
@@ -221,11 +225,15 @@ void main({bool routingMatrixOnly = false}) {
     required String ganaId,
     LlmBackendType? desiredBackend,
     String? desiredModelId,
+    List<String> manasIds = const [],
+    bool noKnowledge = false,
   }) =>
       seedGana(
         ganaId: ganaId,
         desiredBackend: desiredBackend,
         desiredModelId: desiredModelId,
+        manasIds: manasIds,
+        noKnowledge: noKnowledge,
       );
 
   Future<void> seedNote({
@@ -311,6 +319,87 @@ void main({bool routingMatrixOnly = false}) {
           .captured.single as GenerateOneShotInput;
       expect(request.prompt, contains('KNOWLEDGE — the user\'s notes (Brahma):'));
       expect(request.prompt, contains('A private insight'));
+    });
+
+    test('no knowledge loads nothing and leaves the knowledge section out',
+        () async {
+      when(() => isCloudConnected.call()).thenAnswer((_) async => true);
+      when(() => generateOneShot.call(any()))
+          .thenAnswer((_) async => const Right('A short reply'));
+      await seedStandaloneGana(
+        ganaId: 'no-knowledge-1',
+        desiredBackend: LlmBackendType.uniunCloud,
+        desiredModelId: 'claude-cloud-mini',
+        noKnowledge: true,
+      );
+
+      await engine.start();
+      final run = await waitForRun('no-knowledge-1');
+
+      expect(run?.status, GanaRunStatus.succeeded);
+      verifyNever(() => manasLoader.mergeAll(
+            selfPubkey: any(named: 'selfPubkey'),
+            budget: any(named: 'budget'),
+            relevanceQuery: any(named: 'relevanceQuery'),
+          ));
+      verifyNever(() => manasLoader.merge(
+            manasIds: any(named: 'manasIds'),
+            budget: any(named: 'budget'),
+            relevanceQuery: any(named: 'relevanceQuery'),
+          ));
+      final request = verify(() => generateOneShot.call(captureAny()))
+          .captured.single as GenerateOneShotInput;
+      expect(request.prompt, isNot(contains('KNOWLEDGE — the user')));
+      expect(request.prompt, isNot(contains('(Brahma)')));
+    });
+
+    test('no knowledge wins over a leftover Manas list', () async {
+      when(() => isCloudConnected.call()).thenAnswer((_) async => true);
+      when(() => generateOneShot.call(any()))
+          .thenAnswer((_) async => const Right('A short reply'));
+      await seedStandaloneGana(
+        ganaId: 'no-knowledge-2',
+        desiredBackend: LlmBackendType.uniunCloud,
+        desiredModelId: 'claude-cloud-mini',
+        manasIds: const ['m-stale'],
+        noKnowledge: true,
+      );
+
+      await engine.start();
+      await waitForRun('no-knowledge-2');
+
+      verifyNever(() => manasLoader.merge(
+            manasIds: any(named: 'manasIds'),
+            budget: any(named: 'budget'),
+            relevanceQuery: any(named: 'relevanceQuery'),
+          ));
+    });
+
+    test('a selected Manas still uses the scoped loader, not Brahma',
+        () async {
+      when(() => isCloudConnected.call()).thenAnswer((_) async => true);
+      when(() => generateOneShot.call(any()))
+          .thenAnswer((_) async => const Right('A short reply'));
+      await seedStandaloneGana(
+        ganaId: 'scoped-1',
+        desiredBackend: LlmBackendType.uniunCloud,
+        desiredModelId: 'claude-cloud-mini',
+        manasIds: const ['m-1'],
+      );
+
+      await engine.start();
+      await waitForRun('scoped-1');
+
+      verify(() => manasLoader.merge(
+            manasIds: ['m-1'],
+            budget: any(named: 'budget'),
+            relevanceQuery: any(named: 'relevanceQuery'),
+          )).called(1);
+      verifyNever(() => manasLoader.mergeAll(
+            selfPubkey: any(named: 'selfPubkey'),
+            budget: any(named: 'budget'),
+            relevanceQuery: any(named: 'relevanceQuery'),
+          ));
     });
 
     test('not connected to UNIUN Cloud → skipped(cloudUnavailable), never '

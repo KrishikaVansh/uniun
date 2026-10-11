@@ -2822,7 +2822,7 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get ganaFormManasSectionSubtitle =>
-      'पूरे ज्ञान के लिए ब्रह्मा चुनें या किसी एक संग्रह के लिए मानस चुनें।';
+      'पूरे ज्ञान के लिए ब्रह्मा, किसी एक संग्रह के लिए मानस, या कोई ज्ञान नहीं चुनें।';
 
   @override
   String get ganaFormManasEmpty =>
@@ -2830,6 +2830,13 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get ganaFormManasCreateNew => 'मानस बनाएं';
+
+  @override
+  String get ganaScopeNone => 'कोई ज्ञान नहीं';
+
+  @override
+  String get ganaFormBrahmaCloudWarning =>
+      'ब्रह्मा आपके नोट आपके चुने क्लाउड मॉडल को भेजता है। उन्हें इस डिवाइस पर रखने के लिए मानस या कोई ज्ञान नहीं चुनें।';
 
   @override
   String get ganaFormModeRecurring => 'आवर्ती';

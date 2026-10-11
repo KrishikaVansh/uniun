@@ -2739,7 +2739,7 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get ganaFormManasSectionSubtitle =>
-      'すべての知識にはブラフマー、特定のコレクションにはManasを選んでください。';
+      'すべての知識にはブラフマー、特定のコレクションにはManas、または知識なしを選んでください。';
 
   @override
   String get ganaFormManasEmpty =>
@@ -2747,6 +2747,13 @@ class AppLocalizationsJa extends AppLocalizations {
 
   @override
   String get ganaFormManasCreateNew => 'Manasを作成';
+
+  @override
+  String get ganaScopeNone => '知識なし';
+
+  @override
+  String get ganaFormBrahmaCloudWarning =>
+      'ブラフマーは、選んだクラウドモデルにあなたのノートを送ります。端末内に留めるには、Manasまたは知識なしを選んでください。';
 
   @override
   String get ganaFormModeRecurring => '繰り返し';

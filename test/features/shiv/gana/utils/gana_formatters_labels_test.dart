@@ -72,6 +72,14 @@ void main() {
       expect(ganaScopeLabel(aGana(), l10n), 'Brahma');
     });
 
+    test('no knowledge is labelled as such, even with a stale Manas list', () {
+      expect(ganaScopeLabel(aGana(noKnowledge: true), l10n), 'No knowledge');
+      expect(
+        ganaScopeLabel(aGana(noKnowledge: true, manasIds: ['m1']), l10n),
+        'No knowledge',
+      );
+    });
+
     test('counts Manas, singular and plural', () {
       expect(ganaScopeLabel(aGana(manasIds: ['a']), l10n), '1 Manas');
       expect(ganaScopeLabel(aGana(manasIds: ['a', 'b', 'c']), l10n), '3 Manas');

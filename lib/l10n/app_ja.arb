@@ -3576,7 +3576,7 @@
   "@ganaFormManasSectionTitle": {
     "description": "Section title above the Manas picker"
   },
-  "ganaFormManasSectionSubtitle": "すべての知識にはブラフマー、特定のコレクションにはManasを選んでください。",
+  "ganaFormManasSectionSubtitle": "すべての知識にはブラフマー、特定のコレクションにはManas、または知識なしを選んでください。",
   "@ganaFormManasSectionSubtitle": {
     "description": "Helper text under the section title"
   },
@@ -3587,6 +3587,14 @@
   "ganaFormManasCreateNew": "Manasを作成",
   "@ganaFormManasCreateNew": {
     "description": "Inline CTA to open the Manas form from the Gana form"
+  },
+  "ganaScopeNone": "知識なし",
+  "@ganaScopeNone": {
+    "description": "Gana scope label and form chip when the agent uses no notes at all"
+  },
+  "ganaFormBrahmaCloudWarning": "ブラフマーは、選んだクラウドモデルにあなたのノートを送ります。端末内に留めるには、Manasまたは知識なしを選んでください。",
+  "@ganaFormBrahmaCloudWarning": {
+    "description": "Warning under the knowledge scope when a cloud model is pinned and Brahma is selected"
   },
   "ganaFormModeRecurring": "繰り返し",
   "@ganaFormModeRecurring": {

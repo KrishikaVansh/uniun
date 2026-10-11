@@ -2821,7 +2821,7 @@ class AppLocalizationsGu extends AppLocalizations {
 
   @override
   String get ganaFormManasSectionSubtitle =>
-      'બધા જ્ઞાન માટે બ્રહ્મા અથવા એક સંગ્રહ માટે માનસ પસંદ કરો.';
+      'બધા જ્ઞાન માટે બ્રહ્મા, એક સંગ્રહ માટે માનસ, અથવા કોઈ જ્ઞાન નહીં પસંદ કરો.';
 
   @override
   String get ganaFormManasEmpty =>
@@ -2829,6 +2829,13 @@ class AppLocalizationsGu extends AppLocalizations {
 
   @override
   String get ganaFormManasCreateNew => 'માનસ બનાવો';
+
+  @override
+  String get ganaScopeNone => 'કોઈ જ્ઞાન નહીં';
+
+  @override
+  String get ganaFormBrahmaCloudWarning =>
+      'બ્રહ્મા તમારી નોંધો તમે પસંદ કરેલા ક્લાઉડ મોડલને મોકલે છે. તેમને આ ઉપકરણ પર રાખવા માટે માનસ અથવા કોઈ જ્ઞાન નહીં પસંદ કરો.';
 
   @override
   String get ganaFormModeRecurring => 'રિકરિંગ';

@@ -613,6 +613,67 @@ void main() {
   );
 
   testWidgets(
+    'No knowledge saves a Gana that uses no notes and shows it on the dashboard',
+    (tester) async {
+      const ganaName = 'E2E No-knowledge Gana';
+      final router = ganaRouter();
+      try {
+        await removeGanasNamed(ganaName);
+        await tester.pumpWidget(
+          MaterialApp.router(
+            theme: AppTheme.light,
+            locale: const Locale('en'),
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            routerConfig: router,
+          ),
+        );
+        await tester.pumpAndSettle();
+        final newButton = find
+            .ancestor(of: find.text('New'), matching: find.byType(TextButton))
+            .first;
+        await tester.tap(newButton);
+        await tester.pumpAndSettle();
+        final save = find.ancestor(
+          of: find.text('Save'),
+          matching: find.byType(FilledButton),
+        );
+        await tester.enterText(find.byType(TextField).first, ganaName);
+        await tester.enterText(find.byType(TextField).at(1), 'Say hello');
+        FocusManager.instance.primaryFocus?.unfocus();
+        await tester.pumpAndSettle();
+
+        final none = find.text('No knowledge');
+        await revealInGanaForm(tester, none);
+        await tester.tap(none);
+        await tester.pumpAndSettle();
+
+        final preset = find.text('Once, when I enable it');
+        await revealInGanaForm(tester, preset);
+        await tester.tap(preset);
+        await tester.pumpAndSettle();
+        expect(tester.widget<FilledButton>(save).onPressed, isNotNull);
+        await tester.tap(save);
+        await tester.pumpAndSettle();
+
+        final result = await getIt<GetGanasUseCase>().call();
+        final saved = result.fold(
+          (_) => throw StateError('Could not load saved Gana'),
+          (items) => items.singleWhere((g) => g.name == ganaName),
+        );
+        expect(saved.noKnowledge, isTrue);
+        expect(saved.manasIds, isEmpty);
+        expect(find.text(ganaName), findsWidgets);
+        expect(find.text('No knowledge'), findsWidgets);
+      } finally {
+        await tester.pumpWidget(const SizedBox.shrink());
+        router.dispose();
+        await removeGanasNamed(ganaName);
+      }
+    },
+  );
+
+  testWidgets(
     'creating a Manas from a new Gana keeps its draft and adds the picker choice',
     (tester) async {
       const ganaName = 'Draft Gana 262';

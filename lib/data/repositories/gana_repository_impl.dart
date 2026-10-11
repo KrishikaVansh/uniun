@@ -28,6 +28,7 @@ class GanaRepositoryImpl extends GanaRepository {
         ..ganaId = g.ganaId
         ..name = g.name
         ..manasIds = g.manasIds
+        ..noKnowledge = g.noKnowledge
         ..taskPrompt = g.taskPrompt
         ..inputType = g.inputType
         ..inputRefId = g.inputRefId

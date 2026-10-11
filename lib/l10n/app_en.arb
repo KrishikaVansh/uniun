@@ -3568,7 +3568,7 @@
   "@ganaFormManasSectionTitle": {
     "description": "Section title above the Manas picker"
   },
-  "ganaFormManasSectionSubtitle": "Choose Brahma for all your knowledge, or a Manas for one collection.",
+  "ganaFormManasSectionSubtitle": "Choose Brahma for all your knowledge, a Manas for one collection, or no knowledge.",
   "@ganaFormManasSectionSubtitle": {
     "description": "Helper text under the section title"
   },
@@ -3579,6 +3579,14 @@
   "ganaFormManasCreateNew": "Create Manas",
   "@ganaFormManasCreateNew": {
     "description": "Inline CTA to open the Manas form from the Gana form"
+  },
+  "ganaScopeNone": "No knowledge",
+  "@ganaScopeNone": {
+    "description": "Gana scope label and form chip when the agent uses no notes at all"
+  },
+  "ganaFormBrahmaCloudWarning": "Brahma sends your notes to the cloud model you picked. Choose a Manas or No knowledge to keep them on this device.",
+  "@ganaFormBrahmaCloudWarning": {
+    "description": "Warning under the knowledge scope when a cloud model is pinned and Brahma is selected"
   },
   "ganaFormModeRecurring": "Recurring",
   "@ganaFormModeRecurring": {

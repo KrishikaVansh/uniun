@@ -239,6 +239,109 @@ void main() {
     );
 
     blocTest<GanaFormBloc, GanaFormState>(
+      'no knowledge clears a selected Manas and turns the flag on',
+      build: build,
+      seed: () => const GanaFormState(selectedManasId: 'm-old'),
+      act: (b) => b.add(const GanaFormSelectNoKnowledgeEvent()),
+      verify: (b) {
+        expect(b.state.noKnowledge, isTrue);
+        expect(b.state.selectedManasId, isNull);
+      },
+    );
+
+    blocTest<GanaFormBloc, GanaFormState>(
+      'choosing Brahma after no knowledge turns the flag off',
+      build: build,
+      seed: () => const GanaFormState(noKnowledge: true),
+      act: (b) => b.add(const GanaFormSelectBrahmaEvent()),
+      verify: (b) {
+        expect(b.state.noKnowledge, isFalse);
+        expect(b.state.selectedManasId, isNull);
+      },
+    );
+
+    blocTest<GanaFormBloc, GanaFormState>(
+      'picking a Manas after no knowledge turns the flag off',
+      build: build,
+      seed: () => const GanaFormState(noKnowledge: true),
+      act: (b) => b.add(const GanaFormToggleManasEvent('m-1')),
+      verify: (b) {
+        expect(b.state.noKnowledge, isFalse);
+        expect(b.state.selectedManasId, 'm-1');
+      },
+    );
+
+    blocTest<GanaFormBloc, GanaFormState>(
+      'tapping the active Manas falls back to Brahma, not no knowledge',
+      build: build,
+      seed: () => const GanaFormState(selectedManasId: 'm-1'),
+      act: (b) => b.add(const GanaFormToggleManasEvent('m-1')),
+      verify: (b) {
+        expect(b.state.noKnowledge, isFalse);
+        expect(b.state.selectedManasId, isNull);
+      },
+    );
+
+    blocTest<GanaFormBloc, GanaFormState>(
+      'a Gana can save with no knowledge and sends the flag with no Manas',
+      build: build,
+      seed: () => const GanaFormState(
+        name: 'Greeter',
+        taskPrompt: 'Say hello',
+        triggerMode: GanaTriggerMode.oneShot,
+        noKnowledge: true,
+        selectedManasId: 'm-stale',
+      ),
+      act: (b) => b.add(const GanaFormSubmitEvent()),
+      verify: (_) {
+        final saved = verify(() => upsert.call(captureAny())).captured.single
+            as GanaEntity;
+        expect(saved.noKnowledge, isTrue);
+        expect(saved.manasIds, isEmpty);
+      },
+    );
+
+    blocTest<GanaFormBloc, GanaFormState>(
+      'opening a no-knowledge Gana for editing restores the choice',
+      build: build,
+      setUp: () => when(() => getById.call('g-none')).thenAnswer(
+        (_) async => Right(_cloudGana(ganaId: 'g-none').copyWith(
+          manasIds: const [],
+          noKnowledge: true,
+        )),
+      ),
+      act: (b) => b.add(const GanaFormLoadEvent('g-none')),
+      verify: (b) {
+        expect(b.state.noKnowledge, isTrue);
+        expect(b.state.selectedManasId, isNull);
+      },
+    );
+
+    test('the cloud warning shows only for Brahma with a cloud model', () {
+      const cloud = LlmBackendType.uniunCloud;
+      expect(
+        const GanaFormState(desiredBackend: cloud).sendsBrahmaToCloud,
+        isTrue,
+      );
+      expect(
+        const GanaFormState(desiredBackend: cloud, noKnowledge: true)
+            .sendsBrahmaToCloud,
+        isFalse,
+      );
+      expect(
+        const GanaFormState(desiredBackend: cloud, selectedManasId: 'm-1')
+            .sendsBrahmaToCloud,
+        isFalse,
+      );
+      expect(const GanaFormState().sendsBrahmaToCloud, isFalse);
+      expect(
+        const GanaFormState(desiredBackend: LlmBackendType.localGemma)
+            .sendsBrahmaToCloud,
+        isFalse,
+      );
+    });
+
+    blocTest<GanaFormBloc, GanaFormState>(
       'a Gana can save with Brahma as its knowledge scope',
       build: build,
       seed: () => const GanaFormState(

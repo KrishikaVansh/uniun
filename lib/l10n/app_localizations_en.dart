@@ -2804,7 +2804,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ganaFormManasSectionSubtitle =>
-      'Choose Brahma for all your knowledge, or a Manas for one collection.';
+      'Choose Brahma for all your knowledge, a Manas for one collection, or no knowledge.';
 
   @override
   String get ganaFormManasEmpty =>
@@ -2812,6 +2812,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ganaFormManasCreateNew => 'Create Manas';
+
+  @override
+  String get ganaScopeNone => 'No knowledge';
+
+  @override
+  String get ganaFormBrahmaCloudWarning =>
+      'Brahma sends your notes to the cloud model you picked. Choose a Manas or No knowledge to keep them on this device.';
 
   @override
   String get ganaFormModeRecurring => 'Recurring';

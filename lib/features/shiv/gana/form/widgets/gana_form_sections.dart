@@ -72,13 +72,37 @@ class _Body extends StatelessWidget {
               const SizedBox(height: 4),
               _SectionSubtitle(l10n.ganaFormManasSectionSubtitle),
               const SizedBox(height: 12),
-              FilterChip(
-                label: Text(l10n.brahmaTitle),
-                selected: state.selectedManasId == null,
-                onSelected: (_) => context.read<GanaFormBloc>().add(
-                  const GanaFormSelectBrahmaEvent(),
-                ),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  FilterChip(
+                    label: Text(l10n.ganaScopeNone),
+                    selected: state.noKnowledge,
+                    onSelected: (_) => context.read<GanaFormBloc>().add(
+                      const GanaFormSelectNoKnowledgeEvent(),
+                    ),
+                  ),
+                  FilterChip(
+                    label: Text(l10n.brahmaTitle),
+                    selected:
+                        state.selectedManasId == null && !state.noKnowledge,
+                    onSelected: (_) => context.read<GanaFormBloc>().add(
+                      const GanaFormSelectBrahmaEvent(),
+                    ),
+                  ),
+                ],
               ),
+              if (state.sendsBrahmaToCloud) ...[
+                const SizedBox(height: 8),
+                Text(
+                  l10n.ganaFormBrahmaCloudWarning,
+                  key: const ValueKey('gana-brahma-cloud-warning'),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+              ],
               const SizedBox(height: 8),
               if (state.manases.isEmpty)
                 _NoManasesCta()

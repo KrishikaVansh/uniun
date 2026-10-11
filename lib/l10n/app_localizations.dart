@@ -5067,7 +5067,7 @@ abstract class AppLocalizations {
   /// Helper text under the section title
   ///
   /// In en, this message translates to:
-  /// **'Choose Brahma for all your knowledge, or a Manas for one collection.'**
+  /// **'Choose Brahma for all your knowledge, a Manas for one collection, or no knowledge.'**
   String get ganaFormManasSectionSubtitle;
 
   /// Empty-state when the user has no Manases
@@ -5081,6 +5081,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Create Manas'**
   String get ganaFormManasCreateNew;
+
+  /// Gana scope label and form chip when the agent uses no notes at all
+  ///
+  /// In en, this message translates to:
+  /// **'No knowledge'**
+  String get ganaScopeNone;
+
+  /// Warning under the knowledge scope when a cloud model is pinned and Brahma is selected
+  ///
+  /// In en, this message translates to:
+  /// **'Brahma sends your notes to the cloud model you picked. Choose a Manas or No knowledge to keep them on this device.'**
+  String get ganaFormBrahmaCloudWarning;
 
   /// Cron-job mode label
   ///
