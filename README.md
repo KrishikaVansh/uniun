@@ -5,6 +5,7 @@
 # UNIUN
 
 [![Tests](https://github.com/basictech01/uniun/actions/workflows/tests.yml/badge.svg)](https://github.com/basictech01/uniun/actions/workflows/tests.yml)
+[![Builds](https://github.com/basictech01/uniun/actions/workflows/builds.yml/badge.svg)](https://github.com/basictech01/uniun/actions/workflows/builds.yml)
 [![codecov](https://codecov.io/gh/basictech01/uniun/graph/badge.svg)](https://codecov.io/gh/basictech01/uniun)
 
 > *Your notes, your network, your identity.*
@@ -16,7 +17,7 @@
 [App Store](https://apps.apple.com/in/app/uniun/id6778077321) or
 [Google Play](https://play.google.com/store/apps/details?id=in.uniun.app), or learn more at
 [uniun.in](https://www.uniun.in/). No account needed — your identity is a keypair you generate
-on first launch.
+on first launch. Available in English, Hindi, Gujarati and Japanese.
 
 ## We are nothing but the sum of our thoughts
 
@@ -91,6 +92,7 @@ Brahma is the act of creation. Here you author notes and, in authoring them, bui
 - **Manas** — curate named subsets of your notes into focused knowledge bases, the lenses you
   later hand to your AI.
 - **Drafts** — work in progress that lives only on your device until you choose to publish.
+- **Translate any note** into another language with the on-device AI.
 
 ### Vishnu — take in and share the thoughts of others
 
@@ -105,12 +107,18 @@ thoughts worth keeping, and you offer your own.
   deciding what you think about; time only.
 - **Threads** — follow any conversation as a tree of replies, and *ask a question of the thread
   itself* (via the inline AI) when you need its context explained.
+- **Nearby** — a feed of public notes from people physically around you, exchanged directly
+  over Bluetooth and Wi-Fi with no internet (the same layer syncs your own devices when they meet).
+  See [`docs/Mesh`](docs/Mesh).
 - **Groups** — public rooms for many-to-many conversation.
 - **Private Groups** — invite-only, MLS-encrypted group spaces with admin-controlled membership.
 - **Direct Messages** — end-to-end encrypted one-to-one conversations (NIP-17 gift-wrapped; only
-  the recipient is visible on the relay).
+  the recipient is visible on the relay), with media attachments.
+- **Chats that pick up where you left off** — groups, private groups and DMs open at your first
+  unread note under a "New notes" line, with an unread count on the jump-to-latest button.
 - **Saved & Followed notes** — bookmark a thought to keep forever (and feed it to your AI), or
-  subscribe to a single note's *reference graph* and watch new connections to it arrive.
+  subscribe to a single note's *reference graph* and watch new connections arrive — replies to
+  replies included, with "New" and "New reply inside" marks that lead you down the trail.
 - **Sharing** — re-publish any thought into any surface (feed, channel, DM) as a self-contained,
   signature-verified snapshot, with your own commentary riding alongside.
 
@@ -128,21 +136,28 @@ it looks at the Brahman you already have and helps you forge connections latent 
 - **Shiv (AI chat)** — talk to yourself, or to a single Manas. Every answer is grounded in *your
   own* notes through GraphRAG: your question is matched against your knowledge, expanded one hop
   across the graph, enriched with your memory summaries, and answered by an on-device model. Branch
-  any conversation into a tree of alternatives.
+  any conversation into a tree of alternatives. With a vision-capable model you can attach a photo
+  and ask about it.
+- **Your documents and photos** — attach a PDF, a Word file, a scan or a picture to a note and ask
+  Shiv about it. Scanned pages and photographed text are read on the phone (English and Hindi), and
+  every answer shows where it came from — the page or section — which you can tap to open.
 - **Nataraj** — the churning of the ocean: a swipe-deck that fuses two or three of your own notes
   into a brand-new idea note. Keep the ones that spark; publish them back into your Brahman. This is
   how new thought is *made* from old.
 - **Ganas** — your autonomous agents, Shiv's attendants. A Gana watches an input surface, reasons
-  over a Manas you assign it, and acts on its own — summarizing, curating, replying, publishing — on
-  a schedule or whenever something new arrives. Your mind reaching out and interacting with the world
-  (*prakriti*) without you in the loop.
+  over all of your Brahma, one Manas, or no knowledge at all, and acts on its own — summarizing,
+  curating, replying, publishing — on a schedule or whenever something new arrives. A dashboard
+  shows what each one has done, what needs attention, and why a run failed. Your mind reaching out
+  and interacting with the world (*prakriti*) without you in the loop.
 - **Composer-chat** — the same on-device intelligence, inline in every conversation: ask, grounded
   in the recent messages plus a Manas, and turn the answer into a note.
 
-**On-device models you can choose:** Qwen3 0.6B, DeepSeek R1 1.5B, Gemma 4 E2B, Gemma 4 E4B —
-auto-recommended to your phone's RAM. An optional UNIUN Cloud backend exists for those who want
-it (sign in with your own Nostr key, no separate account), but the default and the philosophy are
-local: your thoughts never have to leave your device to be reasoned over.
+**On-device models you can choose:** Qwen3 0.6B, DeepSeek R1, Gemma 4 E2B, Gemma 4 E4B —
+auto-recommended to your phone's RAM (the two Gemma 4 models also read images). An optional UNIUN
+Cloud backend exists for those who want it (sign in with your own Nostr key, no separate account),
+but the default and the philosophy are local: your thoughts never have to leave your device to be
+reasoned over. A Gana pinned to a cloud model that also uses Brahma warns you that its notes would
+be sent to that model.
 
 ## Under the hood
 
@@ -163,14 +178,17 @@ with a native knowledge graph and on-device AI.
   every relay **WebSocket** connection and mirrors events both ways when you're online.
 - **On-device GraphRAG.** Shiv embeds your query, runs a vector similarity search over your notes,
   expands one hop across the graph, folds in your memory summaries, and answers with an on-device
-  LLM (**flutter_gemma**) — GPU-accelerated on Android (OpenCL/WebGPU) and iOS (Metal). Prompts
-  never leave the device.
+  LLM (**flutter_gemma**), using the phone's GPU where it can. Every saved note is queued and
+  embedded one at a time, so it is never lost if the app closes, and the vector store runs in its
+  own isolate so searching never stutters the UI. Prompts never leave the device.
 - **Encrypted where it matters.** Direct messages are **NIP-17** rumors sealed and gift-wrapped with
   **NIP-44** (ChaCha20-Poly1305) — only the recipient is visible on the relay. Private groups carry
   MLS-encrypted group messages.
 - **Content-addressed media.** Images, video, and files live on **Blossom** servers keyed by
   **SHA-256** — the same file is the same URL on any server — referenced inline via **NIP-92**
   `imeta` tags.
+- **Offline peer-to-peer.** A mesh layer exchanges Nostr events directly with nearby devices over
+  Bluetooth and Wi-Fi: it syncs your own devices (NIP-77 negentropy) and powers the Nearby feed.
 - **Clean, layered Flutter.** Flutter + **BLoC**, three strict layers (data / domain / presentation)
   with unidirectional dependencies. See `CLAUDE.md` for the rules.
 - **Self-hostable relay, already deployed.** The companion relay (`uniun-backend/`) is a **Go**
@@ -214,14 +232,16 @@ For the deeper architecture and conventions, see [`docs`](docs) and `CLAUDE.md`.
 
 Requirements:
 
-- Flutter SDK **>= 3.24** (channel: stable) — CI is pinned to a specific version in
-  [`.github/workflows/tests.yml`](.github/workflows/tests.yml) (`FLUTTER_VERSION`); match that if in doubt.
-  Verify your local version with `flutter --version`.
+- Flutter SDK **3.44.2** (channel: stable) — the version CI builds with
+  ([`tests.yml`](.github/workflows/tests.yml), [`builds.yml`](.github/workflows/builds.yml):
+  `FLUTTER_VERSION`); the project needs Dart `>=3.12`. Verify with `flutter --version`.
+- **Git LFS** — the bundled embedding model (`assets/models/embedding/`, about 145 MB) is an LFS
+  file. Run `git lfs install && git lfs pull` after cloning, or notes will not embed.
 - Dart SDK is bundled with Flutter — no separate install.
 - Platform toolchain for whichever target you're building (Android Studio + JDK for Android, Xcode
   for iOS/macOS, Visual Studio with C++ workload for Windows).
 
-Three steps from a clean checkout:
+Steps from a clean checkout:
 
 ```bash
 # 1. Resolve packages
@@ -230,7 +250,10 @@ flutter pub get
 # 2. Regenerate Isar / Freezed / Injectable / json_serializable code
 flutter pub run build_runner build --delete-conflicting-outputs
 
-# 3. Run on a connected device or simulator
+# 3. Regenerate localizations (after editing an .arb file)
+flutter gen-l10n
+
+# 4. Run on a connected device or simulator
 flutter run
 ```
 
@@ -251,9 +274,10 @@ Models live in flutter_gemma's managed storage — uninstall via Settings → AI
 
 ## Running the tests
 
-UNIUN ships three layers of tests. Run them in increasing order of cost.
+Read [`test/TESTING.md`](test/TESTING.md) before writing or changing a test. New and changed code is
+expected to be fully covered by tests under `test/`; run them in increasing order of cost.
 
-### 1. Unit tests (fast, no device)
+### 1. Unit and widget tests (fast, no device)
 
 ```bash
 # Whole suite
@@ -261,43 +285,50 @@ flutter test
 
 # A focused area — e.g. the on-device LLM scheduler
 flutter test test/data/datasources/llm/
-flutter test test/data/repositories/scheduler_coordinator_impl_test.dart
+
+# With coverage (read coverage/lcov.info for the files you touched)
+flutter test --coverage test/features/dm
 ```
 
 ### 2. Vertical-slice integration tests (fast, no device)
 
-Wire the real production classes across `presentation → domain → data` (no
-mocks) and assert the chain behaves end-to-end. Catches DI / signature-drift
-regressions.
+Wire the real production classes across `presentation → domain → data` over a real Isar and
+assert the chain behaves end to end. Catches DI and signature-drift regressions.
 
 ```bash
 flutter test test/integration/
 ```
 
-### 3. Real-device integration tests (require a connected device)
+### 3. Real-device tests (need a connected device)
 
-These load native libraries (flutter_gemma, MLS, etc.) and need an actual
-device or emulator. They live at the project root in `integration_test/`
-— this folder name is a Flutter convention; the `integration_test` plugin
-is only detected when the folder is named exactly that at the repo root.
+These load native libraries (flutter_gemma, MLS, …) and real scrolling, so they live at the repo
+root in `integration_test/` (the folder name is a Flutter convention). Run them through the
+script, which keeps the screen awake and does not uninstall the app:
 
 ```bash
-# List connected devices
-flutter devices
+# Once per model: push it where an uninstall does not wipe it
+scripts/device_test.sh push-model <path-to-model-file>
 
-# Run the whole suite in ONE app install (preserves the downloaded model
-# across tests — `flutter test integration_test/` would reinstall per file
-# and wipe it, causing tests to SKIP).
-flutter test integration_test/all_tests.dart -d <device-id>
+# One file, or the whole suite in one install
+scripts/device_test.sh run integration_test/unread_dots_e2e_test.dart
+scripts/device_test.sh run
 ```
 
-Some integration tests require an AI model to be installed on the device
-first — they SKIP gracefully when one is not. To exercise the on-device LLM
-paths, open Shiv on the device and download a model before running.
+The script prints "Building and installing, then the test is running on the phone…" and stays
+quiet for a minute or two while it builds. Tests that need a model fail loudly if it is not
+provisioned. `gana_local_engine_e2e_test.dart` publishes one real, permanent note to the relay on
+every run.
 
-See [`docs/SHIVA/scheduling.md`](docs/SHIVA/scheduling.md) for the algorithm
-under test and the verification scenarios that drive the unit + slice
-coverage.
+### What CI runs
+
+- **Tests** ([`tests.yml`](.github/workflows/tests.yml)) — the analyzer over `lib/`, `test/` and
+  `integration_test/`, then the test suite in eight parallel shards, with coverage reported to
+  Codecov. Every test file has to belong to a shard.
+- **Builds** ([`builds.yml`](.github/workflows/builds.yml)) — a release build for Android, iOS
+  (no code-signing) and Windows on every pull request, every push to `main` and nightly.
+
+See [`docs/SHIVA/scheduling.md`](docs/SHIVA/scheduling.md) for the algorithm under test and the
+verification scenarios behind the scheduler tests.
 
 ---
 
@@ -305,12 +336,12 @@ coverage.
 
 | Platform | Status | Notes |
 |----------|--------|-------|
-| **Android** | ✅ Supported | Min SDK 21. GPU inference via OpenCL. QR scan, image / video / file picker, on-device AI all work. |
-| **iOS** | ✅ Supported | iOS 13+. Metal-backed inference. Universal Links wired to `www.uniun.in`. |
+| **Android** | ✅ Supported | Flutter's default minimum SDK (API 24). GPU inference where available. QR scan, image / video / file picker, on-device AI all work. Release build checked in CI. |
+| **iOS** | ✅ Supported | iOS 16+. Metal-backed inference. Universal Links wired to `www.uniun.in`. Release build (no code-signing) checked in CI; features are not all verified on a device from the Linux dev machine — see the audit's open items. |
 | **macOS** | ✅ Supported | Tested locally. Isar, Gateway sync, and on-device AI all work. |
-| **Windows** | ✅ Supported | Tested locally. NPU dispatch available on Intel Lunar/Panther Lake via `flutter_gemma`. Note: discrete-GPU support on Windows is currently broken upstream in the `flutter_gemma_litertlm` engine (1.2.0+) — CPU/NPU are the working fallback there. |
+| **Windows** | ✅ Supported | Release build checked in CI. NPU dispatch available on Intel Lunar/Panther Lake via `flutter_gemma`. Note: discrete-GPU support on Windows is currently broken upstream in the `flutter_gemma_litertlm` engine (1.2.0+) — CPU/NPU are the working fallback there. |
 
-All four platforms compile from the same `lib/` codebase; there is no platform fork.
+The platforms compile from the same `lib/` codebase; there is no platform fork.
 
 ---
 
@@ -322,29 +353,38 @@ lib/                  Flutter app (see CLAUDE.md for the layer rules)
   ├── data/           Isar models + repository implementations
   ├── domain/         Freezed entities, abstract repos, use cases
   ├── gateway/        Relay sync isolate (WebSocket + inbound handlers)
-  ├── features/       Feature modules (vishnu, brahma, shiv, groups, private_groups, dm, mesh, …)
-  └── common/         Cross-feature widgets and helpers
+  ├── features/       Feature modules (vishnu, brahma, shiv, groups, private_groups, dm, mesh, surrounding, …)
+  ├── common/         Cross-feature widgets and helpers
+  └── l10n/           Localizations (en, hi, gu, ja) and generated delegates
+test/                 Unit, widget and vertical-slice tests (CI shards; see test/TESTING.md)
+integration_test/     Real-device tests, run through scripts/device_test.sh
 uniun-backend/        Go Nostr relay (Khatru + BadgerDB + Blossom + Azure)
-docs/                 Architecture notes (media subsystem, GraphRAG, …)
+docs/                 Architecture notes (media, GraphRAG, mesh, Shiv, releasing, audit log)
+CHANGELOG.md          What changed in each release
+DESIGN.md             Design system and screen spec
 ```
 
 ---
 
 ## Roadmap
 
-UNIUN is shipping and growing. On the near-term roadmap:
+What is planned or being looked at, from the open issues. No dates are promised.
 
 - **Creator monetization.** A way for users to earn from what they publish — the same
   ownership principle as your notes and keys, extended to your income. In line with UNIUN's
   Nostr-native philosophy, this leans on the protocol's own payment rails (zaps) rather than a
   walled-garden payment system.
-- **Richer DMs** — file and media transfer inside encrypted conversations.
-- **Private-group sharing** — QR-code invites for private groups.
+- **Faster note embedding.** About 11.5 s a note on a mid-range phone today; a shorter-input model
+  with chunking is being measured first (#266).
+- **Documents in the graph.** Let documents contribute nodes to the knowledge graph (#235) and let a
+  Manas-scoped chat reach its notes' attached documents (#236).
+- **Search and highlights over Nostr.** Global search with NIP-50 (#247) and text highlights with
+  NIP-84 (#246).
+- **Faster on-device translation** with ML Kit, keeping the LLM as a fallback (#241).
 - **Editable memory nodes** — surface and edit the wiki-style summaries Shiv builds over your graph.
-- **Gana activity view** — a timeline of what each autonomous agent has done on your behalf.
+- **Export a backup** from settings (#121).
 - **Deeper graph reasoning** — multi-hop retrieval and stronger synthesis as on-device models improve.
-- **Relay discovery** — find and adopt new relays (including community/topic relays) from inside
-  the app, instead of pasting a URL you found elsewhere.
+- **Automated release artifacts** and store uploads after a release PR merges (#276).
 
 Have an idea or a use case we haven't thought of? Open an issue — the roadmap changes based on
 what people actually ask for.
@@ -358,11 +398,13 @@ UNIUN is open source and welcomes contributions. Start with
 enforced (not stylistic preferences: no NIP-09, no Reddit-style models, `isar_community` only,
 Freezed 3.x `abstract class`, all UI strings via `AppLocalizations`), testing, commit/branch
 conventions, and how to submit a pull request. For the deeper technical detail behind each
-subsystem, see [`docs`](docs) and `CLAUDE.md`.
+subsystem, see [`docs`](docs) and `CLAUDE.md`. Releases are cut as described in
+[`docs/RELEASING.md`](docs/RELEASING.md).
 
 Bug reports and feature requests go through the [issue tracker](../../issues). Don't commit
-generated files (`*.g.dart`, `*.freezed.dart`, `lib/l10n/app_localizations*.dart`); they're
-reproduced by `build_runner` / `flutter gen-l10n`.
+`*.g.dart` or `*.freezed.dart` files — they are ignored and reproduced by `build_runner`. The
+localization delegates in `lib/l10n/app_localizations*.dart` *are* committed: after editing an
+`.arb` file, run `flutter gen-l10n` and commit the result.
 
 Everyone participating in the project — issues, PRs, discussions — is expected to follow the
 [Code of Conduct](CODE_OF_CONDUCT.md).
