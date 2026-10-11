@@ -598,6 +598,196 @@ void main() {
   });
 
   group('reactive (input-driven) cloud Gana', () {
+    test('private-group input can drive Brahma scope to a private-group output',
+        () async {
+      when(() => isCloudConnected.call()).thenAnswer((_) async => true);
+      when(() => generateOneShot.call(any()))
+          .thenAnswer((_) async => const Right('Private cross reply'));
+      when(() => privateGroup.execute(
+            groupId: any(named: 'groupId'),
+            content: any(named: 'content'),
+            authorPubkey: any(named: 'authorPubkey'),
+            privkeyHex: any(named: 'privkeyHex'),
+          )).thenAnswer((_) async {});
+      await seedGana(
+        ganaId: 'private-cross-1',
+        desiredBackend: LlmBackendType.uniunCloud,
+        desiredModelId: 'claude-cloud-mini',
+        inputType: GanaInputType.privateGroup,
+        inputRefId: 'pg-input',
+        outputType: GanaOutputType.privateGroup,
+        outputPrivateGroupId: 'pg-output',
+        triggerReactive: true,
+        triggerMode: GanaTriggerMode.oneShot,
+      );
+
+      await engine.start();
+      await isar.writeTxn(() async {
+        await isar.noteModels.put(NoteModel(
+          eventId: 'private-input-event',
+          sig: '',
+          authorPubkey: 'other-member',
+          content: 'Private group question',
+          kind: kPrivateGroupKind,
+          privateGroupId: 'pg-input',
+          type: NoteType.text,
+          eTagRefs: const [],
+          pTagRefs: const [],
+          tTags: const [],
+          created: DateTime.now(),
+        ));
+      });
+
+      final run = await waitForRun('private-cross-1',
+          timeout: const Duration(seconds: 8));
+      expect(run?.status, GanaRunStatus.succeeded);
+      expect(run?.inputEventIds, ['private-input-event']);
+      verify(() => manasLoader.mergeAll(
+            selfPubkey: any(named: 'selfPubkey'),
+            budget: any(named: 'budget'),
+            relevanceQuery: 'Private group question',
+          )).called(1);
+      verify(() => privateGroup.execute(
+            groupId: 'pg-output',
+            content: 'Private cross reply',
+            authorPubkey: any(named: 'authorPubkey'),
+            privkeyHex: any(named: 'privkeyHex'),
+          )).called(1);
+    });
+
+    test('followed-note input can drive a DM output', () async {
+      when(() => isCloudConnected.call()).thenAnswer((_) async => true);
+      when(() => generateOneShot.call(any()))
+          .thenAnswer((_) async => const Right('Followed note DM reply'));
+      when(() => dm.call(any())).thenAnswer((_) async => const Right(unit));
+      final conv = DmConversationModel()..otherPubkey = 'dm-peer';
+      await isar.writeTxn(() async {
+        await isar.dmConversationModels.put(conv);
+      });
+      await seedGana(
+        ganaId: 'followed-to-dm-1',
+        desiredBackend: LlmBackendType.uniunCloud,
+        desiredModelId: 'claude-cloud-mini',
+        inputType: GanaInputType.followedNote,
+        inputRefId: 'followed-root',
+        outputType: GanaOutputType.dm,
+        outputDmConversationId: conv.id,
+        triggerReactive: true,
+        triggerMode: GanaTriggerMode.oneShot,
+      );
+
+      await engine.start();
+      await isar.writeTxn(() async {
+        await isar.noteModels.put(NoteModel(
+          eventId: 'followed-reply-event',
+          sig: 'sig',
+          authorPubkey: 'other-member',
+          content: 'Reply to followed note',
+          kind: kNoteKind,
+          type: NoteType.text,
+          eTagRefs: const ['followed-root'],
+          pTagRefs: const [],
+          tTags: const [],
+          created: DateTime.now(),
+        ));
+      });
+
+      final run = await waitForRun('followed-to-dm-1',
+          timeout: const Duration(seconds: 8));
+      expect(run?.status, GanaRunStatus.succeeded);
+      expect(run?.inputEventIds, ['followed-reply-event']);
+      final sent = verify(() => dm.call(captureAny())).captured.single
+          as SendDmParams;
+      expect(sent.otherPubkey, 'dm-peer');
+      expect(sent.content, 'Followed note DM reply');
+    });
+
+    test('one-shot waits for the first matching message, then disables and '
+        'ignores later messages', () async {
+      when(() => isCloudConnected.call()).thenAnswer((_) async => true);
+      when(() => generateOneShot.call(any()))
+          .thenAnswer((_) async => const Right('First reply'));
+      await seedGana(
+        ganaId: 'first-message-1',
+        desiredBackend: LlmBackendType.uniunCloud,
+        desiredModelId: 'claude-cloud-mini',
+        inputType: GanaInputType.user,
+        inputRefId: 'watched-first',
+        triggerReactive: true,
+        triggerMode: GanaTriggerMode.oneShot,
+      );
+
+      await engine.start();
+      expect(await waitForRun('first-message-1',
+          timeout: const Duration(milliseconds: 700)), isNull);
+      await seedNote(eventId: 'first-message', authorPubkey: 'watched-first');
+      final first = await waitForRun('first-message-1',
+          timeout: const Duration(seconds: 8));
+      expect(first?.status, GanaRunStatus.succeeded);
+      expect(first?.inputEventIds, ['first-message']);
+      final gana = await isar.ganaModels
+          .filter()
+          .ganaIdEqualTo('first-message-1')
+          .findFirst();
+      expect(gana?.enabled, isFalse);
+
+      await seedNote(eventId: 'second-message', authorPubkey: 'watched-first');
+      await Future<void>.delayed(const Duration(seconds: 4));
+      expect(await isar.ganaRunModels
+          .filter()
+          .ganaIdEqualTo('first-message-1')
+          .count(), 1);
+      verify(() => generateOneShot.call(any())).called(1);
+    });
+
+    test('recurring input uses each new message once and advances its cursor',
+        () async {
+      when(() => isCloudConnected.call()).thenAnswer((_) async => true);
+      when(() => generateOneShot.call(any()))
+          .thenAnswer((_) async => const Right('Recurring reply'));
+      await seedGana(
+        ganaId: 'every-message-1',
+        desiredBackend: LlmBackendType.uniunCloud,
+        desiredModelId: 'claude-cloud-mini',
+        inputType: GanaInputType.user,
+        inputRefId: 'watched-recurring',
+        triggerReactive: true,
+        triggerMode: GanaTriggerMode.recurring,
+        maxOutputs: 3,
+      );
+
+      await engine.start();
+      await seedNote(eventId: 'recurring-first',
+          authorPubkey: 'watched-recurring');
+      final first = await waitForRun('every-message-1',
+          timeout: const Duration(seconds: 8));
+      expect(first?.status, GanaRunStatus.succeeded);
+      expect(first?.inputEventIds, ['recurring-first']);
+
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await seedNote(eventId: 'recurring-second',
+          authorPubkey: 'watched-recurring');
+      final deadline = DateTime.now().add(const Duration(seconds: 8));
+      List<GanaRunModel> runs = const [];
+      while (DateTime.now().isBefore(deadline)) {
+        runs = await isar.ganaRunModels
+            .filter()
+            .ganaIdEqualTo('every-message-1')
+            .findAll();
+        if (runs.length >= 2) break;
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+      expect(runs.length, 2);
+      expect(runs.map((r) => r.inputEventIds.single).toSet(),
+          {'recurring-first', 'recurring-second'});
+      final gana = await isar.ganaModels
+          .filter()
+          .ganaIdEqualTo('every-message-1')
+          .findFirst();
+      expect(gana?.enabled, isTrue);
+      verify(() => generateOneShot.call(any())).called(2);
+    });
+
     test('a new note from the watched user fires the Gana via the cloud '
         'override', () async {
       when(() => isCloudConnected.call()).thenAnswer((_) async => true);
