@@ -111,6 +111,14 @@ Two registers: **(1) brand glyphs** — `DeityGlyph` for Vishnu / Brahma / Shiv 
 - **Composer AI mode (composer-chat)** — tap the composer avatar → **Manas picker sheet** → the composer becomes an inline Shiv chat grounded in the surface + the picked Manas: Shiv-branded banner (auto_awesome + "Shiv · {Manas} · on-device" + ×), `MessageBubble`s, suggestion chips, and an input whose left avatar is the Manas switch + a model chip (Qwen3) + send. Works in every surface that has the composer (thread/channel/DM/private). Mirrors `lib/features/shiv/composer_chat/`.
 - **Reference note (grey, action-less)** — a *small muted note*: avatar(30–38) + name·time (secondary) + faded content (`rgba(25,28,30,.55)`, 2–3 lines). Used for Thread references (on top of the root), Nataraj sources, and ReferencePicker rows. Mirrors `lib/common/widgets/note_card/reference_note_card.dart`.
 - **List row** — avatar/icon-square + title + subtitle + trailing (Badge/count). Drawers, channel/DM lists.
+- **Chat open position & unread** — applies to channel, private-channel and DM chats (all `NoteCard` feeds).
+  - **Opens at your first unread note**, near the middle of the screen, with the read notes above it; with nothing unread it opens at the newest note, at the bottom. The position is fixed when the chat opens, so notes arriving later never move the view.
+  - A **"New notes" divider** — a thin primary-tint line, a centered small primary label (`labelSmall`) and another line — sits directly above the first unread note. It stays for the life of the page.
+  - **Jump-to-latest** — a round floating button (44px, surface fill, `--border-subtle`, soft shadow) bottom-right with a down chevron; it appears once you are away from the bottom and carries a **count badge** (primary fill) of unread notes, capped at "99+". Tapping it scrolls to the newest note.
+  - **Marking read:** a note is read once at least half of it has been on screen (not when it scrolls away, so reading three and going back leaves the right count), and the whole chat is read when you reach the newest note — including when it opens already there and when a note arrives while you sit at the bottom. Nothing is marked while the list is still loading, while another page covers the chat, or while the app is in the background.
+  - The drawer's count and the jump button's number are the same unread rows, so they move together.
+- **Stat tile** — a white contained card (radius 16, 1px `--border`): a large tabular-figure value (24/800, colored by meaning) over a muted 12/600 label. Used in 2 × 2 grids on the Gana dashboard.
+- **Outcome bar** — a 6px, fully rounded stacked bar showing how runs ended: `--success` (done) · `--error` (failed) · `--outline-variant` (skipped), widths by count; an empty muted track before the first run. Never animated, never more than one per card.
 - **Settings group** — contained card, rows with hairline dividers, leading icon + label + chevron.
 - **Bottom sheet** — scrim + sheet pinned to bottom (`--radius-2xl` top) + 36×4 grabber. Used for: Share, Manas pickers, Manas membership, private-channel pending requests.
 - **Manas picker sheet** — "Chat with your notes / Scope to a Manas" → list: **All notes → Ask Brahma** + per-Manas rows (icon + name + note count) + selected check.
@@ -132,8 +140,8 @@ Two registers: **(1) brand glyphs** — `DeityGlyph` for Vishnu / Brahma / Shiv 
 
 ### 3.2 Vishnu — feed
 - *Feed* (`VishnuFeed.jsx`) — flat `NoteCard` list. **Minimal header: menu · QR-scan · avatar** (no channel chips, no notification bell, no UNIUN wordmark). Tapping a note → Thread.
-- *Spaces drawer* (`SpacesDrawer.jsx`) — left slide-in. Header (avatar + npub + settings) + **My QR code / Scan code** + **Search spaces…**. **Collapsible sections, ordered: Direct messages · Channels · Private channels · Followed notes · Saved notes** (unread Badges; no member counts).
-- *Thread* (`Thread.jsx`) — **references on top → root note → flat replies** (no nesting). References render as grey reference notes with a "Show N more references" expand past 2. **Composer doubles as Shiv chat:** the avatar (with a sparkle badge) → Manas picker → inline Shiv chat grounded in the thread.
+- *Spaces drawer* (`SpacesDrawer.jsx`) — left slide-in. Header (avatar + npub + settings) + **My QR code / Scan code** + **Search spaces…**. **Collapsible sections, ordered: Direct messages · Channels · Private channels · Followed notes · Saved notes**. Unread is a **count Badge** on DMs, channels, private channels and followed notes alike (a number, not a dot; no member counts). The count drops as notes are read.
+- *Thread* (`Thread.jsx`) — **references on top → root note → flat replies** (no nesting). **In a followed note's thread** each reply can carry a one-line **unread mark** above its card: a bright dot + "New" when that reply is itself unread, a quiet dot + "New reply inside" when an unread reply sits further down, so the trail leads to it. A note is marked read only when its own thread opens, never by seeing its parent. Marks appear only for followed notes. References render as grey reference notes with a "Show N more references" expand past 2. **Composer doubles as Shiv chat:** the avatar (with a sparkle badge) → Manas picker → inline Shiv chat grounded in the thread.
 
 ### 3.3 Brahma — knowledge-graph workspace
 > **DECISION:** Brahma is **not** a text editor — it is the graph workspace (`lib/features/brahma/graph/pages/graph_page.dart`).
@@ -147,8 +155,16 @@ Two registers: **(1) brand glyphs** — `DeityGlyph` for Vishnu / Brahma / Shiv 
 - *Chat* (`ShivChat.jsx`) — Shiv-branded header (scope shown), `MessageBubble`s + suggestion chips, and the **Manas-view composer** (Manas-switch avatar + model chip + send + Manas picker). **Floating nav hides in chat.**
 - *History* (`ShivHistory.jsx`) — conversation list, grouped by day. Row menu = Rename / Pin (no delete).
 - *Branch tree* (`BranchTree.jsx`) — the parentId branch tree; active leaf highlighted; node action panel (View / Switch / Branch from here).
-- *Gana · agents* (`GanaList.jsx`) — autonomous-agent cards (watches / scope / trigger / last-run) each with an on/off toggle.
-- *Gana · new* (`GanaForm.jsx`) — Name · **Watch** (Feed / A channel / A DM / Saved — *with a "which channel/DM" sub-picker*) · Reason over (Manas) · When (trigger preset) · **Publish to** (Your feed / A channel / A DM / Save as draft — *with a "which channel/DM" sub-picker*) · Instruction.
+- *Gana · dashboard* (shipped in 3.1; replaces the old agent list and its gallery screen `GanaList.jsx`) — **the one Gana screen; there is no separate list page.** Centered "Dashboard" title, common back button, and a **New** pill (primary, stadium) in the app bar. The scaffold is `surfaceContainerLow` with 16px gutters and a single scrolling column:
+  1. **Four stat tiles in a 2 × 2 grid** — *Active* (`on/total`, primary) · *Done* (success) · *Failed* (error when above zero, otherwise muted) · *Skipped* (muted). Each tile is a white card, radius 16, 1px `--border`, value 24/800 with tabular figures over a 12/600 label.
+  2. **Needs attention** (only when a Gana's last run failed) — flat activity rows with the error in error color, up to three lines; tapping opens that Gana.
+  3. **Your Ganas** — one contained card per Gana (radius 16, `--border`, no shadow): name 15/700 · success rate · on/off switch, then a **thin 6px outcome bar** (done / failed / skipped), then a wrapping line of *trigger* and *scope* (2 lines max each so it never overflows at 320px or 1.5× text), then the last run ("Succeeded · 2 min ago" or "Never run"). Tapping the card opens the detail page.
+  4. **Recent activity** — the 10 newest runs across all Ganas as flat rows: a status dot, "Gana name · status", the time, and a one-line error for a failed run.
+  5. A footnote that totals only count runs from this version on.
+  - **Empty state:** a primary-tint circle with the agent glyph, a short "what a Gana is" line and a **New** button.
+  - **Rules:** success rate = done ÷ (done + failed); skipped runs are left out (a Gana waiting for input skips a lot without failing). The page uses the same surfaces, borders, back button and l10n as the other Shiv screens.
+- *Gana · detail* — the same configuration as a read-only summary (name, on/off, **scope**, input, output, trigger), lifetime done / failed / skipped with the same outcome bar, and the last 10 runs as **drop-downs**: a succeeded run opens to the note it published, a failed run to a plain-words reason (no identity / publish / network / model / other) with the raw error underneath, a skipped run to a sentence for its skip reason.
+- *Gana · new / edit* (`GanaForm.jsx`, updated in 3.1) — a stack of contained cards on `surfaceContainerLow`: **Name** · **Task** (instruction) · **Knowledge** · **Connections** (Watch → which channel/DM/note/user; Publish to → Your feed / A channel / A private group / A DM, with a "which one" sub-picker; Model) · **Schedule** (trigger preset, interval, max outputs) · **Enabled**. The **Knowledge** card is a chip row of exactly one choice: **No knowledge** · **Brahma** (the default — the whole knowledge base) · one **Manas** from the list, plus a "Create Manas" chip. Returning from creating a Manas refreshes only the chip list; the unsaved draft is kept. When **Brahma** is picked together with a cloud model, a small error-colored line warns that the notes are sent to that model (pick a Manas or No knowledge to keep them on the device).
 - *Nataraj* (`Nataraj.jsx`) — **swipe deck**. The card fills the screen and reads like a mini-thread: grey **source reference notes** (collapsed past 2 with a "Show N more" expand) → a centered **Shiv synthesis mark** → the **synthesized note** (rendered note-style, Draft pill). Actions: **Skip · Keep · Discuss · Shuffle**. No "Synthesized from" header, no side cues.
 - *AI model* (`ModelSelect.jsx`) — on-device model list (Qwen3 0.6B / DeepSeek R1 / Gemma 4 E2B/E4B) with active / download / progress states.
 - *Composer AI chat* (`ComposerChat.jsx`) — demonstrates the composer→Shiv chat in a channel context (see pattern 2.2).
@@ -158,15 +174,15 @@ Two registers: **(1) brand glyphs** — `DeityGlyph` for Vishnu / Brahma / Shiv 
 - *Channels* (`ChannelList.jsx`) — joined channel list (# icon + name + about + unread Badge). No member counts, **no Discover tab**. Create / Join affordances.
 - *Create channel* — icon + name + description; note that the first event id becomes the permanent channel id.
 - *Join channel* (`JoinChannel.jsx`) — Scan QR **or** paste channel id **+ relay** (`wss://…`); found-preview → Join.
-- *Channel chat* (`ChannelChat.jsx`) — **messages render as feed `NoteCard`s** (not bubbles) + the rich composer. No member count.
+- *Channel chat* (`ChannelChat.jsx`) — **messages render as feed `NoteCard`s** (not bubbles) + the rich composer. No member count. See **Chat open position & unread** (§2.2) for how it opens and marks read.
 
 ### 3.6 Private channels (encrypted)
 - *Create private* — encrypted note + name/description/icon.
 - *Join private* (`JoinPrivateChannel.jsx`) — Scan QR **or** paste group id **+ relay**; "request goes to admin for approval".
-- *Private detail* (`PrivateChannelDetail.jsx`) — **`NoteCard` feed** + composer; lock + name (no member count); a requests badge in the header opens **pending requests as a bottom sheet** (Approve / Decline).
+- *Private detail* (`PrivateChannelDetail.jsx`) — **`NoteCard` feed** + composer (opens at the first unread; see §2.2 *Chat open position & unread*); lock + name (no member count); a requests badge in the header opens **pending requests as a bottom sheet** (Approve / Decline).
 
 ### 3.7 DMs & more
-- *DM chat* (`DmChat.jsx`) — **`NoteCard` feed** + composer + an "end-to-end encrypted" pill.
+- *DM chat* (`DmChat.jsx`) — **`NoteCard` feed** + composer + an "end-to-end encrypted" pill. Opens at the first unread note with the "New notes" divider and a counted jump-to-latest button (§2.2 *Chat open position & unread*).
 - *New message* (`CreateDm.jsx`) — search by name/npub + recent users.
 - *Share sheet* (`ShareSheet.jsx`) — bottom sheet: **Quoting card on top** → the **rich composer** ("Add a note…", no send) → destinations (Feed / Channel / Private / DM) → "Share via…" → Share. Embed-by-value.
 - *QR profile* (`QrProfile.jsx`) — segmented **My code** (avatar + npub + QR) / **Scan** (viewfinder → tapping it routes to *User profile*).
@@ -185,6 +201,8 @@ Two registers: **(1) brand glyphs** — `DeityGlyph` for Vishnu / Brahma / Shiv 
 6. **Onboarding speaks "Avatar"** (Create / Restore Your Avatar), not "identity/keys-as-identity".
 7. **No fabricated data:** no channel member counts, no "Discover" feed.
 8. **QR is first-class:** my-code + scan in the Vishnu header and the Spaces drawer; join-by-code screens (channel + private) offer QR + relay.
+9. **Ganas: one dashboard, outcomes at a glance.** The Gana screen is a dashboard (totals → needs attention → each Gana → recent activity), not a list. Failure is surfaced with its reason and the Gana that caused it; success is a rate, and skips never count against it.
+10. **A Gana's knowledge is an explicit, single choice:** No knowledge, Brahma, or one Manas. Brahma is the default; sending the whole library to a cloud model is warned about, never silent.
 
 ---
 
@@ -199,7 +217,9 @@ Two registers: **(1) brand glyphs** — `DeityGlyph` for Vishnu / Brahma / Shiv 
 | Brahma graph + Manas drawer | `lib/features/brahma/graph/*` (graphview), `lib/features/brahma/manas/widgets/brahma_drawer.dart` |
 | Manas model | `lib/data/models/manas_model.dart`, `manas_note_link_model.dart` |
 | Welcome (trimurti) | `lib/features/onboarding/pages/welcome_page.dart` |
-| Gana form | `lib/features/shiv/gana/form/*` |
+| Gana form | `lib/features/shiv/gana/form/*` (knowledge chips in `widgets/gana_form_sections.dart`) |
+| Gana dashboard | `lib/features/shiv/gana/dashboard/pages/gana_dashboard_page.dart`; widgets `gana_stat_tile.dart`, `gana_outcome_bar.dart`, `gana_dashboard_row.dart`, `gana_activity_tile.dart`, `gana_empty_state.dart` |
+| Gana detail | `lib/features/shiv/gana/detail/pages/gana_detail_page.dart` |
 | Floating nav | `lib/common/widgets/floating_nav.dart` |
 
 Implementation rules from `CLAUDE.md` still bind: Clean Architecture (data/domain/presentation), `isar_community`, Freezed 3 `abstract class`, `@Injectable`, `Either<Failure,T>`, l10n for every string, no NIP-09 / no delete.

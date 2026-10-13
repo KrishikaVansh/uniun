@@ -656,23 +656,16 @@ The test that answers this lives at `test/integration/flutter_gemma_bg_isolate_t
 
 ## 10. UI placement
 
-The **Shiv drawer** hosts Ganas alongside the existing chat history.
+Ganas live on their own screen, opened from the **Gana** button on the Shiv home.
 
 ```
-Shiv tab
-  └─ ShivChatPage  Scaffold(drawer: ShivHistoryDrawer)
-       └─ ShivHistoryDrawer (280 wide — matches Vishnu / Brahma)
-            ├─ Header
-            ├─ GANAS section (collapsible)
-            │    ├─ "+ New Gana" → pushNamed(shivGanaForm)
-            │    └─ GanaTile (× N)
-            │         ├─ name
-            │         ├─ trigger summary ("Reactive · Every 30m")
-            │         ├─ last-run badge ("Succeeded · 2 min ago")
-            │         ├─ tap     → pushNamed(shivGanaDetail, ganaId)
-            │         └─ long    → bottom sheet (Enable/Disable, Edit, Delete)
-            └─ CONVERSATIONS section (existing, unchanged behaviour)
+Shiv home ─ "Gana" ─▶ GanaDashboardPage   (route shivGanaList)
+                        ├─ "New" → pushNamed(shivGanaForm)
+                        ├─ totals · needs attention · each Gana · recent activity
+                        └─ tap a Gana or a run → pushNamed(shivGanaDetail, ganaId)
 ```
+
+Layout and behaviour of the dashboard are described below and in `DESIGN.md` (§3.4).
 
 `GanaFormPage` (route `shivGanaForm`):
 
@@ -686,9 +679,11 @@ Shiv tab
 │ Description                       │
 │ [_____________________]           │
 │                                   │
-│ MANASES                           │
-│ Pick one or more …                │
-│ [Rust Expert ✓] [Life Lessons]…   │  multi-select chips
+│ KNOWLEDGE                         │
+│ Brahma for all your knowledge, …  │
+│ [No knowledge] [Brahma ✓]         │  one choice: none · Brahma (default)
+│ [Rust Expert] [Life Lessons] [+]  │  · or one Manas; [+] creates a Manas
+│ ⚠ Brahma sends notes to the cloud │  only with a cloud model + Brahma
 │                                   │
 │ Task prompt                       │
 │ [ multi-line ]                    │
