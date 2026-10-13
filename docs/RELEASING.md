@@ -1,7 +1,7 @@
 # Releasing a New Version
 
-How to cut and ship a new UNIUN release for **iOS** and **Android**. Follow the steps in
-order. Everything user-facing is driven from one place — the `version` line in
+How to cut and ship a new UNIUN release for **iOS**, **Android**, and **Windows**. Follow the
+steps in order. Everything user-facing is driven from one place — the `version` line in
 [`pubspec.yaml`](../pubspec.yaml).
 
 ---
@@ -11,7 +11,7 @@ order. Everything user-facing is driven from one place — the `version` line in
 1. [Bump the version](#1-bump-the-version-in-pubspecyaml) in `pubspec.yaml`.
 2. [Update the changelog](#2-update-the-changelog) in [`CHANGELOG.md`](../CHANGELOG.md).
 3. [Make sure signing is set up](#3-signing--keys) (keystore + `key.properties` for Android, certs for iOS).
-4. [Build the release artifact](#4-build-the-release-artifacts) (`.ipa` for iOS, `.aab` for Android).
+4. [Build the release artifacts](#4-build-the-release-artifacts) (`.ipa` for iOS, `.aab` for Android, installer `.exe` for Windows).
 5. [Upload & tag](#5-upload--tag).
 
 ---
@@ -177,6 +177,31 @@ Output: `build/app/outputs/bundle/release/app-release.aab`. Upload the **`.aab`*
 to the Google Play Console — Play prefers App Bundles over APKs. (For local sideloading/testing
 only, `flutter build apk --release` produces a signed `.apk`.)
 
+### Windows
+
+Windows requires no signing setup. Run on a Windows machine:
+
+```powershell
+flutter build windows --release
+flutter pub run build_runner build --delete-conflicting-outputs   # if models/freezed changed
+```
+
+Output: `build\windows\x64\runner\Release\`
+
+**Build the installer** using [Inno Setup](https://jrsoftware.org/isdl.php) (install once,
+free). The script is at `installer\uniun_installer.iss`. Update the `#define MyAppVersion`
+line at the top to match the new version, then compile:
+
+```powershell
+& "C:\Users\<you>\AppData\Local\Programs\Inno Setup 6\ISCC.exe" installer\uniun_installer.iss
+```
+
+Output: `installer\output\uniun-setup-vX.Y.Z.exe` — a single installer file (~160 MB).
+
+> The installer uses `windows\runner\resources\app_icon.ico` as its icon. Inno Setup is
+> installed per-user at `AppData\Local\Programs\Inno Setup 6\` on most machines — adjust
+> the path above if yours differs (`where /r C:\ ISCC.exe` finds it).
+
 ---
 
 ## 5. Upload & tag
@@ -184,7 +209,10 @@ only, `flutter build apk --release` produces a signed `.apk`.)
 1. **Android** → Google Play Console → create a new release on the target track
    (internal / closed / production), upload the `.aab`, paste the changelog into "What's New".
 2. **iOS** → App Store Connect → select the uploaded build, fill release notes, submit for review.
-3. **Tag the commit** so the release is reproducible:
+3. **Windows** → GitHub Releases → create a new release for the tag, upload
+   `uniun-setup-vX.Y.Z.exe`, paste the contents of `RELEASE_NOTES_vX.Y.Z.md` as the
+   description, and link to the App Store and Play Store for mobile users.
+4. **Tag the commit** so the release is reproducible:
 
    ```bash
    git tag -a v1.2.0 -m "Release 1.2.0"
@@ -201,5 +229,8 @@ only, `flutter build apk --release` produces a signed `.apk`.)
 - [ ] Xcode signing/team + App Store Connect record ready (iOS).
 - [ ] `flutter build ipa --release` succeeds.
 - [ ] `flutter build appbundle --release` succeeds.
+- [ ] `flutter build windows --release` succeeds (Windows machine).
+- [ ] `#define MyAppVersion` in `installer\uniun_installer.iss` matches the new version.
+- [ ] Inno Setup compiles `installer\uniun_installer.iss` → `installer\output\uniun-setup-vX.Y.Z.exe`.
 - [ ] Artifacts uploaded; release notes match the changelog.
 - [ ] Commit tagged `vX.Y.Z` and pushed.
