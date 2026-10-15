@@ -19,7 +19,9 @@ class _MockChunkUseCase extends Mock implements SearchDocumentChunksUseCase {}
 void main() {
   setUpAll(() {
     registerFallbackValue((<double>[], 0, 0.0));
-    registerFallbackValue((<double>[], 0, 0.0, null as String?));
+    registerFallbackValue(
+      (<double>[], 0, 0.0, null as String?, null as Set<String>?),
+    );
   });
 
   late _MockSearchUseCase useCase;
@@ -108,7 +110,7 @@ void main() {
       expect(result, [hit]);
       final captured =
           verify(() => chunkUseCase.call(captureAny())).captured.single
-              as (List<double>, int, double, String?);
+              as (List<double>, int, double, String?, Set<String>?);
       expect(captured.$1, [1.0, 2.0]);
     });
 
@@ -121,7 +123,7 @@ void main() {
 
       final captured =
           verify(() => chunkUseCase.call(captureAny())).captured.single
-              as (List<double>, int, double, String?);
+              as (List<double>, int, double, String?, Set<String>?);
       expect(captured.$4, 'helpline');
     });
 
@@ -134,7 +136,7 @@ void main() {
 
       final captured =
           verify(() => chunkUseCase.call(captureAny())).captured.single
-              as (List<double>, int, double, String?);
+              as (List<double>, int, double, String?, Set<String>?);
       expect(captured.$2, 3);
       expect(captured.$3, 0.3);
     });
@@ -148,9 +150,25 @@ void main() {
 
       final captured =
           verify(() => chunkUseCase.call(captureAny())).captured.single
-              as (List<double>, int, double, String?);
+              as (List<double>, int, double, String?, Set<String>?);
       expect(captured.$2, 7);
       expect(captured.$3, 0.6);
+    });
+
+    test('forwards the allowed document SHA set', () async {
+      when(
+        () => chunkUseCase.call(any()),
+      ).thenAnswer((_) async => const Right(<ScoredChunk>[]));
+
+      await service.searchChunks(
+        queryVector: [1.0],
+        allowedSha256: const {'inside'},
+      );
+
+      final captured =
+          verify(() => chunkUseCase.call(captureAny())).captured.single
+              as (List<double>, int, double, String?, Set<String>?);
+      expect(captured.$5, {'inside'});
     });
 
     test('a use case failure degrades to an empty list, not a throw', () async {

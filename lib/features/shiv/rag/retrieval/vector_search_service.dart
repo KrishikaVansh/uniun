@@ -38,9 +38,10 @@ class VectorSearchService {
     String? queryText,
     int topK = 3,
     double minScore = 0.3,
+    Set<String>? allowedSha256,
   }) async {
     final result = await _chunkSearchUseCase(
-      (queryVector, topK, minScore, queryText),
+      (queryVector, topK, minScore, queryText, allowedSha256),
     );
     return result.fold((failure) => [], (chunks) => chunks);
   }

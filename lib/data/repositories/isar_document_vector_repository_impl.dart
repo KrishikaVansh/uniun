@@ -52,8 +52,13 @@ class IsarDocumentVectorRepositoryImpl implements DocumentVectorRepository {
     String? queryText,
     int topK = 3,
     double minScore = 0.3,
+    Set<String>? allowedSha256,
   }) async {
-    if (queryVector.isEmpty || topK <= 0) return const [];
+    if (queryVector.isEmpty ||
+        topK <= 0 ||
+        (allowedSha256 != null && allowedSha256.isEmpty)) {
+      return const [];
+    }
     final ranker = HybridRanker(
       queryVector,
       queryText: queryText,
@@ -68,6 +73,9 @@ class IsarDocumentVectorRepositoryImpl implements DocumentVectorRepository {
           .findAll();
       if (rows.isEmpty) break;
       for (final row in rows) {
+        if (allowedSha256 != null && !allowedSha256.contains(row.sha256)) {
+          continue;
+        }
         ranker.add(row.id, row.vector, row.text);
       }
     }

@@ -4,6 +4,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:uniun/core/enum/note_type.dart';
 import 'package:uniun/data/models/draft_model.dart';
 import 'package:uniun/data/models/manas_note_link_model.dart';
+import 'package:uniun/data/models/notes/media_attachment.dart';
 import 'package:uniun/data/models/notes/note_model.dart';
 import 'package:uniun/data/models/saved_note_model.dart';
 import 'package:uniun/domain/entities/shiv/scored_note.dart';
@@ -11,6 +12,7 @@ import 'package:uniun/features/shiv/generation/context/manas_context_loader.dart
 import 'package:uniun/features/shiv/rag/embedding/embedding_service.dart';
 import 'package:uniun/features/shiv/rag/retrieval/vector_search_service.dart';
 
+import '../../../../_helpers/isar_seeds.dart';
 import '../../../../_helpers/isar_test_harness.dart';
 
 class _MockEmbedder extends Mock implements EmbeddingService {}
@@ -18,7 +20,8 @@ class _MockEmbedder extends Mock implements EmbeddingService {}
 class _MockSearcher extends Mock implements VectorSearchService {}
 
 NoteModel _ownNote(String id, String content, DateTime created,
-        {String author = 'self'}) =>
+        {String author = 'self',
+        List<MediaAttachment> attachments = const []}) =>
     NoteModel(
       eventId: id,
       sig: 'sig',
@@ -28,11 +31,13 @@ NoteModel _ownNote(String id, String content, DateTime created,
       eTagRefs: const [],
       pTagRefs: const [],
       tTags: const [],
+      attachments: attachments,
       created: created,
     );
 
 SavedNoteModel _savedNote(String id, String content, DateTime created,
-        {DateTime? removedAt}) =>
+        {DateTime? removedAt,
+        List<MediaAttachment> attachments = const []}) =>
     SavedNoteModel()
       ..eventId = id
       ..sig = 'sig'
@@ -44,14 +49,18 @@ SavedNoteModel _savedNote(String id, String content, DateTime created,
       ..tTags = const []
       ..created = created
       ..savedAt = created
+      ..attachments = attachments
       ..removedAt = removedAt;
 
-DraftModel _draft(String id, String content, DateTime at) => DraftModel()
+DraftModel _draft(String id, String content, DateTime at,
+        {List<MediaAttachment> attachments = const []}) =>
+    DraftModel()
   ..draftId = id
   ..content = content
   ..eTagRefs = const []
   ..pTagRefs = const []
   ..tTags = const []
+  ..attachments = attachments
   ..createdAt = at
   ..updatedAt = at;
 
@@ -211,6 +220,35 @@ void main() {
       expect(result.map((n) => n.id), ['n2', 'n1']);
     });
 
+    test('uses a supplied relevance vector without embedding again', () async {
+      final at = DateTime(2026, 1, 1);
+      await isar.writeTxn(() async {
+        await isar.noteModels.put(_ownNote('n1', 'about cats', at));
+        await isar.manasNoteLinkModels.put(_link('m1', 'n1', at));
+      });
+      when(
+        () => searcher.search(
+          queryVector: any(named: 'queryVector'),
+          topK: any(named: 'topK'),
+          minScore: any(named: 'minScore'),
+        ),
+      ).thenAnswer(
+        (_) async => const [
+          ScoredNote(noteId: 'n1', score: 0.9, content: 'about cats'),
+        ],
+      );
+
+      final result = await loader.merge(
+        manasIds: const ['m1'],
+        budget: 1000,
+        relevanceQuery: 'pets',
+        relevanceVector: const [1.0, 0.0],
+      );
+
+      expect(result.single.id, 'n1');
+      verifyNever(() => embedder.embed(any()));
+    });
+
     test('a blank/whitespace-only relevanceQuery is treated as none — '
         'falls back to newest-first without touching the embedder',
         () async {
@@ -295,6 +333,111 @@ void main() {
       );
 
       expect(result.single.id, 'n1');
+    });
+  });
+
+  group('documentSha256sForManases', () {
+    test('collects attachments from linked own, saved, and draft notes',
+        () async {
+      final at = DateTime(2026, 1, 1);
+      await isar.writeTxn(() async {
+        await isar.noteModels.put(
+          _ownNote(
+            'own',
+            'own note',
+            at,
+            attachments: [mediaAttachmentRow(sha256: 'own-sha')],
+          ),
+        );
+        await isar.savedNoteModels.put(
+          _savedNote(
+            'saved',
+            'saved note',
+            at,
+            attachments: [mediaAttachmentRow(sha256: 'saved-sha')],
+          ),
+        );
+        await isar.draftModels.put(
+          _draft(
+            'draft',
+            'draft note',
+            at,
+            attachments: [mediaAttachmentRow(sha256: 'draft-sha')],
+          ),
+        );
+        await isar.manasNoteLinkModels.putAll([
+          _link('m1', 'own', at),
+          _link('m1', 'saved', at),
+          _link('m1', 'draft', at),
+        ]);
+      });
+
+      expect(
+        await loader.documentSha256sForManases(const ['m1']),
+        {'own-sha', 'saved-sha', 'draft-sha'},
+      );
+    });
+
+    test('excludes outside and tombstoned links', () async {
+      final at = DateTime(2026, 1, 1);
+      await isar.writeTxn(() async {
+        await isar.noteModels.putAll([
+          _ownNote(
+            'inside',
+            'inside',
+            at,
+            attachments: [mediaAttachmentRow(sha256: 'inside-sha')],
+          ),
+          _ownNote(
+            'outside',
+            'outside',
+            at,
+            attachments: [mediaAttachmentRow(sha256: 'outside-sha')],
+          ),
+          _ownNote(
+            'removed',
+            'removed',
+            at,
+            attachments: [mediaAttachmentRow(sha256: 'removed-sha')],
+          ),
+        ]);
+        await isar.manasNoteLinkModels.putAll([
+          _link('m1', 'inside', at),
+          _link('m2', 'outside', at),
+          _link('m1', 'removed', at, removedAt: at),
+        ]);
+      });
+
+      expect(
+        await loader.documentSha256sForManases(const ['m1']),
+        {'inside-sha'},
+      );
+    });
+
+    test('a document shared with an outside note remains in scope', () async {
+      final at = DateTime(2026, 1, 1);
+      await isar.writeTxn(() async {
+        await isar.noteModels.putAll([
+          _ownNote(
+            'inside',
+            'inside',
+            at,
+            attachments: [mediaAttachmentRow(sha256: 'shared-sha')],
+          ),
+          _ownNote(
+            'outside',
+            'outside',
+            at,
+            attachments: [mediaAttachmentRow(sha256: 'shared-sha')],
+          ),
+        ]);
+        await isar.manasNoteLinkModels.put(_link('m1', 'inside', at));
+      });
+
+      expect(
+        await loader.documentSha256sForManases(const ['m1']),
+        {'shared-sha'},
+      );
     });
   });
 

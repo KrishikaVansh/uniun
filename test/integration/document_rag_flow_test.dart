@@ -421,27 +421,69 @@ void main() {
       expect(msg.userMessage, contains('a note about clouds'));
     });
 
-    test('a Manas-scoped question never reaches the document store', () async {
+    test('a Manas-scoped question reaches only documents attached to its notes',
+        () async {
+      await cacheDocx();
+      final at = DateTime(2026, 1, 1);
+      await isar.writeTxn(() async {
+        await isar.noteModels.putAll([
+          noteRow(
+            'inside-pdf',
+            attachments: [
+              mediaAttachmentRow(sha256: sha, mime: DocumentKind.pdf.mime),
+            ],
+          ),
+          noteRow(
+            'outside-shared-pdf',
+            attachments: [
+              mediaAttachmentRow(sha256: sha, mime: DocumentKind.pdf.mime),
+            ],
+          ),
+          noteRow(
+            'outside-docx',
+            attachments: [
+              mediaAttachmentRow(
+                sha256: docxSha,
+                mime: DocumentKind.docx.mime,
+              ),
+            ],
+          ),
+        ]);
+        await isar.manasNoteLinkModels.putAll([
+          manasNoteLinkRow('m1', 'inside-pdf', addedAt: at),
+          manasNoteLinkRow('m2', 'outside-shared-pdf', addedAt: at),
+          manasNoteLinkRow('m2', 'outside-docx', addedAt: at),
+        ]);
+      });
       await indexer.reconcile();
-      final loader = _MockManasLoader();
-      when(
-        () => loader.merge(
-          manasIds: any(named: 'manasIds'),
-          budget: any(named: 'budget'),
-          relevanceQuery: any(named: 'relevanceQuery'),
-        ),
-      ).thenAnswer((_) async => []);
+      final target =
+          (await isar.documentChunkModels
+                  .where()
+                  .sha256EqualToAnyOrdinal(sha)
+                  .findAll())
+              .firstWhere(
+                (chunk) => chunk.text
+                    .toLowerCase()
+                    .contains('cloud computing is a model'),
+              );
+      final loader = ManasContextLoader(isar, embedding, searchService);
       final scoped = buildPipeline(loader: loader);
 
       final msg = await scoped.buildMessage(
-        userQuestion: 'anything',
-        manasIds: ['m1'],
+        userQuestion: target.text,
+        manasIds: const ['m1'],
       );
 
+      expect(msg.sourceChunkIds, contains(chunkIdOf(sha, target.ordinal)));
       expect(
-        msg.sourceChunkIds,
-        isEmpty,
-        reason: 'documents have no Manas membership to scope by',
+        msg.sourceChunkIds.every((id) => id.startsWith('$sha:')),
+        isTrue,
+        reason: 'the DOCX is attached only to a note outside m1',
+      );
+      expect(
+        (await sources.resolve(msg.sourceChunkIds)).getOrElse(() => []),
+        isNotEmpty,
+        reason: 'scoped chunk ids must remain valid citation source ids',
       );
     });
 

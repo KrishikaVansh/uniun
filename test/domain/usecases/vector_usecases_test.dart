@@ -173,10 +173,13 @@ void main() {
             queryText: 'leave rules',
             topK: 7,
             minScore: 0.6,
+            allowedSha256: const {'inside'},
           ),
         ).thenAnswer((_) async => const [hit]);
 
-        final result = await useCase(([1.0, 2.0], 7, 0.6, 'leave rules'));
+        final result = await useCase(
+          ([1.0, 2.0], 7, 0.6, 'leave rules', const {'inside'}),
+        );
 
         expect(result.getOrElse(() => []), [hit]);
         verify(
@@ -185,6 +188,7 @@ void main() {
             queryText: 'leave rules',
             topK: 7,
             minScore: 0.6,
+            allowedSha256: const {'inside'},
           ),
         ).called(1);
       },
@@ -199,13 +203,20 @@ void main() {
             queryText: any(named: 'queryText'),
             topK: any(named: 'topK'),
             minScore: any(named: 'minScore'),
+            allowedSha256: any(named: 'allowedSha256'),
           ),
         ).thenAnswer((_) async => const [hit]);
 
-        await useCase(([1.0], 3, 0.3, null));
+        await useCase(([1.0], 3, 0.3, null, null));
 
         verify(
-          () => repo.search([1.0], queryText: null, topK: 3, minScore: 0.3),
+          () => repo.search(
+            [1.0],
+            queryText: null,
+            topK: 3,
+            minScore: 0.3,
+            allowedSha256: null,
+          ),
         ).called(1);
       },
     );
@@ -217,11 +228,12 @@ void main() {
           queryText: any(named: 'queryText'),
           topK: any(named: 'topK'),
           minScore: any(named: 'minScore'),
+          allowedSha256: any(named: 'allowedSha256'),
         ),
       ).thenAnswer((_) async => const []);
 
       expect(
-        (await useCase(([1.0], 3, 0.3, null))).getOrElse(() => [hit]),
+        (await useCase(([1.0], 3, 0.3, null, null))).getOrElse(() => [hit]),
         isEmpty,
       );
     });
@@ -233,10 +245,11 @@ void main() {
           queryText: any(named: 'queryText'),
           topK: any(named: 'topK'),
           minScore: any(named: 'minScore'),
+          allowedSha256: any(named: 'allowedSha256'),
         ),
       ).thenThrow(Exception('store unavailable'));
 
-      final result = await useCase(([1.0], 3, 0.3, null));
+      final result = await useCase(([1.0], 3, 0.3, null, null));
 
       expect(result.isLeft(), isTrue);
     });
