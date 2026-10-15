@@ -466,6 +466,7 @@ void main() {
         queryText: any(named: 'queryText'),
         topK: any(named: 'topK'),
         minScore: any(named: 'minScore'),
+        allowedSha256: any(named: 'allowedSha256'),
       ),
     ).thenAnswer((_) async => chunks);
 
@@ -537,6 +538,7 @@ void main() {
             queryText: 'q',
             topK: 1,
             minScore: PromptBudget.smallModelMinScore,
+            allowedSha256: any(named: 'allowedSha256'),
           ),
         ).called(1);
       },
@@ -598,6 +600,7 @@ void main() {
           queryText: any(named: 'queryText'),
           topK: any(named: 'topK'),
           minScore: any(named: 'minScore'),
+          allowedSha256: any(named: 'allowedSha256'),
         ),
       ).thenThrow(Exception('store unavailable'));
 
@@ -686,6 +689,7 @@ void main() {
           queryText: any(named: 'queryText'),
           topK: any(named: 'topK'),
           minScore: any(named: 'minScore'),
+          allowedSha256: any(named: 'allowedSha256'),
         ),
       );
     });
@@ -760,6 +764,7 @@ void main() {
           queryVector: [1.0],
           queryText: 'q',
           topK: any(named: 'topK'),
+          minScore: PromptBudget.forActiveModel(null).minScore,
           allowedSha256: const {'inside'},
         ),
       ).thenAnswer(
@@ -786,6 +791,7 @@ void main() {
           queryVector: [1.0],
           queryText: 'q',
           topK: any(named: 'topK'),
+          minScore: PromptBudget.forActiveModel(null).minScore,
           allowedSha256: const {'inside'},
         ),
       ).called(1);

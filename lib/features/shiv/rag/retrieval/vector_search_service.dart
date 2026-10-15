@@ -19,8 +19,11 @@ class VectorSearchService {
     required List<double> queryVector,
     int topK = 5,
     double minScore = 0.3,
+    Set<String>? allowedNoteIds,
   }) async {
-    final result = await _searchUseCase((queryVector, topK, minScore));
+    final result = await _searchUseCase(
+      (queryVector, topK, minScore, allowedNoteIds),
+    );
     return result.fold(
       (failure) => [],
       (notes) => notes,
@@ -41,7 +44,13 @@ class VectorSearchService {
     Set<String>? allowedSha256,
   }) async {
     final result = await _chunkSearchUseCase(
-      (queryVector, topK, minScore, queryText, allowedSha256),
+      SearchDocumentChunksInput(
+        vector: queryVector,
+        topK: topK,
+        minScore: minScore,
+        queryText: queryText,
+        allowedSha256: allowedSha256,
+      ),
     );
     return result.fold((failure) => [], (chunks) => chunks);
   }

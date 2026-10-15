@@ -203,6 +203,7 @@ void main() {
             queryVector: any(named: 'queryVector'),
             topK: any(named: 'topK'),
             minScore: any(named: 'minScore'),
+            allowedNoteIds: any(named: 'allowedNoteIds'),
           )).thenAnswer((_) async => const [
             ScoredNote(noteId: 'n2', score: 0.9, content: 'about dogs'),
             ScoredNote(noteId: 'n1', score: 0.5, content: 'about cats'),
@@ -218,6 +219,14 @@ void main() {
       // n9 excluded (not in the Manas set); n3 excluded (no vector hit at
       // all); n2 before n1 (higher score, search order preserved).
       expect(result.map((n) => n.id), ['n2', 'n1']);
+      verify(
+        () => searcher.search(
+          queryVector: [1.0, 0.0],
+          topK: 3,
+          minScore: 0.0,
+          allowedNoteIds: const {'n1', 'n2', 'n3'},
+        ),
+      ).called(1);
     });
 
     test('uses a supplied relevance vector without embedding again', () async {
@@ -231,6 +240,7 @@ void main() {
           queryVector: any(named: 'queryVector'),
           topK: any(named: 'topK'),
           minScore: any(named: 'minScore'),
+          allowedNoteIds: any(named: 'allowedNoteIds'),
         ),
       ).thenAnswer(
         (_) async => const [
@@ -247,6 +257,76 @@ void main() {
 
       expect(result.single.id, 'n1');
       verifyNever(() => embedder.embed(any()));
+    });
+
+    test('retrieves the best Manas note even below 50 global hits', () async {
+      final old = DateTime(2025, 1, 1);
+      final recent = DateTime(2026, 1, 1);
+      await isar.writeTxn(() async {
+        await isar.noteModels.putAll([
+          _ownNote('best-in-manas', 'best', old),
+          _ownNote('recent-in-manas', 'recent', recent),
+          for (var i = 0; i < 60; i++)
+            _ownNote('outside-$i', 'outside', recent),
+        ]);
+        await isar.manasNoteLinkModels.putAll([
+          _link('m1', 'best-in-manas', old),
+          _link('m1', 'recent-in-manas', recent),
+        ]);
+      });
+      when(() => embedder.embed(any())).thenAnswer((_) async => [1.0]);
+      when(
+        () => searcher.search(
+          queryVector: any(named: 'queryVector'),
+          topK: any(named: 'topK'),
+          minScore: any(named: 'minScore'),
+          allowedNoteIds: any(named: 'allowedNoteIds'),
+        ),
+      ).thenAnswer((invocation) async {
+        final allowed =
+            invocation.namedArguments[#allowedNoteIds] as Set<String>?;
+        if (allowed == null) {
+          return [
+            for (var i = 0; i < 50; i++)
+              ScoredNote(
+                noteId: 'outside-$i',
+                score: 0.99 - i / 1000,
+                content: 'outside',
+              ),
+          ];
+        }
+        return const [
+          ScoredNote(
+            noteId: 'best-in-manas',
+            score: 0.9,
+            content: 'best',
+          ),
+          ScoredNote(
+            noteId: 'recent-in-manas',
+            score: 0.5,
+            content: 'recent',
+          ),
+        ];
+      });
+
+      final result = await loader.merge(
+        manasIds: const ['m1'],
+        budget: 1000,
+        relevanceQuery: 'q',
+      );
+
+      expect(
+        result.map((note) => note.id),
+        ['best-in-manas', 'recent-in-manas'],
+      );
+      verify(
+        () => searcher.search(
+          queryVector: [1.0],
+          topK: 2,
+          minScore: 0.0,
+          allowedNoteIds: const {'best-in-manas', 'recent-in-manas'},
+        ),
+      ).called(1);
     });
 
     test('a blank/whitespace-only relevanceQuery is treated as none — '
@@ -288,11 +368,12 @@ void main() {
             queryVector: any(named: 'queryVector'),
             topK: any(named: 'topK'),
             minScore: any(named: 'minScore'),
+            allowedNoteIds: any(named: 'allowedNoteIds'),
           ));
     });
 
-    test('no vector hits fall inside the Manas set — falls back to '
-        'newest-first', () async {
+    test('no scoped vector hits return empty instead of unrelated fallback',
+        () async {
       final t1 = DateTime(2026, 1, 1);
       await isar.writeTxn(() async {
         await isar.noteModels.put(_ownNote('n1', 'x', t1));
@@ -303,6 +384,7 @@ void main() {
             queryVector: any(named: 'queryVector'),
             topK: any(named: 'topK'),
             minScore: any(named: 'minScore'),
+            allowedNoteIds: any(named: 'allowedNoteIds'),
           )).thenAnswer((_) async => const [
             ScoredNote(noteId: 'outside', score: 0.9, content: 'nope'),
           ]);
@@ -313,7 +395,7 @@ void main() {
         relevanceQuery: 'q',
       );
 
-      expect(result.single.id, 'n1');
+      expect(result, isEmpty);
     });
 
     test('embedder throws — degrades to newest-first, not an uncaught error',

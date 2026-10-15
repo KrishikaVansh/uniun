@@ -195,7 +195,7 @@ class RagPipeline {
             vec,
             query,
             math.max(1, topK ~/ 2),
-            minScore,
+            minScore: minScore,
             allowedSha256: allowedSha256,
           );
         }
@@ -211,7 +211,7 @@ class RagPipeline {
           vec,
           query,
           math.max(1, topK ~/ 2),
-          minScore,
+          minScore: minScore,
         );
       }
       if (seedNotes.isEmpty && seedChunks.isEmpty) return EnrichedContext.empty;
@@ -277,8 +277,8 @@ class RagPipeline {
   Future<List<ScoredChunk>> _safeChunkSearch(
     List<double> vec,
     String query,
-    int topK,
-    double minScore, {
+    int topK, {
+    double minScore = PromptBudget.defaultMinScore,
     Set<String>? allowedSha256,
   }) async {
     try {

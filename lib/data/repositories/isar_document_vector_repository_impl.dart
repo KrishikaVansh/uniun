@@ -65,18 +65,29 @@ class IsarDocumentVectorRepositoryImpl implements DocumentVectorRepository {
       config: _config,
       minScore: minScore,
     );
-    for (var offset = 0; ; offset += _batch) {
-      final rows = await _isar.documentChunkModels
-          .where()
-          .offset(offset)
-          .limit(_batch)
-          .findAll();
-      if (rows.isEmpty) break;
-      for (final row in rows) {
-        if (allowedSha256 != null && !allowedSha256.contains(row.sha256)) {
-          continue;
+    if (allowedSha256 != null) {
+      // Scoped Manases usually reference only a few documents. Use the
+      // sha256/ordinal index so unrelated chunk vectors are never loaded.
+      for (final sha in allowedSha256) {
+        final rows = await _isar.documentChunkModels
+            .where()
+            .sha256EqualToAnyOrdinal(sha)
+            .findAll();
+        for (final row in rows) {
+          ranker.add(row.id, row.vector, row.text);
         }
-        ranker.add(row.id, row.vector, row.text);
+      }
+    } else {
+      for (var offset = 0; ; offset += _batch) {
+        final rows = await _isar.documentChunkModels
+            .where()
+            .offset(offset)
+            .limit(_batch)
+            .findAll();
+        if (rows.isEmpty) break;
+        for (final row in rows) {
+          ranker.add(row.id, row.vector, row.text);
+        }
       }
     }
 
