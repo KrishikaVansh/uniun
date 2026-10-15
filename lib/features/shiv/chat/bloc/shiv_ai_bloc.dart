@@ -493,7 +493,11 @@ class ShivAIBloc extends Bloc<ShivAIEvent, ShivAIState> {
     final msgId = state.streamingMessageId;
     // Strip <think>...</think> blocks before persisting — model reasoning is
     // never stored so it cannot leak back into RAG context or branch summaries.
-    final content = stripThinking(state.streamingContent ?? '');
+    final stripped = stripThinking(state.streamingContent ?? '');
+    // A reply that ends with nothing to show (a cloud model that only sent
+    // reasoning, an empty completion) would be saved as a blank bubble and
+    // stay blank in the history. Say so instead, like Stop does.
+    final content = stripped.trim().isEmpty ? '(no response)' : stripped;
 
     if (msgId != null) {
       await _updateMessageContent.call((msgId, content));
@@ -607,7 +611,7 @@ class ShivAIBloc extends Bloc<ShivAIEvent, ShivAIState> {
   /// the user might chat. Any in-flight extraction is allowed to finish on
   /// its own — the actual "stop the running one" preemption is triggered
   /// inside [LlmRepository.sendChat] the moment the user sends a turn,
-  /// which is safe on flutter_edge_ai (then flutter_edge_ai 0.16) because [InferenceModel.openChat]
+  /// which is safe on flutter_edge_ai (then flutter_gemma 0.16) because [InferenceModel.openChat]
   /// gives each Dart wrapper its own native session.
   void onEnterShivTab() {
     unawaited(_preempt.call());

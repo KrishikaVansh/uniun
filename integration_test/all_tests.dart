@@ -41,6 +41,7 @@ import 'scheduler_preemption_test.dart' as scheduler_preemption_test;
 import 'logout_account_switch_e2e_test.dart' as logout_account_switch_e2e_test;
 import 'manas_membership_e2e_test.dart' as manas_membership_e2e_test;
 import 'llm_stability_e2e_test.dart' as llm_stability_e2e_test;
+import 'shiv_chat_regressions_e2e_test.dart' as shiv_chat_regressions_e2e_test;
 import 'shiv_notes_qa_e2e_test.dart' as shiv_notes_qa_e2e_test;
 
 void main() {
@@ -68,5 +69,6 @@ void main() {
   manas_membership_e2e_test.main();
   llm_stability_e2e_test.main();
   shiv_notes_qa_e2e_test.main();
+  shiv_chat_regressions_e2e_test.main();
   logout_account_switch_e2e_test.main();
 }

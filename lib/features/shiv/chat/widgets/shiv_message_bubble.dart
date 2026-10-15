@@ -185,7 +185,8 @@ class _ShivBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final showTyping = isStreaming && responseText.isEmpty && !isInThinkBlock;
+    final showTyping =
+        isStreaming && responseText.trim().isEmpty && !isInThinkBlock;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
