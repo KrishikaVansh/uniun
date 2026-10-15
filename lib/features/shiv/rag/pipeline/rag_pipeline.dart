@@ -188,8 +188,7 @@ class RagPipeline {
           for (final p in packed.take(topK))
             ScoredNote(noteId: p.id, score: 1.0, content: p.content),
         ];
-        final allowedSha256 =
-            await _safeDocumentScope(manasIds);
+        final allowedSha256 = await _safeDocumentScope(manasIds);
         if (vec.isNotEmpty && allowedSha256.isNotEmpty) {
           seedChunks = await _safeChunkSearch(
             vec,

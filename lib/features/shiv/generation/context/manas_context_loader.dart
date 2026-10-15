@@ -95,11 +95,7 @@ class ManasContextLoader {
       // Embedder/vector unavailable → fall through to newest-first.
     }
 
-    return _packNewestFromIds(
-      isar: _isar,
-      noteIds: unique,
-      charBudget: charBudget,
-    );
+    return _packNewestFromIds(isar: _isar, noteIds: unique, charBudget: charBudget);
   }
 
   /// SHA-256 values of documents attached to any active note in [manasIds].
