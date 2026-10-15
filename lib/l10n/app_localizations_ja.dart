@@ -1387,6 +1387,9 @@ class AppLocalizationsJa extends AppLocalizations {
   String get shivDefaultConversationTitle => '新しい会話';
 
   @override
+  String get shivNoResponse => 'モデルからの応答がありません。';
+
+  @override
   String get shivEmptyTitle => '会話を始める';
 
   @override

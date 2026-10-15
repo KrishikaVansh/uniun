@@ -251,8 +251,23 @@ class _ShivBubble extends StatelessWidget {
               ],
             ),
             child: showTyping
-                ? const _TypingIndicator()
-                : _MarkdownText(text: responseText),
+                ? const _TypingIndicator(key: ValueKey('shiv-typing-indicator'))
+                : (!isStreaming &&
+                          responseText.trim().isEmpty &&
+                          thinkingText.isEmpty)
+                      // A reply that ended with nothing to show (an empty
+                      // completion, or reasoning only) is stored blank.
+                      ? Text(
+                          l10n.shivNoResponse,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontStyle: FontStyle.italic,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
+                        )
+                      : _MarkdownText(text: responseText),
           ),
 
         // "Sources" chip — only under the latest reply, once it's complete,
@@ -586,7 +601,7 @@ class _InlineText extends StatelessWidget {
 // ── Typing indicator ─────────────────────────────────────────────────────────
 
 class _TypingIndicator extends StatelessWidget {
-  const _TypingIndicator();
+  const _TypingIndicator({super.key});
 
   @override
   Widget build(BuildContext context) {

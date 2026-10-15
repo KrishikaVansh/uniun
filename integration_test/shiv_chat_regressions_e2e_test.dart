@@ -32,6 +32,7 @@ import 'package:uniun/domain/entities/llm/llm_backend_type.dart';
 import 'package:uniun/domain/repositories/user_repository.dart';
 import 'package:uniun/domain/repositories/vector_repository.dart';
 import 'package:uniun/domain/usecases/llm_usecases.dart';
+import 'package:uniun/domain/usecases/shiv_usecases.dart';
 import 'package:uniun/features/shiv/chat/bloc/shiv_ai_bloc.dart';
 import 'package:uniun/features/shiv/chat/pages/shiv_chat_page.dart';
 import 'package:uniun/features/shiv/nataraj/engine/nataraj_generator.dart';
@@ -67,29 +68,43 @@ Future<String> _ask(ShivAIBloc bloc, String text) async {
     final n = await isar.noteModels.filter().eventIdEqualTo(id).findFirst();
     fed.add(n?.content ?? '(saved copy)');
   }
-  // Scores of the closest notes for this question, to calibrate the cut-off.
-  final scores = (await getIt<VectorRepository>().search(
-    await getIt<EmbeddingService>().embed(text),
-    topK: 3,
-    minScore: -1,
-  )).map((r) => r.score.toStringAsFixed(2)).toList();
   // ignore: avoid_print
-  print('ASK "$text" -> "${last.content.trim()}" | notes fed: $fed | '
-      'scores: $scores');
+  print('ASK "$text" -> "${last.content.trim()}" | notes fed: $fed');
   return last.content.trim();
 }
+
+/// Conversations created by these tests, deleted again at the end.
+final _createdChats = <String>[];
 
 Future<ShivAIBloc> _openChat() async {
   final bloc = getIt<ShivAIBloc>();
   bloc.add(const ShivAIEvent.createConversation());
-  await bloc.stream.firstWhere(
+  final opened = await bloc.stream.firstWhere(
     (s) => s.activeConversation != null && s.status == ShivChatStatus.chatIdle,
   );
+  _createdChats.add(opened.activeConversation!.conversationId);
   return bloc;
 }
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  LlmBackendType? backendBefore;
+
+  setUpAll(() async {
+    await _boot();
+    backendBefore = (await getIt<GetActiveLlmBackendUseCase>().call())
+        .getOrElse(() => LlmBackendType.localGemma);
+  });
+
+  tearDownAll(() async {
+    for (final id in _createdChats) {
+      await getIt<DeleteConversationUseCase>().call(id);
+    }
+    if (backendBefore != null) {
+      await getIt<SetActiveLlmBackendUseCase>().call(backendBefore!);
+    }
+  });
 
   group('#199 every question gets its own reply', () {
     for (final id in [AIModelId.qwen25_05b, AIModelId.gemma4E2b]) {
@@ -98,13 +113,41 @@ void main() {
         (tester) async {
           expect(await provisionTestModel(id), isTrue,
               reason: 'no ${id.name} fixture on the phone');
-          await _boot();
-          final settings = getIt<GetActiveLlmBackendUseCase>();
-          if ((await settings.call()).getOrElse(() => LlmBackendType.localGemma) !=
-              LlmBackendType.localGemma) {
-            await getIt<SetActiveLlmBackendUseCase>()
-                .call(LlmBackendType.localGemma);
-          }
+          await getIt<SetActiveLlmBackendUseCase>()
+              .call(LlmBackendType.localGemma);
+
+          // The bug needs a note in the library that has nothing to do with
+          // the questions: the model used to copy it into every reply.
+          final isar = getIt<Isar>();
+          final vectors = getIt<VectorRepository>();
+          final noteId = 'e2e-199-${DateTime.now().microsecondsSinceEpoch}';
+          const noteText =
+              'This is a test post. The celebration codeword is marmalade.';
+          await isar.writeTxn(
+            () => isar.noteModels.put(
+              NoteModel(
+                eventId: noteId,
+                sig: '',
+                authorPubkey: 'e2e',
+                content: noteText,
+                type: NoteType.text,
+                eTagRefs: const [],
+                pTagRefs: const [],
+                tTags: const [],
+                created: DateTime.now(),
+              ),
+            ),
+          );
+          await vectors.upsert(
+            noteId,
+            await getIt<EmbeddingService>().embed(noteText, isDocument: true),
+          );
+          addTearDown(() async {
+            await vectors.delete(noteId);
+            await isar.writeTxn(
+              () => isar.noteModels.filter().eventIdEqualTo(noteId).deleteAll(),
+            );
+          });
 
           var bloc = await _openChat();
           final a = await _ask(bloc, 'What is the capital of France? One word.');
@@ -112,7 +155,12 @@ void main() {
           final c = await _ask(bloc, 'What is the capital of Italy? One word.');
           // ignore: avoid_print
           print('CHAT199[${id.name}] same chat: "$a" | "$b" | "$c"');
-          // The bug: one reply repeated for every question.
+          // The bug: one reply repeated for every question, taken from a note
+          // that has nothing to do with them.
+          for (final reply in [a, b, c]) {
+            expect(reply.toLowerCase(), isNot(contains('marmalade')),
+                reason: 'the unrelated note was copied into the reply');
+          }
           expect({a, b, c}.length, greaterThan(1),
               reason: 'three different questions got one reply');
           if (id == AIModelId.gemma4E2b) {
@@ -131,6 +179,7 @@ void main() {
           if (id == AIModelId.gemma4E2b) {
             expect(d.toLowerCase(), contains('madrid'));
           }
+          expect(d.toLowerCase(), isNot(contains('marmalade')));
           expect(d, isNotEmpty);
           await bloc.close();
         },
@@ -163,9 +212,7 @@ void main() {
         );
         await tester.pump(const Duration(milliseconds: 500));
 
-        Finder dots() => find.byWidgetPredicate(
-          (w) => w.runtimeType.toString() == '_TypingIndicator',
-        );
+        Finder dots() => find.byKey(const ValueKey('shiv-typing-indicator'));
         final stop = find.byIcon(Icons.stop_rounded);
         final send = find.byIcon(Icons.arrow_upward_rounded);
 
@@ -191,7 +238,7 @@ void main() {
           if (bloc.state.status != ShivChatStatus.streaming) break;
           expect(stop, findsOneWidget, reason: 'Stop vanished mid-reply');
           final streamed = bloc.state.streamingContent ?? '';
-          if (streamed.isEmpty) {
+          if (streamed.trim().isEmpty) {
             expect(dots(), findsOneWidget, reason: 'blank bubble, no dots');
           } else {
             sawText = true;

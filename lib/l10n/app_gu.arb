@@ -1738,6 +1738,10 @@
   "@shivDefaultConversationTitle": {
     "description": "Default title for a newly created conversation"
   },
+  "shivNoResponse": "મોડેલ તરફથી કોઈ જવાબ મળ્યો નથી.",
+  "@shivNoResponse": {
+    "description": "Shown in place of a Shiv reply that ended with no text"
+  },
   "shivEmptyTitle": "વાતચીત શરૂ કરો",
   "@shivEmptyTitle": {
     "description": "Empty chat state heading"

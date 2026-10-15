@@ -5,9 +5,9 @@ import 'package:uniun/core/enum/document_kind.dart';
 import 'package:uniun/core/enum/message_role.dart';
 import 'package:uniun/core/error/failures.dart';
 import 'package:uniun/domain/entities/graph_edge/graph_edge_entity.dart';
+import 'package:uniun/domain/entities/graph_node/graph_node_entity.dart';
 import 'package:uniun/domain/entities/llm/llm_backend_type.dart';
 import 'package:uniun/domain/entities/llm/llm_model_info.dart';
-import 'package:uniun/domain/entities/graph_node/graph_node_entity.dart';
 import 'package:uniun/domain/entities/memory_node/memory_node_entity.dart';
 import 'package:uniun/domain/entities/shiv/scored_chunk.dart';
 import 'package:uniun/domain/entities/shiv/scored_note.dart';
@@ -342,7 +342,7 @@ void main() {
           () => vectorSearch.search(
             queryVector: any(named: 'queryVector'),
             topK: any(named: 'topK'),
-          minScore: any(named: 'minScore'),
+            minScore: any(named: 'minScore'),
           ),
         ).thenAnswer(
           (_) async => const [

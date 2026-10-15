@@ -493,11 +493,7 @@ class ShivAIBloc extends Bloc<ShivAIEvent, ShivAIState> {
     final msgId = state.streamingMessageId;
     // Strip <think>...</think> blocks before persisting — model reasoning is
     // never stored so it cannot leak back into RAG context or branch summaries.
-    final stripped = stripThinking(state.streamingContent ?? '');
-    // A reply that ends with nothing to show (a cloud model that only sent
-    // reasoning, an empty completion) would be saved as a blank bubble and
-    // stay blank in the history. Say so instead, like Stop does.
-    final content = stripped.trim().isEmpty ? '(no response)' : stripped;
+    final content = stripThinking(state.streamingContent ?? '');
 
     if (msgId != null) {
       await _updateMessageContent.call((msgId, content));

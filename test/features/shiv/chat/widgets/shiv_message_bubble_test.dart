@@ -6,9 +6,10 @@ import 'package:uniun/features/shiv/chat/widgets/shiv_message_bubble.dart';
 import 'package:uniun/l10n/app_localizations.dart';
 
 /// Covers: ShivMessageBubble's waiting state (#123) — the three dots show for a
-/// streaming reply that has no visible text yet (nothing streamed, only
-/// whitespace, or a reasoning block still open) and give way to the text once
-/// there is some; a finished reply never shows them.
+/// streaming reply that has no visible text yet (nothing streamed or only
+/// whitespace) and give way to the text once there is some; a finished reply
+/// never shows them, and one that ended with no text says so instead of
+/// staying blank.
 void main() {
   ShivMessageEntity message({String content = ''}) => ShivMessageEntity(
     messageId: 'm1',
@@ -33,9 +34,7 @@ void main() {
     ),
   );
 
-  Finder dots() => find.byWidgetPredicate(
-    (w) => w.runtimeType.toString() == '_TypingIndicator',
-  );
+  Finder dots() => find.byKey(const ValueKey('shiv-typing-indicator'));
 
   Future<void> show(WidgetTester t, Widget w) async {
     await t.pumpWidget(w);
@@ -66,12 +65,26 @@ void main() {
     expect(find.textContaining('Paris is the capital'), findsOneWidget);
   });
 
-  testWidgets('an open reasoning block is not a blank bubble', (t) async {
-    await show(t, host(streaming: '<think>'));
+  testWidgets('a finished reply with no text says there was no response',
+      (t) async {
+    await show(t, host(content: ''));
 
-    // Either the dots or a reasoning label must be on screen.
-    final texts = find.byType(Text).evaluate().length;
-    expect(dots().evaluate().isNotEmpty || texts > 1, isTrue);
+    expect(find.text('No response from the model.'), findsOneWidget);
+    expect(dots(), findsNothing);
+  });
+
+  testWidgets('a whitespace-only finished reply says there was no response',
+      (t) async {
+    await show(t, host(content: '\n  '));
+
+    expect(find.text('No response from the model.'), findsOneWidget);
+  });
+
+  testWidgets('the label is not shown while the reply is still streaming',
+      (t) async {
+    await show(t, host(streaming: ''));
+
+    expect(find.text('No response from the model.'), findsNothing);
   });
 
   testWidgets('a finished reply has no dots', (t) async {
@@ -79,12 +92,5 @@ void main() {
 
     expect(dots(), findsNothing);
     expect(find.text('Done.'), findsOneWidget);
-  });
-
-  testWidgets('a finished empty reply shows no dots and does not throw',
-      (t) async {
-    await show(t, host());
-
-    expect(dots(), findsNothing);
   });
 }

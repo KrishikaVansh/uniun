@@ -2610,6 +2610,12 @@ abstract class AppLocalizations {
   /// **'New conversation'**
   String get shivDefaultConversationTitle;
 
+  /// Shown in place of a Shiv reply that ended with no text
+  ///
+  /// In en, this message translates to:
+  /// **'No response from the model.'**
+  String get shivNoResponse;
+
   /// Empty chat state heading
   ///
   /// In en, this message translates to:
