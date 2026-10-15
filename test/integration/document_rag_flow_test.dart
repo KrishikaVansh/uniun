@@ -17,6 +17,7 @@ import 'package:uniun/data/datasources/docx/docx_text_source.dart';
 import 'package:uniun/data/datasources/tostore_module.dart';
 import 'package:uniun/data/models/documents/document_chunk_model.dart';
 import 'package:uniun/data/models/documents/document_index_model.dart';
+import 'package:uniun/data/models/manas_note_link_model.dart';
 import 'package:uniun/data/models/media/media_cache_model.dart';
 import 'package:uniun/data/models/notes/note_model.dart';
 import 'package:uniun/data/models/saved_note_model.dart';
