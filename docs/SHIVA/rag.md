@@ -92,14 +92,14 @@
   │ Embedding      │ Converts text   │ ~80MB (all-MiniLM-L6-v2) — bundled       │
   │ model          │ to vector       │ always available, no download needed      │
   ├────────────────┼─────────────────┼──────────────────────────────────────────┤
-  │ LLM (user-     │ Generates the   │ 586MB–4.3GB depending on model chosen     │
-  │ selected, via  │ answer          │ flutter_gemma ^1.5.1                      │
-  │ flutter_gemma) │                 │ GPU-accelerated on Android + iOS          │
+  │ LLM (user-     │ Generates the   │ 329MB–4.3GB depending on model chosen     │
+  │ selected, via  │ answer          │ flutter_edge_ai ^2.3                      │
+  │ flutter_edge_ai│                 │ GPU-accelerated on Android + iOS          │
   │                │                 │ Downloaded once on first Shiv open        │
   └────────────────┴─────────────────┴──────────────────────────────────────────┘
 
   These run separately. The embedding model runs fast, synchronously. The LLM
-  (flutter_gemma) runs slower, streams tokens via getResponseStream().
+  (flutter_edge_ai) runs slower, streams tokens via getResponseStream().
 
   For available LLM options see docs/SHIV_AI.md — Model Selection section.
                                                                                 
@@ -645,6 +645,8 @@ seconds without re-indexing.
 **The notes' vector search had the same limit on 3.1.x, and 3.5.1 fixes it.** Querying each stored vector with itself, it was its own top hit for 25 % of 80 vectors, 7 % of 300 and 2 % of 1,000 on 3.1.2, against 99-100 % at every size on 3.5.1 (synthetic vectors, laptop; the device figures are in `docs/AUDIT.md`). Notes therefore still use ToStore's index; documents keep the exact scan.
 
 **The note store runs in its own isolate** (`NoteVectorStore`, `lib/data/datasources/note_vector_store.dart`). On the main isolate 600 saves and 600 searches stalled the UI for up to 522 ms (12 stalls over 16 ms); in its own isolate the worst was 13 ms. Exactly one isolate may open the store — ToStore keeps per-isolate state, so a second opener does not see the first one's writes — which is why `TostoreVectorRepositoryImpl` talks to it by message and nothing else opens it. Inside, a delete is flushed (or search keeps returning the id) and saving an id again deletes the old entry first (or the old vector stays in the index).
+
+**Deleted vectors can stay in tostore's search index.** After many deletes `vectorSearch` returns ids whose row is gone while `ids()` does not list them (236 ghost hits for 1 stored vector on the test phone), and they take top-K slots from live notes. A plain delete is durable; only the index is stale. The store therefore rebuilds its index from its rows 30 s after the last delete of a burst, and once per store format on launch for ghosts left by older builds (`NoteVectorStore.rebuild`).
 
 ### Testing
 

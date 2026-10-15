@@ -13,9 +13,9 @@ import 'package:injectable/injectable.dart';
 /// initialize()` + mocked platform channels (both already used elsewhere
 /// this session, neither reaches every branch these classes have).
 ///
-/// [FlutterGemmaGatewayImpl] is a one-line passthrough per method — it is
+/// [FlutterEdgeAiGatewayImpl] is a one-line passthrough per method — it is
 /// deliberately NOT unit tested beyond a smoke check; it IS the boundary.
-abstract class FlutterGemmaGateway {
+abstract class FlutterEdgeAiGateway {
   bool hasActiveModel();
 
   Future<InferenceModel> getActiveModel({
@@ -70,8 +70,8 @@ abstract class FlutterGemmaGateway {
   });
 }
 
-@Injectable(as: FlutterGemmaGateway)
-class FlutterGemmaGatewayImpl implements FlutterGemmaGateway {
+@Injectable(as: FlutterEdgeAiGateway)
+class FlutterEdgeAiGatewayImpl implements FlutterEdgeAiGateway {
   @override
   bool hasActiveModel() => FlutterEdgeAi.hasActiveModel();
 

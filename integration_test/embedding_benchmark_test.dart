@@ -1,6 +1,6 @@
 // Times the bundled Gecko embedder three ways on a real device, for #125/#231:
 // one call at a time, two at a time (what EmbeddingQueue allows), and
-// flutter_gemma's generateEmbeddings. Prints a table; it only asserts that every way
+// flutter_edge_ai's generateEmbeddings. Prints a table; it only asserts that every way
 // returns the same number of vectors, of the same size, for the same text.
 //
 //   scripts/device_test.sh run integration_test/embedding_benchmark_test.dart
@@ -15,7 +15,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:uniun/core/utils/llm_backend.dart';
 import 'package:uniun/data/datasources/llm/embedding_queue.dart';
-import 'package:uniun/data/datasources/llm/flutter_gemma_gateway.dart';
+import 'package:uniun/data/datasources/llm/flutter_edge_ai_gateway.dart';
 import 'package:uniun/features/shiv/rag/embedding/embedding_service.dart';
 
 const _count = int.fromEnvironment('NOTES', defaultValue: 12);
@@ -49,7 +49,7 @@ void main() {
         embeddingBackends: const [LiteRtEmbeddingBackend()],
         embeddingTokenizers: const [GemmaEmbeddingTokenizers()],
       );
-      final gateway = FlutterGemmaGatewayImpl();
+      final gateway = FlutterEdgeAiGatewayImpl();
       final service = EmbeddingService(gateway, EmbeddingQueue());
       await service.ensureInstalled();
       final model = await gateway.getActiveEmbedder(
@@ -155,7 +155,7 @@ void main() {
         embeddingBackends: const [LiteRtEmbeddingBackend()],
         embeddingTokenizers: const [GemmaEmbeddingTokenizers()],
       );
-      final gateway = FlutterGemmaGatewayImpl();
+      final gateway = FlutterEdgeAiGatewayImpl();
       await EmbeddingService(gateway, EmbeddingQueue()).ensureInstalled();
       final model = await gateway.getActiveEmbedder(
         preferredBackend: preferredLlmBackend,

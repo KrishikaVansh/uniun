@@ -14,7 +14,7 @@ class AIModelSelectionModel {
 
   late String modelName;
 
-  /// Marker path — flutter_gemma manages actual file storage.
+  /// Marker path — flutter_edge_ai manages actual file storage.
   late String modelPath;
 
   late DateTime downloadedAt;

@@ -9,7 +9,7 @@ import 'package:path_provider_platform_interface/path_provider_platform_interfac
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uniun/core/error/failures.dart';
 import 'package:uniun/data/datasources/app_settings_store.dart';
-import 'package:uniun/data/datasources/llm/flutter_gemma_gateway.dart';
+import 'package:uniun/data/datasources/llm/flutter_edge_ai_gateway.dart';
 import 'package:uniun/data/datasources/llm/local_llm_runner.dart';
 import 'package:uniun/data/models/ai_model_selection_model.dart';
 import 'package:uniun/data/repositories/ai_model_repository_impl.dart';
@@ -23,7 +23,7 @@ class _MockSettings extends Mock implements AppSettingsStore {}
 
 class _MockRunner extends Mock implements AIModelRunner {}
 
-class _MockGateway extends Mock implements FlutterGemmaGateway {}
+class _MockGateway extends Mock implements FlutterEdgeAiGateway {}
 
 /// Covers: AIModelRepositoryImpl.activateModel/deleteModel's orchestration
 /// decisions — when they route through AIModelRunner's scheduler-coordinated
@@ -34,12 +34,12 @@ class _MockGateway extends Mock implements FlutterGemmaGateway {}
 /// Two test styles, deliberately kept side by side:
 ///
 ///  1. The top-level groups use a REAL `FlutterEdgeAi.initialize()` (with
-///     mocked shared_preferences) via the real `FlutterGemmaGatewayImpl` —
-///     proving the repository genuinely works against flutter_gemma's real
+///     mocked shared_preferences) via the real `FlutterEdgeAiGatewayImpl` —
+///     proving the repository genuinely works against flutter_edge_ai's real
 ///     static surface, not just a mock's promise that it would. Nothing is
 ///     ever actually downloaded in this environment, so only the "not
 ///     installed yet" branches are reachable this way.
-///  2. The "with a mocked gateway" group below doubles `FlutterGemmaGateway`
+///  2. The "with a mocked gateway" group below doubles `FlutterEdgeAiGateway`
 ///     (the seam introduced specifically to close this gap — see
 ///     docs/AUDIT.md) to reach the "model IS installed / IS active"
 ///     success branches a real empty environment can never simulate:
@@ -69,7 +69,7 @@ void main() {
     isar = await openTestIsar();
     settings = _MockSettings();
     runner = _MockRunner();
-    repo = AIModelRepositoryImpl(isar, settings, runner, FlutterGemmaGatewayImpl());
+    repo = AIModelRepositoryImpl(isar, settings, runner, FlutterEdgeAiGatewayImpl());
 
     tempDir = await Directory.systemTemp.createTemp('ai_model_repo_test');
     PathProviderPlatform.instance = FakePathProviderPlatform(

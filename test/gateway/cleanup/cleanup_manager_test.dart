@@ -10,7 +10,9 @@ import 'package:uniun/data/models/followed_note_model.dart';
 import 'package:uniun/data/models/gana_run_model.dart';
 import 'package:uniun/data/models/media/media_cache_model.dart';
 import 'package:uniun/data/models/notes/media_attachment.dart';
+import 'package:uniun/data/models/memory_node_model.dart';
 import 'package:uniun/data/models/notes/note_model.dart';
+import 'package:uniun/data/models/pending_vector_delete_model.dart';
 import 'package:uniun/data/models/saved_note_model.dart';
 import 'package:uniun/gateway/cleanup/cleanup_manager.dart';
 
@@ -144,6 +146,56 @@ void main() {
       await mgr.runOnce();
 
       expect(await isar.noteModels.where().count(), 0);
+    });
+
+    test('an evicted note queues its vector delete and loses its memory, '
+        'a saved one keeps both', () async {
+      await isar.writeTxn(() async {
+        await isar.noteModels.putAll([
+          _note(eventId: 'old'),
+          _note(eventId: 'kept'),
+        ]);
+        await isar.savedNoteModels.put(
+          SavedNoteModel()
+            ..eventId = 'kept'
+            ..authorPubkey = 'p'
+            ..sig = ''
+            ..content = 'c'
+            ..type = NoteType.text
+            ..eTagRefs = const []
+            ..pTagRefs = const []
+            ..tTags = const []
+            ..created = DateTime(2026)
+            ..savedAt = DateTime(2026),
+        );
+        for (final id in ['old', 'kept']) {
+          await isar.memoryNodeModels.put(
+            MemoryNodeModel()
+              ..noteId = id
+              ..summary = 's'
+              ..keyPoints = const []
+              ..concepts = const []
+              ..linkedNoteIds = const []
+              ..updatedAt = DateTime(2026),
+          );
+        }
+      });
+      final mgr = CleanupManager(
+        isar: isar,
+        activePubkey: _kSelf,
+        retention: const Duration(days: 7),
+      );
+      await mgr.runOnce();
+
+      expect(
+        (await isar.pendingVectorDeleteModels.where().findAll())
+            .map((r) => r.eventId),
+        ['old'],
+      );
+      expect(
+        (await isar.memoryNodeModels.where().findAll()).map((m) => m.noteId),
+        ['kept'],
+      );
     });
 
     test('a note newer than the cutoff survives', () async {

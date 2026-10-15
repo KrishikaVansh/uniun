@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
-import 'package:uniun/data/datasources/llm/flutter_gemma_gateway.dart';
+import 'package:uniun/data/datasources/llm/flutter_edge_ai_gateway.dart';
 import 'package:uniun/features/shiv/rag/embedding/embedding_service.dart';
 
-/// Installs the bundled Gecko embedding model into flutter_gemma's managed
+/// Installs the bundled Gecko embedding model into flutter_edge_ai's managed
 /// storage so [EmbeddingService] can open it.
 ///
 /// The model ships as an app asset (no network download), so this just copies
@@ -17,7 +17,7 @@ import 'package:uniun/features/shiv/rag/embedding/embedding_service.dart';
 class EmbeddingModelDownloader {
   EmbeddingModelDownloader(this._gateway, this._embeddingService);
 
-  final FlutterGemmaGateway _gateway;
+  final FlutterEdgeAiGateway _gateway;
   final EmbeddingService _embeddingService;
 
   /// True once the bundled embedder is installed and active.

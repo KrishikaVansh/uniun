@@ -67,12 +67,19 @@ class NoteVectorStore {
   final Set<ReceivePort> _waiting = {};
   bool _stopped = false;
 
-  static Future<NoteVectorStore> open(String path) async {
+  /// [rebuildDelay] is how long after the last delete the search index is
+  /// rebuilt: deleted vectors can stay in tostore's index and take top-K
+  /// slots from live ones, so a burst of deletes is followed by one rebuild.
+  static Future<NoteVectorStore> open(
+    String path, {
+    Duration rebuildDelay = const Duration(seconds: 30),
+  }) async {
     final ready = ReceivePort();
     final exit = ReceivePort();
     final isolate = await Isolate.spawn(_serve, (
       path: path,
       ready: ready.sendPort,
+      rebuildDelay: rebuildDelay,
     ), onExit: exit.sendPort);
     final first = await ready.first;
     ready.close();
@@ -96,6 +103,13 @@ class NoteVectorStore {
 
   Future<bool> contains(String id) =>
       _ask<bool>((reply) => _Contains(reply, id));
+
+  /// Rebuilds the search index from the stored rows. Deleted vectors can
+  /// stay in tostore's index (and hide live ones) after many deletes.
+  Future<void> rebuild() => _ask<void>(_Rebuild.new);
+
+  /// Every stored id, for sweeping vectors whose note is gone.
+  Future<Set<String>> ids() async => (await _ask<List>(_Ids.new)).cast<String>().toSet();
 
   /// The [topK] nearest to [vector], best first. Score is similarity in 0..1.
   Future<List<NoteVectorHit>> search(
@@ -141,6 +155,14 @@ class _Delete extends _Command {
   final String id;
 }
 
+class _Rebuild extends _Command {
+  const _Rebuild(super.reply);
+}
+
+class _Ids extends _Command {
+  const _Ids(super.reply);
+}
+
 class _Clear extends _Command {
   const _Clear(super.reply);
 }
@@ -165,9 +187,23 @@ class _Failure {
   final String message;
 }
 
-Future<void> _serve(({String path, SendPort ready}) init) async {
+Future<void> _serve(
+  ({String path, SendPort ready, Duration rebuildDelay}) init,
+) async {
   final ToStore db;
   final commands = ReceivePort();
+  Timer? rebuildTimer;
+
+  /// Queues a rebuild behind whatever commands are already waiting.
+  void scheduleRebuild() {
+    rebuildTimer?.cancel();
+    rebuildTimer = Timer(init.rebuildDelay, () {
+      final sink = ReceivePort();
+      sink.first.then((_) => sink.close());
+      commands.sendPort.send(_Rebuild(sink.sendPort));
+    });
+  }
+
   try {
     db = await ToStore.open(dbPath: init.path, schemas: [_noteVectorSchema()]);
   } catch (e) {
@@ -190,6 +226,7 @@ Future<void> _serve(({String path, SendPort ready}) init) async {
                 .delete(embeddingsTableName)
                 .where(embeddingsIdField, '=', id);
             await db.flush();
+            scheduleRebuild();
           }
           await db.upsert(embeddingsTableName, {
             embeddingsIdField: id,
@@ -203,11 +240,29 @@ Future<void> _serve(({String path, SendPort ready}) init) async {
               .delete(embeddingsTableName)
               .where(embeddingsIdField, '=', id);
           await db.flush();
+          scheduleRebuild();
           command.reply.send(null);
         case _Clear():
           await db.clear(embeddingsTableName);
           await db.flush();
           command.reply.send(null);
+        case _Rebuild():
+          final rows = (await db.query(embeddingsTableName)).data;
+          await db.clear(embeddingsTableName);
+          await db.flush();
+          for (final r in rows) {
+            await db.upsert(embeddingsTableName, {
+              embeddingsIdField: r[embeddingsIdField],
+              embeddingsVectorField: r[embeddingsVectorField],
+            });
+          }
+          await db.flush();
+          command.reply.send(null);
+        case _Ids():
+          final rows = await db.query(embeddingsTableName);
+          command.reply.send([
+            for (final r in rows.data) r[embeddingsIdField] as String,
+          ]);
         case _Contains(:final id):
           command.reply.send(await _has(db, id));
         case _Search(:final vector, :final topK):
@@ -221,6 +276,7 @@ Future<void> _serve(({String path, SendPort ready}) init) async {
             for (final h in hits) (id: h.primaryKey, score: h.score),
           ]);
         case _Close():
+          rebuildTimer?.cancel();
           await db.close();
           command.reply.send(null);
           commands.close();

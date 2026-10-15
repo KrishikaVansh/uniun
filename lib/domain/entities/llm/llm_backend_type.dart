@@ -1,6 +1,6 @@
 /// Which LLM backend currently services chat + extraction.
 ///
-/// [localGemma] — on-device flutter_gemma inference. Default.
+/// [localGemma] — on-device flutter_edge_ai inference. Default.
 /// [uniunCloud] — the UNIUN inference gateway (api.uniun.in), authenticated
 /// with the user's own Nostr keypair.
 enum LlmBackendType {

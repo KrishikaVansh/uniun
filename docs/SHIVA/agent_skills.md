@@ -1,8 +1,8 @@
 # Agent Skills — Agentic Ganas + User-Defined Skills
 
 How UNIUN turns Ganas from one-shot generators into multi-step agents,
-using the skill runtime that shipped with `flutter_gemma 1.2.0`
-(`skillExecutors:` seam) + the opt-in `flutter_gemma_agent` package.
+using the skill runtime that shipped with `flutter_edge_ai (then flutter_edge_ai 1.2.0)`
+(`skillExecutors:` seam) + the opt-in `flutter_edge_ai_agent` package.
 Extends [`Ganas.md`](Ganas.md); scheduling constraints come from
 [`scheduling.md`](scheduling.md); all knowledge retrieval stays rooted
 in [`graphrag.md`](graphrag.md).
@@ -54,26 +54,26 @@ once, and either publish the body or honor the `<NOOP>` sentinel
 - **Capabilities require app releases.** A Gana can only do what the
   prompt builder hard-codes.
 
-`flutter_gemma 1.2.0` added the `skillExecutors:` registration seam;
-`flutter_gemma_agent` (0.1.x) supplies the agent loop: the model reads
+`flutter_edge_ai (then flutter_edge_ai 1.2.0)` added the `skillExecutors:` registration seam;
+`flutter_edge_ai_agent` (0.1.x) supplies the agent loop: the model reads
 skill descriptions, emits a function call picking a skill, the
 executor runs it, the result feeds back, the model continues. This doc
 specifies how that maps onto Ganas and Shiv without breaking the
 scheduler, the offline-first rule, or the graph-centric knowledge
 model.
 
-**Why now / why the old blocker is gone:** flutter_gemma issue
+**Why now / why the old blocker is gone:** flutter_edge_ai issue
 [#348](https://github.com/DenisovAV/flutter_gemma/issues/348) (per-turn
 native-heap leak) is **OpenCL-GPU-specific**. The maintainer verified
 CPU is flat and Metal (iOS) is flat. Fixed upstream
 (google-ai-edge/LiteRT-LM#2699), so multi-round agent loops no longer
 multiply a per-turn leak on either GPU backend.
 
-**Status update (2026-09-15):** fixed in `flutter_gemma_litertlm` 1.4.1
-(LiteRT-LM v0.16.0). UNIUN now ships flutter_gemma 1.8.3 / litertlm 1.6.3
+**Status update (2026-09-15):** fixed in `flutter_edge_ai_litertlm` 1.4.1
+(LiteRT-LM v0.16.0). UNIUN now ships flutter_edge_ai (then flutter_edge_ai 1.8.3) / litertlm 1.6.3
 and prefers GPU on Android as well (`lib/core/utils/llm_backend.dart`). The
 "separate SIGSEGV" previously cited as a second blocker was never tied to an
-upstream issue; the known Android GPU native-crash classes (flutter_gemma
+upstream issue; the known Android GPU native-crash classes (flutter_edge_ai
 #209, #379) are fixed in versions older than the ones we ship. The CPU retry
 only catches a *thrown* GPU failure, so any device-specific native crash
 should be pinned to CPU per device.
@@ -135,7 +135,7 @@ Call with a short natural-language query. Returns up to 5 matching
 notes (date + content preview). Query in the user's language.
 ```
 
-`flutter_gemma_agent` ships four executor mechanisms. Our stance on
+`flutter_edge_ai_agent` ships four executor mechanisms. Our stance on
 each:
 
 | Executor | Runs | UNIUN stance |
@@ -146,7 +146,7 @@ each:
 | `NativeIntentExecutor` | Whitelisted OS intents + confirmation | 🔶 Phase 3 (reminders, share sheet) |
 | `McpSkillExecutor` | Remote MCP tools over HTTP | ❌ Never — violates offline-first / no-cloud-AI |
 
-`SkillExecutorProvider` (core contract in flutter_gemma 1.2.0) is a
+`SkillExecutorProvider` (core contract in flutter_edge_ai (then flutter_edge_ai 1.2.0)) is a
 3-member interface — `name`, `priority`, `canExecute(skillType)` — so
 `UniunSkillExecutor` is a plain data-layer class implementing it and
 dispatching skill calls to injected use cases.
@@ -388,14 +388,14 @@ Consequences, all intentional:
   run ends silent (logged `cancelled`).
 - Shiv agentic rounds submit at **T0** (they ARE chat).
 
-This means we do NOT use `flutter_gemma_agent`'s own drive-the-model
+This means we do NOT use `flutter_edge_ai_agent`'s own drive-the-model
 loop verbatim — we use its `SkillRegistry` / skill parsing / executor
 contract, but the round pump lives in our code
 (`lib/features/shiv/generation/agent_loop.dart`) so every inference
 passes the scheduler. If the package's loop can't be split this way,
 we implement the (small) round pump ourselves against
 `FunctionCallResponse` — the parsing machinery is already in
-flutter_gemma core (`lib/core/parsing/`).
+flutter_edge_ai core (`lib/core/parsing/`).
 
 ---
 
@@ -428,7 +428,7 @@ DATA
 ```
 
 Layer rules from CLAUDE.md hold: domain imports neither Isar nor
-flutter_gemma; the executor and loop live in data; BLoCs see use cases
+flutter_edge_ai; the executor and loop live in data; BLoCs see use cases
 only.
 
 ---
@@ -498,7 +498,7 @@ Very on-brand, very deliberately Phase 4+:
 
 ## 14. Phasing
 
-1. **P1 — Foundation.** `flutter_gemma_agent` dependency;
+1. **P1 — Foundation.** `flutter_edge_ai_agent` dependency;
    `UniunSkillExecutor`; knowledge skills (§5.1); the scheduler round
    pump (§9); Shiv "deep answer" behind a dev flag. Prove tool-call
    reliability per model (Gemma 4 E2B/E4B, DeepSeek, Qwen3 0.6B) on
@@ -523,7 +523,7 @@ user-visible changes until reliability numbers are in.
   anything ships to a relay.
 - `maxRounds` default: 4 is a guess; P1 telemetry (GanaRunStepModel
   durations) should set it per model class.
-- Does `flutter_gemma_agent`'s `AgentSession` expose a per-round seam
+- Does `flutter_edge_ai_agent`'s `AgentSession` expose a per-round seam
   cleanly, or do we build the round pump on raw
   `FunctionCallResponse` from day one? Decide in P1 spike week.
 - Qwen3 0.6B: if tool-calling proves unusable, do we hide the agentic

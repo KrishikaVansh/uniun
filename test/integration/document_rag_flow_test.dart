@@ -63,7 +63,7 @@ import '../_helpers/pdfium_test_lib.dart';
 /// (including which pages it renders for OCR), the real DOCX reader, real
 /// Isar (vectors stored on the chunk rows) — and images through a faked OCR step: cache row → extract → chunk → embed → store → retrieve →
 /// citation. Only the embedder is faked
-/// (deterministic vectors) — it needs flutter_gemma, which is device-only;
+/// (deterministic vectors) — it needs flutter_edge_ai, which is device-only;
 /// `integration_test/` covers the real one.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

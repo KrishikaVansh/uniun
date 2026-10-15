@@ -20,7 +20,7 @@ import 'package:uniun/features/shiv/generation/context/manas_context_loader.dart
 /// run log, and the cursor advance — so they can't drift between foreground and
 /// background. The three steps that genuinely differ stay in each caller:
 ///   • knowledge ranking — relevance (fg) vs newest-first (bg);
-///   • inference — [AIModelRunner.generateOneShot] (fg) vs raw flutter_gemma
+///   • inference — [AIModelRunner.generateOneShot] (fg) vs raw flutter_edge_ai
 ///     with a wall-clock budget (bg);
 ///   • publishing — publish use cases (fg) vs in-isolate signing (bg).
 

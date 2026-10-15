@@ -96,8 +96,8 @@ it *what* to run next; the runner knows *how*.
 
 ### Model switch tier (issue #160 follow-on)
 
-Activating or deleting a local model touches flutter_gemma's native
-engine directly (`FlutterGemma.installModel()`/`.uninstallModel()`).
+Activating or deleting a local model touches flutter_edge_ai's native
+engine directly (`FlutterEdgeAi.installModel()`/`.uninstallModel()`).
 Before this tier existed, that call raced whatever generation job was
 currently running against the same engine — nothing in
 `AIModelRepositoryImpl.activateModel()`/`deleteModel()` checked the
@@ -146,7 +146,7 @@ picker when the window rolls (#287).
 
 When a new job arrives whose tier < the running job's tier:
 
-1. Call `InferenceChat.stopGeneration()` on the runner — flutter_gemma
+1. Call `InferenceChat.stopGeneration()` on the runner — flutter_edge_ai
    honours this between tokens (typically <100 ms).
 2. The cancelled job, if it was in the fair pool, is **re-queued at
    the front of its tier** so it runs again later from scratch.
@@ -155,7 +155,7 @@ When a new job arrives whose tier < the running job's tier:
 ### Model affinity rule
 
 Each job carries a `modelId` (the model it expects to run on). Model
-swap is expensive — ~10 s to unload + load on flutter_gemma 1.1.x.
+swap is expensive — ~10 s to unload + load on flutter_edge_ai (then flutter_edge_ai 1.1.x.)
 
 - **T0 chat** ignores affinity; it preempts even across a swap. User-
   facing latency wins.
@@ -499,7 +499,7 @@ DATA                                                (lib/data/)
 | `ExtractKnowledgeUseCase` — note just opened                                      | `extract`, `foregroundHint:true` | yes (note detail) | active chat model                |
 | `ExtractKnowledgeUseCase` — backfill loop                                         | `extract`           | no               | active chat model                              |
 | `EmbeddingService.embed` (`.../rag/embedding/embedding_service.dart`)            | n/a (separate queue) | n/a             | embedder model — separate chip                 |
-| `gana_workmanager.dart` (background isolate)                                     | n/a (out of scope)  | n/a             | own direct `FlutterGemma` — see §9             |
+| `gana_workmanager.dart` (background isolate)                                     | n/a (out of scope)  | n/a             | own direct `FlutterEdgeAi` — see §9             |
 | `AIModelRepositoryImpl.activateModel` (`.../repositories/ai_model_repository_impl.dart`) | `modelSwitch`, `forcePreempt:false` | no | ignored (tier -1) |
 | `AIModelRepositoryImpl.deleteModel` — deleting the active model                   | `modelSwitch`, `forcePreempt:true` | no | ignored (tier -1) |
 
@@ -514,12 +514,12 @@ EmbeddingService.embed(text)
    │   isDocument:false → interactive (a question)
    │   isDocument:true  → background (a note, a PDF/DOCX chunk)
    ▼
-EmbeddingQueue ─► one in flight; interactive waiters first ─► flutter_gemma_embeddings
+EmbeddingQueue ─► one in flight; interactive waiters first ─► flutter_edge_ai_embeddings
                                     (separate model, separate context)
 ```
 
 The embedder is a small dedicated model (~110 M params, INT8) that
-ships in `flutter_gemma_embeddings`. It is not the chat model — it
+ships in `flutter_edge_ai_embeddings`. It is not the chat model — it
 runs through its own MediaPipe graph and does not occupy the chat
 runner's `InferenceChat` slot.
 
@@ -598,7 +598,7 @@ backgrounded. It:
 - runs in its **own isolate**,
 - has **no DI** (`get_it` is not bootstrapped),
 - opens its **own Isar**,
-- calls `FlutterGemma.initialize()` and `openChat()` directly.
+- calls `FlutterEdgeAi.initialize()` and `openChat()` directly.
 
 It therefore cannot share `InferenceScheduler`. By design — the
 scheduler is a foreground-isolate concept, and when the app is
@@ -677,7 +677,7 @@ remote_llm_data_source_test.dart`'s `concurrency` group.
 | 5 | 500-note extract backfill loop submits one job per second.                                             | T2 ramps; after 60 % of a 5-min window is consumed by T2, picker skips T2 and dispatches T4 instead. Nataraj/Gana get the remaining 40 %. |
 | 6 | Chat on model X. Two Gana jobs queued: one on X, one on Y.                                              | Picker prefers the X Gana (same model). Y Gana waits for a foreground signal or a chat idle gap before triggering a swap.            |
 | 7 | User opens a note → extract triggered with `foregroundHint:true`. Nataraj running.                     | Extract promoted to T1, preempts Nataraj.                                                                                           |
-| 8 | App backgrounded → `gana_workmanager` ticks.                                                           | Scheduler is dormant (no foreground); workmanager runs unaffected with its own direct `FlutterGemma` path.                          |
+| 8 | App backgrounded → `gana_workmanager` ticks.                                                           | Scheduler is dormant (no foreground); workmanager runs unaffected with its own direct `FlutterEdgeAi` path.                          |
 | 9 | Nataraj running. User picks a different, already-downloaded local model.                               | Nataraj runs to completion untouched. The switch runs immediately after, ahead of any job that arrived while it waited.             |
 | 10 | User picks a different model while nothing is running.                                                | Switch runs immediately.                                                                                                            |
 | 11 | Chat running. User deletes the currently-active model.                                                | Chat is cancelled immediately (not re-queued); the delete proceeds right away.                                                      |

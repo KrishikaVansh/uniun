@@ -5,7 +5,7 @@ import 'package:uniun/features/shiv/generation/prompt/prompt_parts.dart';
 /// Assembles the prompt sent to the on-device LLM for a single Gana run.
 ///
 /// Why no `publish_message(body=...)` tool ask: Qwen3 / Gemma small models
-/// in flutter_gemma 1.0.0 don't reliably emit a tool-call envelope. When
+/// in flutter_edge_ai (then flutter_edge_ai 1.0.0) don't reliably emit a tool-call envelope. When
 /// asked to, they tend to write the envelope as plain text — which we then
 /// strip in `LlmTextSanitizer`. We removed the ask to avoid the round-trip
 /// entirely: the model writes a plain message, we publish it as-is.

@@ -11,7 +11,7 @@ import 'package:uniun/domain/entities/llm/llm_task_kind.dart';
 ///
 /// Five strict-priority tiers above a CFS-style fair pool, with EDF-style
 /// deadline promotion, foreground-driven tier hoisting, and model-affinity
-/// batching to amortize the ~10 s `flutter_gemma` model-swap cost. One GPU,
+/// batching to amortize the ~10 s `flutter_edge_ai` model-swap cost. One GPU,
 /// one loaded model at a time.
 ///
 /// Full spec — including HLD/LLD diagrams, literature references, and the

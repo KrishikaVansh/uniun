@@ -1018,7 +1018,7 @@
   },
   "aiModelOrphanedFilesText": "残ったモデル ファイルの {size} をクリーンアップできます。",
   "@aiModelOrphanedFilesText": {
-    "description": "Banner shown when flutter_gemma reports leftover/orphaned model files on disk",
+    "description": "Banner shown when flutter_edge_ai reports leftover/orphaned model files on disk",
     "placeholders": {
       "size": {
         "type": "String"

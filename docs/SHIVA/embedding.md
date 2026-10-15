@@ -60,6 +60,11 @@ flowchart TD
 - **Chat first.** The worker waits (polls every 2 s) while `InferenceScheduler.isChatRunning`. Gana, extraction and Nataraj jobs do not hold it back.
 - **Knowledge extraction is unchanged:** one on-device LLM call per note, scheduled as `extract`, skipped when no model is active, drained when the user is away from Shiv. The worker only feeds it.
 - **Always embed through `EmbeddingService.embed`.** A direct call to the model skips the gate.
+- **An over-long text is shortened and retried, not truncated by the plugin.** flutter_edge_ai 2.3 throws `EmbeddingInputTooLongException` (with the token limit and the actual count); `EmbeddingService` cuts the text in proportion, with a 10 % margin, and tries again up to 4 times, then gives up with `[]`.
+
+## Deleting a note
+
+Every deletion path calls `purgeNotesInTxn` (`lib/data/datasources/note_purge.dart`) inside its own transaction: the note, its unread and relation rows, its memory summary, its graph edges (a concept stays while another edge uses it), its pending embed/extract rows, and a `PendingVectorDelete` row are handled together. The vector lives in the store's isolate, so `NoteVectorCleanupWorker` removes it from the queue afterwards, row last. On launch it also sweeps vectors that have no note (never when there are no notes at all) and rebuilds the index once per store format. A note that is still saved keeps its vector and knowledge. Never delete `NoteModel` rows directly.
 
 ## Why one at a time
 

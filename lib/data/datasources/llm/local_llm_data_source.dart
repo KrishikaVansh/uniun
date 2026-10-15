@@ -11,7 +11,7 @@ import 'package:uniun/domain/entities/llm/llm_model_info.dart';
 import 'package:uniun/domain/entities/llm/llm_task_kind.dart';
 import 'package:uniun/domain/repositories/ai_model_repository.dart';
 
-/// On-device flutter_gemma backend.
+/// On-device flutter_edge_ai backend.
 ///
 /// Wraps [AIModelRunner] (token streaming + one-shot) and the
 /// [InferenceScheduler] (5-tier priority + CFS fair pool + EDF deadlines —

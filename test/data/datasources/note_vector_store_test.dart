@@ -84,6 +84,89 @@ void main() {
     expect((await store.search(vec(3), topK: 5)).single.id, 'account-b');
   });
 
+  test('a deleted vector stays gone after the store is closed and reopened',
+      () async {
+    await store.upsert('keep', vec(1));
+    await store.upsert('gone', vec(2));
+    await store.delete('gone');
+
+    await store.close();
+    store = await NoteVectorStore.open(dir.path);
+
+    expect(await store.contains('gone'), isFalse);
+    expect(
+      (await store.search(vec(2), topK: 5)).map((h) => h.id),
+      isNot(contains('gone')),
+    );
+    expect(await store.ids(), {'keep'});
+  });
+
+  test('rebuild keeps every live vector findable and leaves no ghost hits',
+      () async {
+    for (var i = 0; i < 60; i++) {
+      await store.upsert('m$i', vec(100 + i));
+    }
+    for (var i = 0; i < 60; i += 2) {
+      await store.delete('m$i');
+    }
+    await store.close();
+    store = await NoteVectorStore.open(dir.path);
+
+    await store.rebuild();
+
+    final live = await store.ids();
+    expect(live, hasLength(30));
+    final hits = await store.search(vec(101), topK: 60);
+    expect(hits.every((h) => live.contains(h.id)), isTrue);
+    for (var i = 1; i < 60; i += 2) {
+      expect(
+        (await store.search(vec(100 + i), topK: 1)).single.id,
+        'm$i',
+        reason: 'm$i must still be found by its own vector',
+      );
+    }
+  });
+
+  test('rebuild on an empty store is a no-op', () async {
+    await store.rebuild();
+
+    expect(await store.ids(), isEmpty);
+    await store.upsert('a', vec(1));
+    expect((await store.search(vec(1), topK: 1)).single.id, 'a');
+  });
+
+  test('a burst of deletes is followed by an index rebuild on its own',
+      () async {
+    await store.close();
+    store = await NoteVectorStore.open(
+      dir.path,
+      rebuildDelay: const Duration(milliseconds: 100),
+    );
+    for (var i = 0; i < 60; i++) {
+      await store.upsert('m$i', vec(100 + i));
+    }
+    for (var i = 0; i < 60; i += 2) {
+      await store.delete('m$i');
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 600));
+    await store.close();
+    store = await NoteVectorStore.open(dir.path);
+
+    final live = await store.ids();
+    final hits = await store.search(vec(101), topK: 60);
+
+    expect(hits.every((h) => live.contains(h.id)), isTrue);
+  });
+
+  test('ids lists every stored vector and nothing else', () async {
+    expect(await store.ids(), isEmpty);
+    await store.upsert('a', vec(1));
+    await store.upsert('b', vec(2));
+    await store.delete('a');
+
+    expect(await store.ids(), {'b'});
+  });
+
   test('deleting an id that is not there is not an error', () async {
     await store.delete('ghost');
 

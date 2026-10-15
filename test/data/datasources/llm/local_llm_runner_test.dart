@@ -6,7 +6,7 @@ import 'package:flutter_edge_ai/flutter_edge_ai.dart' hide CancelToken;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:uniun/data/datasources/app_settings_store.dart';
-import 'package:uniun/data/datasources/llm/flutter_gemma_gateway.dart';
+import 'package:uniun/data/datasources/llm/flutter_edge_ai_gateway.dart';
 import 'package:uniun/data/datasources/llm/inference_scheduler.dart';
 import 'package:uniun/data/datasources/llm/local_llm_runner.dart';
 import 'package:uniun/domain/entities/ai_model/ai_model_entity.dart';
@@ -14,7 +14,7 @@ import 'package:uniun/domain/entities/llm/llm_task_kind.dart';
 
 class _MockSettings extends Mock implements AppSettingsStore {}
 
-class _MockGateway extends Mock implements FlutterGemmaGateway {}
+class _MockGateway extends Mock implements FlutterEdgeAiGateway {}
 
 class _MockInferenceModel extends Mock implements InferenceModel {}
 
@@ -24,7 +24,7 @@ class _MockScheduler extends Mock implements InferenceScheduler {}
 
 /// Covers AIModelRunner's real generation logic (retry + backend fallback,
 /// prompt composition/history trimming, stop-token scrubbing, cancellation)
-/// via the FlutterGemmaGateway seam — unreachable before that seam existed
+/// via the FlutterEdgeAiGateway seam — unreachable before that seam existed
 /// (see docs/AUDIT.md, Group C of the coverage push). The InferenceScheduler
 /// is REAL (not mocked) throughout, so cancellation tests exercise genuine
 /// preemption, not a simulated flag.

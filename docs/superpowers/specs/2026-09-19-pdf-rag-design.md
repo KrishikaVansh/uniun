@@ -175,7 +175,7 @@ real data.
   `document_chunk_embeddings`, and resolution of chunk ids to text from
   `DocumentChunkModel`.
 - **`PdfIndexer`** (new `@lazySingleton`, main isolate — `EmbeddingService`
-  and flutter_gemma are main-isolate only) — the reconciler above.
+  and flutter_edge_ai are main-isolate only) — the reconciler above.
   Sequential; embedding failures (`embed` returns `[]` when the model is not
   ready) leave the document unindexed so the next reconcile retries it.
 - **`VectorSearchService.searchChunks`**, **`EnrichedContext.seedChunks`**,

@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:uniun/core/constants/app_constants.dart';
 
-/// Cleans raw text emitted by on-device LLMs (flutter_gemma) before it
+/// Cleans raw text emitted by on-device LLMs (flutter_edge_ai) before it
 /// is persisted or shown to a user.
 ///
 /// The model stream leaks three classes of garbage we always want to
@@ -22,7 +22,7 @@ import 'package:uniun/core/constants/app_constants.dart';
 ///      the envelope as plain text. We strip the outer wrapper and keep
 ///      the inner string. Also handles loose JSON `{"body":"…"}`.
 ///
-///   3. **GPT-2 / BPE byte-encoding leaks.** flutter_gemma's tokenizer
+///   3. **GPT-2 / BPE byte-encoding leaks.** flutter_edge_ai's tokenizer
 ///      represents raw bytes 0x80–0xFF (and 0x00–0x20, 0x7F, 0xAD) as
 ///      specific Unicode codepoints in Latin Extended-A so the stream
 ///      is always valid UTF-16. The detokenizer normally reverses this;

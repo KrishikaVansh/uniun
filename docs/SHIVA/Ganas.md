@@ -1,6 +1,6 @@
 # Ganas — User-Owned AI Agents with Brahma or Manas Knowledge
 
-> **Status**: Phase 2 (shipped foreground; background tick installed; background inference gated on `flutter_gemma_bg_isolate_test.dart`).
+> **Status**: Phase 2 (shipped foreground; background tick installed; background inference gated on `flutter_edge_ai_bg_isolate_test.dart`).
 > **Lives in**: Shiv (the AI assistant tab).
 > **Companion**: `docs/BRAHMA/Manas.md` (the knowledge bases Ganas consume).
 >
@@ -101,7 +101,7 @@ Run trace (post-refactor):
 A Gana pinned to a UNIUN Cloud model bypasses the on-device gate entirely,
 in both isolates:
 
-- **Foreground (`GanaEngine`)**: skips `FlutterGemma.hasActiveModel()` and
+- **Foreground (`GanaEngine`)**: skips `FlutterEdgeAi.hasActiveModel()` and
   calls `GenerateOneShotUseCase` (`lib/domain/usecases/llm_usecases.dart`)
   with `backendOverride: uniunCloud, modelIdOverride: desiredModelId`.
   `LlmRepositoryImpl` routes straight to `RemoteLlmDataSource` for that one
@@ -122,7 +122,7 @@ in both isolates:
   time, and hands a copy to the bg isolate via `inputData` — same pattern as
   `privkeyHex`. The bg tick then calls `UniunGatewayClient().chatCompletion(...)`
   directly (no DI, no re-auth handshake); a rejected/expired key just fails
-  the run like any other inference error. `FlutterGemma.initialize()` is
+  the run like any other inference error. `FlutterEdgeAi.initialize()` is
   skipped for a tick whose one due Gana is cloud-pinned.
 - Local pins can't cheaply switch which on-device model is loaded mid-run
   (that's a ~9s swap of the app's actual active model) — that's why local
@@ -169,7 +169,7 @@ the existing relay-sync component — it doesn't host Gana logic.
 │  │           • else ⇒ newest-first fallback                           │ │
 │  │      5. GanaPromptBuilder — SYSTEM rules + USER instruction +      │ │
 │  │         KNOWLEDGE + INPUT (no `publish_message(body=...)` ask)     │ │
-│  │      6. Model gate (FlutterGemma.hasActiveModel)                   │ │
+│  │      6. Model gate (FlutterEdgeAi.hasActiveModel)                   │ │
 │  │      7. AIModelRunner.generateOneShot(kind=gana,                   │ │
 │  │         modelId=gana.desiredModelId) — InferenceScheduler picks    │ │
 │  │         the tier (T4 default · T1 form · T3 cron). Chat preempts.  │ │
@@ -197,8 +197,8 @@ the existing relay-sync component — it doesn't host Gana logic.
 │   ├ Fires ~30 min after AppLifecycleState.paused                         │
 │   ├ BackgroundIsolateBinaryMessenger.ensureInitialized(RootIsolateToken) │
 │   ├ Opens own Isar at the shared path                                    │
-│   ├ Loads flutter_gemma fresh (verified by                               │
-│   │   integration_test/flutter_gemma_bg_isolate_test.dart)               │
+│   ├ Loads flutter_edge_ai fresh (verified by                               │
+│   │   integration_test/flutter_edge_ai_bg_isolate_test.dart)               │
 │   └ Walks enabled interval Ganas, ONE per tick:                          │
 │       ─► feed (kind 1) / channel (kind 42): sign locally, write          │
 │          EventQueueModel directly (gateway broadcasts on next watcher    │
@@ -218,7 +218,7 @@ the existing relay-sync component — it doesn't host Gana logic.
 
 Pre-refactor, the engine lived in its own Dart isolate and bridged into
 the main isolate via `SendPort → GanaInferenceServer →
-LocalInferenceQueue → flutter_gemma`. Replies came back via `SendPort`,
+LocalInferenceQueue → flutter_edge_ai`. Replies came back via `SendPort`,
 then the engine wrote a `GanaPendingOutputModel` row that a main-isolate
 `GanaOutputDispatcher` drained via `watchLazy`. Six hops per run.
 
@@ -242,7 +242,7 @@ What we kept:
 
 - **`InferenceScheduler`** (see [`scheduling.md`](scheduling.md)) — chat
   preemption still matters because the GPU is one-at-a-time.
-  flutter_gemma 1.x's concurrent-sessions feature removes model
+  flutter_edge_ai (then flutter_edge_ai 1.x)'s concurrent-sessions feature removes model
   duplication, not GPU serialization. The scheduler's T0 chat tier is
   what makes preemption usable in practice.
 - **WorkManager bg isolate** — separate concern. OS-dispatched, can't
@@ -509,7 +509,7 @@ Reactive watcher / interval timer / fire-on-enable
               ├─ Prompt build (string concat)                        [<1ms]
               ├─ AIModelRunner.generateOneShot(kind=gana)             [FFI]
               │    └─ InferenceScheduler → tier T4 / T3 / T1
-              │         └─ flutter_gemma native threads             [native pool]
+              │         └─ flutter_edge_ai native threads             [native pool]
               │             ─► chat (T0) preempts via
               │                InferenceChat.stopGeneration
               ├─ LlmTextSanitizer.clean                              [<1ms]
@@ -535,7 +535,7 @@ Where Dart-thread time goes during a 200-second run:
 That's <0.05% of wall clock spent on the Dart event loop. UI frames at
 60Hz (16ms budget) are unaffected.
 
-What flutter_gemma actually does: each `TextResponse` chunk crosses
+What flutter_edge_ai actually does: each `TextResponse` chunk crosses
 back from a C++ thread via FFI as a stream event. The Dart side handles
 the chunk in microseconds (sanitize-tracker, scrubber, buffer.write).
 Native decoding continues independently on `execution_thread_pool`.
@@ -543,7 +543,7 @@ Native decoding continues independently on `execution_thread_pool`.
 Edge cases that DO have a measurable cost on the main isolate:
 
 - **First model load** (`litert_lm_engine_create` — ~10s observed).
-  Happens once per chat session open. flutter_gemma already spawns an
+  Happens once per chat session open. flutter_edge_ai already spawns an
   internal helper isolate for the heavy lift (note in the log:
   `(includes isolate spawn ~50-200ms)`), but the orchestrating Dart
   side does pay ~100-300ms in scattered work during that 10s window.
@@ -627,13 +627,13 @@ adb shell cmd jobscheduler run -f in.uniun.app 999
 
 ### 8.3 The unanswered question — v2 background inference
 
-flutter_gemma 1.0.0's docs are silent on whether `FlutterGemma.initialize()` + `openChat()` work in a background isolate. We don't ship background inference in v1 because shipping unverified inference behaviour means broken Ganas that the user can't debug.
+flutter_edge_ai (then flutter_edge_ai 1.0.0)'s docs are silent on whether `FlutterEdgeAi.initialize()` + `openChat()` work in a background isolate. We don't ship background inference in v1 because shipping unverified inference behaviour means broken Ganas that the user can't debug.
 
-The test that answers this lives at `test/integration/flutter_gemma_bg_isolate_test.dart`. Move to `integration_test/` and run on a real device with a model already installed. Three outcomes:
+The test that answers this lives at `test/integration/flutter_edge_ai_bg_isolate_test.dart`. Move to `integration_test/` and run on a real device with a model already installed. Three outcomes:
 
 - **OK** → green light. ~30-line patch in `gana_workmanager.dart` swaps the cursor-bump for real inference. Background Ganas become independent of foreground.
 - **SKIP** → preconditions not met (no model installed). Re-run.
-- **FAIL** → halt; ship queue-then-foreground forever (or until flutter_gemma adds bg-isolate support upstream). Document the limitation here in §8.
+- **FAIL** → halt; ship queue-then-foreground forever (or until flutter_edge_ai adds bg-isolate support upstream). Document the limitation here in §8.
 
 ---
 
@@ -644,7 +644,7 @@ The test that answers this lives at `test/integration/flutter_gemma_bg_isolate_t
 | Input filter | `authorPubkey != selfPubkey` | Self-loops (Gana reads its own publish) + Gana-to-Gana ping-pong (one user's Gana A publishes → their Gana B reads → publishes → A reads → …) |
 | Input filter | `eventId ∉ this Gana's output history` | Belt+suspenders against the same |
 | Run gate | `desiredModelId` carried into the scheduler | Model-affinity rules batch same-model Ganas; mismatched Ganas wait for an affinity opportunity instead of skipping outright |
-| Run gate | `FlutterGemma.hasActiveModel()` | Skip cleanly with `noActiveModel` if model is uninstalled |
+| Run gate | `FlutterEdgeAi.hasActiveModel()` | Skip cleanly with `noActiveModel` if model is uninstalled |
 | Cursor | NOT advanced on skip/fail | Same input retried next trigger; never lose work |
 | Scheduler | `InferenceScheduler` (5-tier — see [`scheduling.md`](scheduling.md)) | Chat (T0) preempts; GanaForm preview hoists to T1; cron deadlines promote to T3; CFS fair pool at T4 stops Nataraj from starving Gana |
 | Publish | use-case-level errors → `GanaRunStatus.failed` | Publish failures surface in the run log; engine does not retry automatically (next trigger will re-attempt naturally) |
@@ -798,11 +798,11 @@ android/app/src/main/AndroidManifest.xml
 
 pubspec.yaml
   + workmanager: ^0.6.0
-  + flutter_gemma: ^1.0.0
-  + flutter_gemma_litertlm / _mediapipe / _embeddings
+  + flutter_edge_ai: ^1.0.0
+  + flutter_edge_ai_litertlm / _mediapipe / _embeddings
 
 test/integration/
-  └── flutter_gemma_bg_isolate_test.dart   Phase 6a verification
+  └── flutter_edge_ai_bg_isolate_test.dart   Phase 6a verification
                                            (move to integration_test/ to run)
 ```
 
@@ -813,7 +813,7 @@ test/integration/
 | Item | Trigger to ship |
 |---|---|
 | **Background inference for DM/PC** | Currently bg tick skips kind 14 / 9023 (native plugins are main-isolate-only). Plumbing NIP-17 / MLS into the bg isolate would lift the limitation. |
-| **Function-calling output** | Dropped from the prompt entirely (models leaked `publish_message(body=...)` as text; sanitizer rule + plain-text prompt instead). flutter_gemma 1.2.0 now exposes true tool-calling + a skill runtime — the revisit is designed in [`agent_skills.md`](agent_skills.md) (agentic Ganas, typed publish via `publish-*` skills, per-round scheduling). Note the historical text-leak is exactly the small-model reliability risk that doc's P1 gate must measure. |
+| **Function-calling output** | Dropped from the prompt entirely (models leaked `publish_message(body=...)` as text; sanitizer rule + plain-text prompt instead). flutter_edge_ai (then flutter_edge_ai 1.2.0) now exposes true tool-calling + a skill runtime — the revisit is designed in [`agent_skills.md`](agent_skills.md) (agentic Ganas, typed publish via `publish-*` skills, per-round scheduling). Note the historical text-leak is exactly the small-model reliability risk that doc's P1 gate must measure. |
 | **Real `outputEventId` for DM + private channel** | Transport use cases (`SendDmUseCase`, `SendPrivateChannelMessageUsecase`) return `void` / `Unit`. Engine snapshots `noteModels` before/after the call to recover the new eventId — works but feels fragile. |
 | **User-private config sync across devices** | Out of scope; would need encrypted Nostr-based sync layer |
 | **"Run now" button** | Deferred; once we see how trigger model behaves in the wild |

@@ -16,7 +16,7 @@ enum AIModelId {
 ///
 /// One place that says so, so the UI and the engine ask the same question
 /// instead of each guessing from a model's name. Of the four models UNIUN
-/// ships, only the Gemma 4 pair has a vision encoder (flutter_gemma 1.8.3);
+/// ships, only the Gemma 4 pair has a vision encoder (flutter_edge_ai (then flutter_edge_ai 1.8.3));
 /// Qwen3 and DeepSeek R1 are text-only.
 extension AIModelIdCapabilities on AIModelId {
   bool get supportsImages => switch (this) {

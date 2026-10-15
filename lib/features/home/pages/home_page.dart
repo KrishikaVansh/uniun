@@ -11,6 +11,7 @@ import 'package:uniun/domain/services/marmot_transport_service.dart';
 import 'package:uniun/domain/services/note_embedding_trigger.dart';
 import 'package:uniun/features/mesh/service/mesh_service.dart';
 import 'package:uniun/features/shiv/rag/indexing/document_indexer.dart';
+import 'package:uniun/features/shiv/rag/indexing/note_vector_cleanup_worker.dart';
 import 'package:uniun/features/vishnu/bloc/vishnu_feed_bloc.dart';
 import 'package:uniun/features/vishnu/pages/vishnu_feed_page.dart';
 import 'package:uniun/features/shiv/gana/engine/gana_engine.dart';
@@ -43,6 +44,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     getIt<MarmotTransportService>().start();
     getIt<MeshService>().start();
     getIt<DocumentIndexer>().start();
+    getIt<NoteVectorCleanupWorker>().start();
     getIt<NoteEmbeddingTrigger>().nudge();
     GatewayBootstrap.start();
     // Inbound share: HomePage only mounts for an authenticated user with a live

@@ -19,7 +19,7 @@ import 'package:flutter_edge_ai_mediapipe/flutter_edge_ai_mediapipe.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:uniun/data/datasources/llm/embedding_queue.dart';
-import 'package:uniun/data/datasources/llm/flutter_gemma_gateway.dart';
+import 'package:uniun/data/datasources/llm/flutter_edge_ai_gateway.dart';
 import 'package:uniun/data/datasources/note_vector_store.dart';
 import 'package:uniun/features/shiv/rag/embedding/embedding_service.dart';
 
@@ -117,7 +117,7 @@ void main() {
         embeddingBackends: const [LiteRtEmbeddingBackend()],
         embeddingTokenizers: const [GemmaEmbeddingTokenizers()],
       );
-      final gateway = FlutterGemmaGatewayImpl();
+      final gateway = FlutterEdgeAiGatewayImpl();
       if (_variant == 'asset') {
         await EmbeddingService(gateway, EmbeddingQueue()).ensureInstalled();
       } else {

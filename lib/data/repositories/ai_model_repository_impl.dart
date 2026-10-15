@@ -10,7 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:system_info_plus/system_info_plus.dart';
 import 'package:uniun/core/error/failures.dart';
 import 'package:uniun/data/datasources/app_settings_store.dart';
-import 'package:uniun/data/datasources/llm/flutter_gemma_gateway.dart';
+import 'package:uniun/data/datasources/llm/flutter_edge_ai_gateway.dart';
 import 'package:uniun/data/datasources/llm/local_llm_runner.dart';
 import 'package:uniun/data/models/ai_model_selection_model.dart';
 import 'package:uniun/domain/entities/ai_model/ai_model_entity.dart';
@@ -23,12 +23,12 @@ class AIModelRepositoryImpl implements AIModelRepository {
   final Isar _isar;
   final AppSettingsStore _settings;
   final AIModelRunner _runner;
-  final FlutterGemmaGateway _gateway;
+  final FlutterEdgeAiGateway _gateway;
 
   AIModelRepositoryImpl(this._isar, this._settings, this._runner, this._gateway);
 
   // ── Model catalog ────────────────────────────────────────────────────────────
-  // All URLs are real HuggingFace releases compatible with flutter_gemma 0.13.x
+  // All URLs are real HuggingFace releases compatible with flutter_edge_ai (then flutter_edge_ai 0.13.x)
   // on Android and iOS (no auth token required).
   //
   // Mobile file format rules:
@@ -82,7 +82,7 @@ class AIModelRepositoryImpl implements AIModelRepository {
     ),
   ];
 
-  /// flutter_gemma engine params — separate from the public entity fields.
+  /// flutter_edge_ai engine params — separate from the public entity fields.
   /// Each entry MUST match the chat template the model file was trained with;
   /// passing the wrong [ModelType] to `openChat` makes the SDK render a
   /// template that the model can't parse → leading whitespace tokens,
@@ -193,7 +193,7 @@ class AIModelRepositoryImpl implements AIModelRepository {
       }
 
       // Unconditional — this is the explicit-switch path, so re-link
-      // flutter_gemma to [modelId] even if a DIFFERENT model is currently
+      // flutter_edge_ai to [modelId] even if a DIFFERENT model is currently
       // active (settings alone was already updated by the caller). Routed
       // through the scheduler (gentle — waits for whatever's running to
       // finish naturally, then jumps the queue) so the swap never races an
@@ -210,7 +210,7 @@ class AIModelRepositoryImpl implements AIModelRepository {
     }
   }
 
-  /// Re-links flutter_gemma's in-memory active model to [entry]. The file is
+  /// Re-links flutter_edge_ai's in-memory active model to [entry]. The file is
   /// already confirmed installed by the caller, so `.install()` here is a
   /// fast local re-link, not a re-download.
   Future<void> _installAndActivate(AIModelEntity entry) async {
@@ -259,7 +259,7 @@ class AIModelRepositoryImpl implements AIModelRepository {
       return;
     }
 
-    // Bridge the domain cancellation handle to flutter_gemma's CancelToken.
+    // Bridge the domain cancellation handle to flutter_edge_ai's CancelToken.
     final cancelToken = CancelToken();
     final cancelBridge = cancellation?.whenCancelled.then((_) {
       if (!cancelToken.isCancelled) cancelToken.cancel('User cancelled');
@@ -358,7 +358,7 @@ class AIModelRepositoryImpl implements AIModelRepository {
       final filename = _filename(modelId);
       final isActive = _settings.activeModelId == modelId;
 
-      // Use flutter_gemma's uninstall to clear both the file and internal
+      // Use flutter_edge_ai's uninstall to clear both the file and internal
       // metadata so isModelInstalled() returns false afterwards.
       Future<void> uninstallNative() async {
         try {

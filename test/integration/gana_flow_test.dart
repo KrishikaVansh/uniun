@@ -18,7 +18,7 @@ import '../_helpers/stub_user_repository.dart';
 /// local run log in the same txn). Real Isar + real `GanaRepositoryImpl`/
 /// `GanaRunRepositoryImpl`; only identity (mesh signing) is stubbed, same
 /// pattern as `dm_flow_test.dart`. Does NOT exercise `GanaEngine` itself
-/// (inference/publish) — that needs `flutter_gemma`/network, which is
+/// (inference/publish) — that needs `flutter_edge_ai`/network, which is
 /// covered separately by `test/features/shiv/gana/engine/gana_engine_test.dart`
 /// (mocked collaborators) and the device-bound `integration_test/
 /// gana_cloud_engine_e2e_test.dart` / `gana_local_engine_e2e_test.dart`.

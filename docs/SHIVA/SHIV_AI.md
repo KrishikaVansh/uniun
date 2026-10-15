@@ -2,12 +2,12 @@
 
 Shiv is UNIUN's AI assistant. It reasons over the user's saved notes via vector + graph RAG, and runs against **two interchangeable backends** behind one repository:
 
-- **Local** — `flutter_gemma 1.5.1` on-device inference (default, fully offline).
+- **Local** — `flutter_edge_ai (then flutter_edge_ai 1.5.1)` on-device inference (default, fully offline).
 - **Cloud (UNIUN Cloud)** — UNIUN's own inference gateway (`api.uniun.in`), authenticated with the user's own Nostr keypair — no separate password/account. See `UniunRepository`/`UniunRepositoryImpl` below; this replaced an earlier direct-OpenRouter integration entirely (`openrouter_api` is no longer a dependency).
 
 The user picks the backend in Settings. The chat code, RAG pipeline, knowledge extractor and BLoC have **no idea which backend is active** — they call the same `LlmRepository` interface.
 
-Resources: <https://pub.dev/packages/flutter_gemma> · <https://pub.dev/documentation/flutter_gemma/latest/>
+Resources: <https://pub.dev/packages/flutter_edge_ai> · <https://pub.dev/documentation/flutter_edge_ai/latest/>
 
 ---
 
@@ -57,7 +57,7 @@ AIModelRunner ▶ openChat(modelType…)         UniunRepository.streamChat()
         │  InferenceScheduler (5-tier — see              │
         │  docs/SHIVA/scheduling.md)                     ▼
         ▼                                     UniunRepositoryImpl
-flutter_gemma 1.5.1 (LiteRT-LM / MediaPipe)        (the ONLY class that
+flutter_edge_ai (then flutter_edge_ai 1.5.1) (LiteRT-LM / MediaPipe)        (the ONLY class that
                                                  imports UniunGatewayClient)
                                                         │
                                                         ▼
@@ -75,7 +75,7 @@ Three things to notice:
 
 ## Clean Architecture Layers
 
-Strict downward calls. Presentation never imports `flutter_gemma`. Data never imports widgets.
+Strict downward calls. Presentation never imports `flutter_edge_ai`. Data never imports widgets.
 
 | Layer | Path | Contents |
 |---|---|---|
@@ -160,7 +160,7 @@ lib/data/datasources/llm/
 ├── local_llm_data_source.dart       wraps AIModelRunner + InferenceScheduler
 │                                    listAvailableModels → local catalog (downloaded only)
 │
-├── local_llm_runner.dart            opens InferenceChat via flutter_gemma 1.5.1
+├── local_llm_runner.dart            opens InferenceChat via flutter_edge_ai (then flutter_edge_ai 1.5.1)
 │                                    passes modelType + isThinking per active model
 │                                    holds _activeExtraction → safe preemption
 │
@@ -254,7 +254,7 @@ LlmRepositoryImpl._active  ← reads prefs.activeBackend
    │                     ▼  AIModelRunner.sendAndStream
    │                     │     • _activeExtraction?.stopGeneration()   safe per-session preempt
    │                     │     • InferenceScheduler.run(kind: LlmTaskKind.chat, …)  ← T0, always preempts
-   │                     │     • model.openChat(modelType, isThinking) ← from LocalModelParams
+   │                     │     • model.openChat(modelType, enableThinking) ← from LocalModelParams
    │                     │     • chat.addQueryChunk(Message.text(prompt))
    │                     │     • generateChatResponseAsync() → yields TextResponse tokens
    │                     ▼  Stream<String>
@@ -421,7 +421,7 @@ ListAvailableLlmModelsUseCase   (local: downloaded · cloud: UNIUN Cloud catalog
 SetActiveLlmModelUseCase  →  LlmRepository.setActiveModel(id)
    │  local  → AppSettingsStore.setActiveModelId(AIModelId.values.byName(id))
    │           then AIModelRepository.activateModel(id) — re-links
-   │           flutter_gemma's native engine to the new model through
+   │           flutter_edge_ai's native engine to the new model through
    │           InferenceScheduler (modelSwitch, tier -1, gentle — waits
    │           for whatever's running to finish, then applies ahead of
    │           anything else queued; see scheduling.md §3 "Model switch
@@ -442,7 +442,7 @@ Model picker rows show `displayName` only — the raw catalog `id` (the gateway'
 | Concern | Local Gemma | UNIUN Cloud |
 |---|---|---|
 | Trigger | Default; user has a model downloaded | User taps Connect — silent Nostr-keypair sign-in, no password/key paste |
-| Inference path | flutter_gemma `openChat` → `addQueryChunk` → `generateChatResponseAsync` | `UniunGatewayClient.streamChatCompletion` — OpenAI-compatible SSE |
+| Inference path | flutter_edge_ai `openChat` → `addQueryChunk` → `generateChatResponseAsync` | `UniunGatewayClient.streamChatCompletion` — OpenAI-compatible SSE |
 | Session model | Per-turn `openChat` with `modelType` from `LocalModelParams` | Stateless — full prompt every call |
 | Cancellation | per-session `stopGeneration()` | cancel the underlying stream subscription |
 | Concurrency | accelerator-mutexed → `InferenceScheduler` (5 tiers, CFS fair pool, EDF deadline, model affinity — see [`scheduling.md`](scheduling.md)) | network-concurrent — every call tracked independently in `_extractions`, no queue |
@@ -467,12 +467,12 @@ The same mapping exists in `AIModelRepositoryImpl._gemmaParams` for the *install
 
 ### Logging in release (privacy)
 
-`flutter_gemma` gates every internal log on `kDebugMode`. Release builds are silent regardless of level — no prompt, output, or conversation history can reach `logcat` / `syslog` even if a user (or attacker) tries to enable verbose mode.
+`flutter_edge_ai` gates every internal log on `kDebugMode`. Release builds are silent regardless of level — no prompt, output, or conversation history can reach `logcat` / `syslog` even if a user (or attacker) tries to enable verbose mode.
 
 `lib/main.dart` still sets the level explicitly so the *intent* is on the page:
 
 ```dart
-FlutterGemma.logLevel =
+FlutterEdgeAi.logLevel =
     kReleaseMode ? GemmaLogLevel.none : GemmaLogLevel.info;
 ```
 
@@ -610,7 +610,7 @@ class AIModelSelectionModel {
   Id id = Isar.autoIncrement;
   @Enumerated(EnumType.name) late AIModelId modelId;
   late String modelName;
-  late String modelPath;              // modelId.name — flutter_gemma owns the file
+  late String modelPath;              // modelId.name — flutter_edge_ai owns the file
   late DateTime downloadedAt;
 }
 
@@ -625,7 +625,7 @@ API keys live **only** in `flutter_secure_storage` (via `LlmCredentialsDataSourc
 
 ### Local model catalog
 
-All four files come from the `litert-community` org on HuggingFace — the same source flutter_gemma's own README recommends. No HuggingFace token required.
+All four files come from the `litert-community` org on HuggingFace — the same source flutter_edge_ai's own README recommends. No HuggingFace token required.
 
 | AIModelId | Display | Size | Format | ModelType | isThinking |
 |---|---|---|---|---|---|
@@ -645,7 +645,7 @@ Ganas are user-defined AI agents that share the **same inference path** as Shiv 
 ### Integration in three diagrams
 
 **1. Sharing the model — no second load.**
-flutter_gemma's `model.openChat()` lets one loaded model serve multiple independent sessions. Chat opens its session per turn; Gana opens its session per run. Both flow through the same `InferenceScheduler` — chat submits as `LlmTaskKind.chat` (T0, always preempts), Gana submits as `LlmTaskKind.gana` (T4 fair pool, CFS-style `vruntime` shared with Nataraj). Full tier detail: `docs/SHIVA/scheduling.md`.
+flutter_edge_ai's `model.openChat()` lets one loaded model serve multiple independent sessions. Chat opens its session per turn; Gana opens its session per run. Both flow through the same `InferenceScheduler` — chat submits as `LlmTaskKind.chat` (T0, always preempts), Gana submits as `LlmTaskKind.gana` (T4 fair pool, CFS-style `vruntime` shared with Nataraj). Full tier detail: `docs/SHIVA/scheduling.md`.
 
 ```
                   AIModelRunner (existing)
@@ -657,7 +657,7 @@ flutter_gemma's `model.openChat()` lets one loaded model serve multiple independ
               │                     │
               └─────────┬───────────┘
                         ▼
-              ONE loaded flutter_gemma model
+              ONE loaded flutter_edge_ai model
               (main isolate, native thread)
 ```
 
@@ -676,7 +676,7 @@ Engine isolate                 Main isolate
               │                ├─► GanaInferenceServer
               │                │     ─► AIModelRunner.generateOneShot
               │                │         ─► InferenceScheduler (kind=gana)
-              │                │             ─► flutter_gemma (native thread)
+              │                │             ─► flutter_edge_ai (native thread)
               │                ▼
               │   GanaInference
               │   Response{
@@ -707,7 +707,7 @@ write GanaPendingOutputModel{
 
 - **No new inference code.** Ganas reuse `AIModelRunner.generateOneShot` verbatim. If you change Shiv's inference behaviour, Gana behaviour changes the same way.
 - **Chat always wins.** The scheduler's T0 chat tier preempts whatever Gana (or Nataraj, or extract) is mid-flight — `InferenceChat.stopGeneration()` at the next token boundary. Fair-pool jobs are re-queued; chat starts in <500 ms. Full tier rules in [`scheduling.md`](scheduling.md).
-- **Same model state.** `FlutterGemma.hasActiveModel()` is process-wide — the server reads it directly, gates Gana runs on it. `SelectAIModelCubit` swapping models is observable to the server (it reads `AppSettingsStore.activeModelId` per request).
+- **Same model state.** `FlutterEdgeAi.hasActiveModel()` is process-wide — the server reads it directly, gates Gana runs on it. `SelectAIModelCubit` swapping models is observable to the server (it reads `AppSettingsStore.activeModelId` per request).
 
 See `docs/SHIVA/Ganas.md` §7 for the UI-blocking analysis ("does the bridge slow the UI?" — no, with caveats).
 

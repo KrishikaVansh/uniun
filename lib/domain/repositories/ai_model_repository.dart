@@ -10,12 +10,12 @@ abstract class AIModelRepository {
   /// Returns the model the user has downloaded and activated, or null if none.
   Future<Either<Failure, AIModelEntity?>> getActiveModel();
 
-  /// Forces flutter_gemma's in-memory active-model registration onto
+  /// Forces flutter_edge_ai's in-memory active-model registration onto
   /// [modelId], regardless of what is currently active. Unlike
   /// [getActiveModel] (which only rehydrates when NOTHING is active — a
   /// cheap cold-start check), this always re-links the engine, which is
   /// required after the user explicitly switches between two already-
-  /// downloaded local models (a plain settings write leaves flutter_gemma
+  /// downloaded local models (a plain settings write leaves flutter_edge_ai
   /// pointed at the old one). [modelId]'s file must already be installed.
   Future<Either<Failure, Unit>> activateModel(AIModelId modelId);
 
@@ -35,17 +35,17 @@ abstract class AIModelRepository {
   /// Returns IDs of all models whose files are present on disk.
   Future<Set<AIModelId>> getDownloadedModelIds();
 
-  /// Returns total on-disk bytes actually used by flutter_gemma's installed
+  /// Returns total on-disk bytes actually used by flutter_edge_ai's installed
   /// model files (real size, not the catalog's static estimate).
   Future<int> getDownloadedModelsSizeBytes();
 
-  /// Total bytes of files flutter_gemma no longer considers part of any
+  /// Total bytes of files flutter_edge_ai no longer considers part of any
   /// installed model — partial downloads, or files a previous [deleteModel]
   /// couldn't locate by its guessed path. Not counted in
   /// [getDownloadedModelsSizeBytes].
   Future<int> getOrphanedModelFilesSizeBytes();
 
-  /// Deletes every file flutter_gemma reports as orphaned. Returns the
+  /// Deletes every file flutter_edge_ai reports as orphaned. Returns the
   /// number of files removed.
   Future<Either<Failure, int>> cleanupOrphanedModelFiles();
 

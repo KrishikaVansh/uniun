@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:isar_community/isar.dart';
 import 'package:uniun/core/notes/note_kinds.dart';
+import 'package:uniun/data/datasources/note_purge.dart';
 import 'package:uniun/data/models/draft_model.dart';
 import 'package:uniun/data/models/followed_note_model.dart';
 import 'package:uniun/data/models/gana_run_model.dart';
@@ -181,18 +182,16 @@ class CleanupManager {
     final stale = [...staleKind1, ...staleKind42];
     if (stale.isEmpty) return;
 
-    final toDelete = <int>[];
+    final toDelete = <String>[];
     for (final n in stale) {
       if (ownPubkey != null && n.authorPubkey == ownPubkey) continue;
       if (savedIds.contains(n.eventId)) continue;
       if (followedIds.contains(n.eventId)) continue;
-      toDelete.add(n.id);
+      toDelete.add(n.eventId);
     }
     if (toDelete.isEmpty) return;
 
-    await isar.writeTxn(() async {
-      await isar.noteModels.deleteAll(toDelete);
-    });
+    await isar.writeTxn(() => purgeNotesInTxn(isar, toDelete));
   }
 
   // ── Phase 2: media GC ───────────────────────────────────────────────────

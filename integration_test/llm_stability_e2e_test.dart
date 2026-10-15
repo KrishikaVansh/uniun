@@ -3,7 +3,7 @@
 //
 // These guard the regressions a package bump is most likely to bring back:
 //   1. Stop mid-reply, then ask again: the next reply must not be empty
-//      (flutter_gemma_litertlm 1.8.1 bug).
+//      (flutter_edge_ai_litertlm (then flutter_edge_ai_litertlm 1.8.1) bug).
 //   2. Opening and closing chats repeatedly must not grow process memory
 //      without bound (native leak class fixed in 1.4.0 / core 2.1.3).
 //   3. Switching Qwen -> Gemma -> Qwen must answer every time and give the

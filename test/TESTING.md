@@ -398,7 +398,7 @@ The root `integration_test/` directory is **not** part of this and never runs in
 CI — it is device-bound (`IntegrationTestWidgetsFlutterBinding`). CI does
 analyze it (`flutter analyze lib/ test/ integration_test/`), so a device test
 that no longer compiles fails the PR. Tests that need
-real flutter_gemma (the chat models, or the bundled Gecko embedder) live there
+real flutter_edge_ai (the chat models, or the bundled Gecko embedder) live there
 because the models are Git-LFS assets CI does not check out. Run them by hand:
 
 ```
@@ -439,20 +439,30 @@ Isar data and mocked inference/publish calls. It is also included in
   phones, so one model covers chat, Gana, scheduler and image tests. Qwen3 0.6B
   is enough for tests that only need text.
 - `provisionTestModel` copies the file into the app's own folder once (that is
-  where flutter_gemma restores a model from in every isolate, including the
+  where flutter_edge_ai restores a model from in every isolate, including the
   background one), registers it, and marks it active. It needs no DI. It
   returns `false` when the model was never pushed, so a test can SKIP with a
   clear message instead of failing.
 - While it works it shows a plain "UNIUN test starting…" screen instead of the
   splash.
-- Used by `gana_local_engine_e2e_test`, `flutter_gemma_bg_isolate_test`,
+- Used by `gana_local_engine_e2e_test`, `flutter_edge_ai_bg_isolate_test`,
   `scheduler_preemption_test`, `scheduler_model_switch_test` and
   `chat_image_turn_test`. Use it in any new test that needs a real model.
 - Real generation is slow (~2.5 tokens/s for E2B): keep prompts short, use one
-  `maxTokens` per test (a different value makes flutter_gemma rebuild the whole
+  `maxTokens` per test (a different value makes flutter_edge_ai rebuild the whole
   model), and wait for a first token rather than a fixed delay.
 - `scheduler_model_switch_test`'s second test needs two downloaded models and
   still skips with one.
+- Qwen3 0.6B must be pushed as `Qwen3-0.6B_dynamic_wi4b32_afp32.litertlm`: the
+  plain `.litertlm` does not load on LiteRT-LM 0.17+ (see CLAUDE.md).
+- `shiv_notes_qa_e2e_test` embeds three notes and asks about them on each model;
+  its notes change every run because deleted vectors can linger in the store's
+  index on a phone that ran it before. `llm_stability_e2e_test` covers stop
+  mid-reply, repeated chats (memory via `flutter_edge_ai_diagnostics`), a model
+  switch and a note longer than the embedder window.
+- Unit tests that need an embedder use `test/_helpers/fake_embedding_model.dart`:
+  `EmbeddingModel` is an `abstract base class` in flutter_edge_ai 2.3 and cannot
+  be `implements`-ed, so the fake extends it and forwards to a mocktail object.
 - A debug build skews timing: run timing tests in profile mode with
   `flutter drive --driver=test_driver/integration_test.dart --target=integration_test/<file>.dart --profile`
   (`test_driver/integration_test.dart` is the 3-line host side). `embedding_benchmark_test` and

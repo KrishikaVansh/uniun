@@ -7,7 +7,7 @@ import 'package:uniun/domain/entities/llm/llm_task_kind.dart';
 
 /// Single inference contract for the app.
 ///
-/// Hides whether the active backend is on-device flutter_gemma or a cloud
+/// Hides whether the active backend is on-device flutter_edge_ai or a cloud
 /// API (the UNIUN inference gateway). All callers — `ShivAIBloc`, `ExtractKnowledgeUseCase`,
 /// future extraction or summarisation flows — go through this interface and
 /// never touch a model engine directly.

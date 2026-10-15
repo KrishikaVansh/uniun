@@ -602,7 +602,7 @@ Instead of calling GPT-4 for community summaries, use Gemma 2B locally:
 // Build a community summary with on-device Gemma 2B
 Future<String> generateCommunitySummary({
   required List<NoteModel> communityNotes,
-  required FlutterGemmaModel model,
+  required FlutterEdgeAiModel model,
 }) async {
   // Take the top 5 most-connected notes from this community
   final topNotes = communityNotes
@@ -802,7 +802,7 @@ USER QUERY
 [7] Assemble prompt: [system] + [graph context] + [note content] + [question]
     |
     v
-[8] Gemma 2B (flutter_gemma) generates answer
+[8] Gemma 2B (flutter_edge_ai) generates answer
     → streams tokens via generateChatResponseAsync()
     |
     v

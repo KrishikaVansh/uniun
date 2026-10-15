@@ -60,7 +60,7 @@ void main() {
     await configureDependencies();
     final isar = getIt<Isar>();
 
-    // `configureDependencies()` never touches flutter_gemma —
+    // `configureDependencies()` never touches flutter_edge_ai —
     // `EmbedAndStoreNoteUseCase` (fired after every publish, cloud included,
     // to index the note for Shiv's vector search) needs it initialized or
     // it fails with "FlutterEdgeAi not initialized!" on the embed step.

@@ -178,7 +178,7 @@ with a native knowledge graph and on-device AI.
   every relay **WebSocket** connection and mirrors events both ways when you're online.
 - **On-device GraphRAG.** Shiv embeds your query, runs a vector similarity search over your notes,
   expands one hop across the graph, folds in your memory summaries, and answers with an on-device
-  LLM (**flutter_gemma**), using the phone's GPU where it can. Every saved note is queued and
+  LLM (**flutter_edge_ai**, formerly flutter_gemma), using the phone's GPU where it can. Every saved note is queued and
   embedded one at a time, so it is never lost if the app closes, and the vector store runs in its
   own isolate so searching never stutters the UI. Prompts never leave the device.
 - **Encrypted where it matters.** Direct messages are **NIP-17** rumors sealed and gift-wrapped with
@@ -268,7 +268,7 @@ flutter run -d <device-id>   # e.g. emulator-5554, macos, windows
 ```
 
 The first launch will prompt you to download an AI model (~700 MB to ~3 GB depending on the model).
-Models live in flutter_gemma's managed storage — uninstall via Settings → AI Model.
+Models live in flutter_edge_ai's managed storage — uninstall via Settings → AI Model.
 
 ---
 
@@ -301,7 +301,7 @@ flutter test test/integration/
 
 ### 3. Real-device tests (need a connected device)
 
-These load native libraries (flutter_gemma, MLS, …) and real scrolling, so they live at the repo
+These load native libraries (flutter_edge_ai, MLS, …) and real scrolling, so they live at the repo
 root in `integration_test/` (the folder name is a Flutter convention). Run them through the
 script, which keeps the screen awake and does not uninstall the app:
 
@@ -339,7 +339,7 @@ verification scenarios behind the scheduler tests.
 | **Android** | ✅ Supported | Flutter's default minimum SDK (API 24). GPU inference where available. QR scan, image / video / file picker, on-device AI all work. Release build checked in CI. |
 | **iOS** | ✅ Supported | iOS 16+. Metal-backed inference. Universal Links wired to `www.uniun.in`. Release build (no code-signing) checked in CI; features are not all verified on a device from the Linux dev machine — see the audit's open items. |
 | **macOS** | ✅ Supported | Tested locally. Isar, Gateway sync, and on-device AI all work. |
-| **Windows** | ✅ Supported | Release build checked in CI. NPU dispatch available on Intel Lunar/Panther Lake via `flutter_gemma`. Note: discrete-GPU support on Windows is currently broken upstream in the `flutter_gemma_litertlm` engine (1.2.0+) — CPU/NPU are the working fallback there. |
+| **Windows** | ✅ Supported | Release build checked in CI. NPU dispatch available on Intel Lunar/Panther Lake via `flutter_edge_ai`. Note: discrete-GPU support on Windows is currently broken upstream in the `flutter_edge_ai_litertlm` engine (1.2.0+) — CPU/NPU are the working fallback there. |
 
 The platforms compile from the same `lib/` codebase; there is no platform fork.
 

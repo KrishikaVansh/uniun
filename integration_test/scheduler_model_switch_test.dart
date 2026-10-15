@@ -23,7 +23,7 @@
 // AI Model Selection). It drives the REAL `AIModelRepositoryImpl.
 // activateModel()` — the actual production entry point, not a stand-in —
 // switching between them while a real generation is in flight on the
-// first, and confirms flutter_gemma's active model identity
+// first, and confirms flutter_edge_ai's active model identity
 // (`FlutterEdgeAi.activeModelSpec`) genuinely changes afterward. It does
 // NOT test the forced/delete path with real models — deleting one of your
 // downloaded models is destructive and not worth risking just for this
@@ -32,7 +32,7 @@
 //
 // PASS path: result starts with `OK:` → both gentle and forced ordering
 //            held on the real native engine (test 1); the real swap
-//            actually changed flutter_gemma's active model (test 2).
+//            actually changed flutter_edge_ai's active model (test 2).
 // SKIP path: result starts with `SKIP:` → no model installed yet (test 1)
 //            or fewer than 2 downloaded models (test 2). Install more via
 //            Shiv → AI Model Selection, then re-run.
@@ -49,7 +49,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uniun/common/locator.dart';
 import 'package:uniun/data/datasources/app_settings_store.dart';
-import 'package:uniun/data/datasources/llm/flutter_gemma_gateway.dart';
+import 'package:uniun/data/datasources/llm/flutter_edge_ai_gateway.dart';
 import 'package:uniun/data/datasources/llm/inference_scheduler.dart';
 import 'package:uniun/data/datasources/llm/local_llm_runner.dart';
 import 'package:uniun/domain/entities/ai_model/ai_model_entity.dart';
@@ -98,7 +98,7 @@ void main() {
       final scheduler = InferenceScheduler();
       scheduler.notifyLoadedModel('integration_test_model');
       final settings = AppSettingsStore(await SharedPreferences.getInstance());
-      final runner = AIModelRunner(scheduler, settings, FlutterGemmaGatewayImpl());
+      final runner = AIModelRunner(scheduler, settings, FlutterEdgeAiGatewayImpl());
 
       // ── Part 1: gentle switch waits ──────────────────────────────────
       final order = <String>[];
@@ -243,13 +243,13 @@ void main() {
 
       final specAfter = FlutterEdgeAi.activeModelSpec;
       expect(specAfter?.name, isNot(equals(specBefore?.name)),
-          reason: 'flutter_gemma\'s active model identity should have '
+          reason: 'flutter_edge_ai\'s active model identity should have '
               'genuinely changed from A to B, not just our app settings');
 
       // ignore: avoid_print
       print('OK: real generation on modelA completed untouched '
           '(${natarajResult?.length} chars), then the switch to modelB '
-          'genuinely changed flutter_gemma\'s active model '
+          'genuinely changed flutter_edge_ai\'s active model '
           '(${specBefore?.name} -> ${specAfter?.name})');
     },
     timeout: const Timeout(Duration(minutes: 5)),

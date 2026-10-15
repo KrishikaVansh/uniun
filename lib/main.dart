@@ -20,6 +20,7 @@ import 'package:uniun/core/theme/app_theme.dart';
 import 'package:uniun/core/theme/app_theme_mode.dart';
 import 'package:uniun/domain/services/note_embedding_trigger.dart';
 import 'package:uniun/features/shiv/rag/indexing/document_indexer.dart';
+import 'package:uniun/features/shiv/rag/indexing/note_vector_cleanup_worker.dart';
 import 'package:uniun/core/theme/theme_cubit.dart';
 import 'package:uniun/common/locator.dart';
 import 'package:uniun/data/datasources/app_settings_store.dart';
@@ -39,7 +40,7 @@ Future<void> meshEngineMain() => runMeshEngine();
 Future<void> main() async {
   final binding = WidgetsFlutterBinding.ensureInitialized();
   await _ensureDownloaderCacheDir();
-  // flutter_gemma 1.0.0: release builds are silent automatically (the plugin
+  // flutter_edge_ai (then flutter_edge_ai 1.0.0): release builds are silent automatically (the plugin
   // gates every log on `kDebugMode`). In debug, keep `info` — lifecycle and
   // errors, no prompts/output. Bump to `verbose` only when actively chasing a
   // model bug.
@@ -82,6 +83,10 @@ Future<void> main() async {
   // after that it only reacts to new files and saves.
   getIt<DocumentIndexer>().start();
 
+  // Removes the vectors of deleted notes, and on launch the ones left behind
+  // by older builds.
+  getIt<NoteVectorCleanupWorker>().start();
+
   // Embeds notes still waiting for a vector from a previous run.
   getIt<NoteEmbeddingTrigger>().nudge();
 
@@ -106,7 +111,7 @@ Future<void> main() async {
   );
 }
 
-/// `background_downloader` (used by flutter_gemma to fetch models) stores its
+/// `background_downloader` (used by flutter_edge_ai to fetch models) stores its
 /// partial-download temp files under `<Caches>/<bundleId>/` but does not create
 /// that bundle-id subfolder on sandboxed Apple platforms. Without it the
 /// download fails with `PathNotFoundException ... errno = 2`. Create it up front.

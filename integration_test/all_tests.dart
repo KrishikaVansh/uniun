@@ -1,7 +1,7 @@
 // Aggregator entry point for ALL device-bound integration tests.
 //
 // Why this file exists: `flutter test integration_test/` installs the app
-// FRESH per test file. If `flutter_gemma_bg_isolate_test.dart` needs a
+// FRESH per test file. If `flutter_edge_ai_bg_isolate_test.dart` needs a
 // downloaded model and the next file reinstalls the APK, the model is gone
 // → every subsequent test SKIPs. Running this aggregator instead bundles
 // every test file's `main()` into a single app launch, so the model (and
@@ -20,7 +20,7 @@ import 'gana_dashboard_e2e_test.dart' as gana_dashboard_e2e_test;
 import 'gana_routing_matrix_e2e_test.dart' as gana_routing_matrix_e2e_test;
 import 'chat_image_turn_test.dart' as chat_image_turn_test;
 import 'cloud_concurrent_calls_test.dart' as cloud_concurrent_calls_test;
-import 'flutter_gemma_bg_isolate_test.dart' as flutter_gemma_bg_isolate_test;
+import 'flutter_edge_ai_bg_isolate_test.dart' as flutter_edge_ai_bg_isolate_test;
 import 'gana_cloud_combinations_e2e_test.dart'
     as gana_cloud_combinations_e2e_test;
 import 'gana_cloud_engine_e2e_test.dart' as gana_cloud_engine_e2e_test;
@@ -45,7 +45,7 @@ import 'shiv_notes_qa_e2e_test.dart' as shiv_notes_qa_e2e_test;
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  flutter_gemma_bg_isolate_test.main();
+  flutter_edge_ai_bg_isolate_test.main();
   chat_image_turn_test.main();
   gana_dashboard_e2e_test.main();
   gana_routing_matrix_e2e_test.main();
