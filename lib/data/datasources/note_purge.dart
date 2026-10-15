@@ -26,72 +26,59 @@ Future<void> purgeNotesInTxn(Isar isar, Iterable<String> eventIds) async {
   final ids = eventIds.toSet().toList();
   if (ids.isEmpty) return;
 
-  await isar.noteModels
-      .filter()
-      .anyOf(ids, (q, id) => q.eventIdEqualTo(id))
-      .deleteAll();
-  await isar.unreadNoteModels
-      .filter()
-      .anyOf(ids, (q, id) => q.eventIdEqualTo(id))
-      .deleteAll();
-  await isar.noteRelationModels
-      .filter()
-      .anyOf(ids, (q, id) => q.parentIdEqualTo(id))
-      .or()
-      .anyOf(ids, (q, id) => q.childIdEqualTo(id))
-      .deleteAll();
+  // Every key below is indexed, so each id is an index lookup rather than a
+  // scan: a retention sweep can evict thousands of notes in one transaction.
+  await isar.noteModels.deleteAllByEventId(ids);
+  await isar.unreadNoteModels.deleteAllByEventId(ids);
+  for (final id in ids) {
+    await isar.noteRelationModels.where().parentIdEqualToAnyChildId(id).deleteAll();
+    await isar.noteRelationModels.where().childIdEqualTo(id).deleteAll();
+  }
 
-  final stillSaved = (await isar.savedNoteModels
-          .filter()
-          .removedAtIsNull()
-          .anyOf(ids, (q, id) => q.eventIdEqualTo(id))
-          .findAll())
-      .map((s) => s.eventId)
-      .toSet();
-  final gone = ids.where((id) => !stillSaved.contains(id)).toList();
+  final gone = <String>[];
+  for (final id in ids) {
+    final saved = await isar.savedNoteModels.getByEventId(id);
+    if (saved == null || saved.removedAt != null) gone.add(id);
+  }
   if (gone.isEmpty) return;
 
-  await isar.pendingEmbeddingModels
-      .filter()
-      .anyOf(gone, (q, id) => q.eventIdEqualTo(id))
-      .deleteAll();
-  await isar.pendingExtractionModels
-      .filter()
-      .anyOf(gone, (q, id) => q.noteIdEqualTo(id))
-      .deleteAll();
-  await isar.memoryNodeModels
-      .filter()
-      .anyOf(gone, (q, id) => q.noteIdEqualTo(id))
-      .deleteAll();
+  await isar.pendingEmbeddingModels.deleteAllByEventId(gone);
+  await isar.pendingExtractionModels.deleteAllByNoteId(gone);
+  await isar.memoryNodeModels.deleteAllByNoteId(gone);
 
-  final linking = await isar.memoryNodeModels
+  // One pass over the memories that link to anything: the list field has no
+  // index, and a scan per deleted id would be quadratic.
+  final goneSet = gone.toSet();
+  final linking = <MemoryNodeModel>[];
+  for (final m in await isar.memoryNodeModels
       .filter()
-      .anyOf(gone, (q, id) => q.linkedNoteIdsElementEqualTo(id))
-      .findAll();
-  for (final m in linking) {
-    m.linkedNoteIds = m.linkedNoteIds.where((l) => !gone.contains(l)).toList();
+      .linkedNoteIdsIsNotEmpty()
+      .findAll()) {
+    if (m.linkedNoteIds.any(goneSet.contains)) {
+      m.linkedNoteIds =
+          m.linkedNoteIds.where((l) => !goneSet.contains(l)).toList();
+      linking.add(m);
+    }
   }
   if (linking.isNotEmpty) await isar.memoryNodeModels.putAll(linking);
 
-  final edges = await isar.graphEdgeModels
-      .filter()
-      .anyOf(gone, (q, id) => q.sourceNoteIdEqualTo(id))
-      .findAll();
-  if (edges.isNotEmpty) {
-    await isar.graphEdgeModels.deleteAll([for (final e in edges) e.id]);
-    final keys = {
-      for (final e in edges) ...[e.sourceKey, e.targetKey],
-    };
+  final keys = <String>{};
+  final edgeIds = <int>[];
+  for (final id in gone) {
+    for (final e
+        in await isar.graphEdgeModels.where().sourceNoteIdEqualTo(id).findAll()) {
+      edgeIds.add(e.id);
+      keys
+        ..add(e.sourceKey)
+        ..add(e.targetKey);
+    }
+  }
+  if (edgeIds.isNotEmpty) {
+    await isar.graphEdgeModels.deleteAll(edgeIds);
     for (final key in keys) {
-      final used = await isar.graphEdgeModels
-          .filter()
-          .sourceKeyEqualTo(key)
-          .or()
-          .targetKeyEqualTo(key)
-          .count();
-      if (used == 0) {
-        await isar.graphNodeModels.filter().keyEqualTo(key).deleteAll();
-      }
+      final used = await isar.graphEdgeModels.where().sourceKeyEqualToAnyRelationType(key).count() +
+          await isar.graphEdgeModels.where().targetKeyEqualTo(key).count();
+      if (used == 0) await isar.graphNodeModels.deleteByKey(key);
     }
   }
 

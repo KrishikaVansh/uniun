@@ -62,7 +62,7 @@ flowchart LR
 That five-step retrieve-then-generate loop is what "GraphRAG" means in this app — it's not a separate AI feature, it's just how every Shiv answer gets built.
 
 **Two ways to run the model:**
-- **On-device (default)** — a small model (Qwen3 0.6B, DeepSeek R1, Gemma 4 E2B, or Gemma 4 E4B) downloaded once and run locally via `flutter_gemma`. Nothing ever leaves the phone.
+- **On-device (default)** — a small model (Qwen3 0.6B, DeepSeek R1, Gemma 4 E2B, or Gemma 4 E4B) downloaded once and run locally via `flutter_edge_ai`. Nothing ever leaves the phone.
 - **UNIUN Cloud (opt-in)** — sign in with your own Nostr key (no password, no separate account) to run against a larger hosted model through UNIUN's own inference gateway. You can also approve a **QR-login** to sign the same account into a browser, and switch which model — local or cloud — is active at any time from Settings.
 
 **Things built on top of the same Shiv "brain":**
@@ -148,8 +148,8 @@ Strictly one-directional: the UI never touches Isar directly, and never touches 
 
 | Piece | What it does |
 |---|---|
-| `flutter_gemma` | Runs the local LLM (Qwen3 0.6B / DeepSeek R1 / Gemma 4 E2B / Gemma 4 E4B) |
-| `flutter_gemma_embeddings` | The on-device embedder that turns your notes into searchable vectors |
+| `flutter_edge_ai` (+ `_litertlm`, `_mediapipe`) | Runs the local LLM (Qwen3 0.6B / DeepSeek R1 / Gemma 4 E2B / Gemma 4 E4B) |
+| `flutter_edge_ai_embeddings` | The on-device embedder that turns your notes into searchable vectors |
 | ToStore | The on-device vector database those embeddings live in |
 | UNIUN inference gateway (`api.uniun.in`) | The optional cloud backend — your own Nostr key is the login, no separate account/password |
 | `openmls` | The encryption library behind private channels |

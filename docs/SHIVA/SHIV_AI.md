@@ -254,7 +254,7 @@ LlmRepositoryImpl._active  ← reads prefs.activeBackend
    │                     ▼  AIModelRunner.sendAndStream
    │                     │     • _activeExtraction?.stopGeneration()   safe per-session preempt
    │                     │     • InferenceScheduler.run(kind: LlmTaskKind.chat, …)  ← T0, always preempts
-   │                     │     • model.openChat(modelType, isThinking) ← from LocalModelParams
+   │                     │     • model.openChat(modelType, enableThinking) ← from LocalModelParams
    │                     │     • chat.addQueryChunk(Message.text(prompt))
    │                     │     • generateChatResponseAsync() → yields TextResponse tokens
    │                     ▼  Stream<String>

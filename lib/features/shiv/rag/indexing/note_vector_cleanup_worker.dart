@@ -76,6 +76,12 @@ class NoteVectorCleanupWorker {
     _active = _loop().whenComplete(() => _active = null);
   }
 
+  void _scheduleRetry() {
+    if (_stopped) return;
+    _retry?.cancel();
+    _retry = Timer(retryDelay, _nudge);
+  }
+
   Future<void> _loop() async {
     do {
       _again = false;
@@ -83,7 +89,7 @@ class NoteVectorCleanupWorker {
         await run();
       } catch (e, st) {
         debugPrint('❌ NoteVectorCleanupWorker pass failed: $e\n$st');
-        if (!_stopped) _retry = Timer(retryDelay, _nudge);
+        _scheduleRetry();
       }
     } while (_again && !_stopped);
   }
@@ -117,7 +123,7 @@ class NoteVectorCleanupWorker {
         }
       } catch (e) {
         debugPrint('⚠️ NoteVectorCleanupWorker: store not ready — $e');
-        if (!_stopped) _retry = Timer(retryDelay, _nudge);
+        _scheduleRetry();
       }
       if (done.isNotEmpty) {
         await _isar.writeTxn(

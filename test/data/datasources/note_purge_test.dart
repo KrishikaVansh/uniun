@@ -234,4 +234,42 @@ void main() {
     expect(await isar.noteModels.where().count(), 0);
     expect(await queuedVectors(), hasLength(100));
   });
+
+  test('a few thousand notes with knowledge purge in one pass, without a '
+      'per-note scan', () async {
+    final ids = [for (var i = 0; i < 3000; i++) 'bulk$i'];
+    await isar.writeTxn(() async {
+      await isar.noteModels.putAll([for (final id in ids) noteRow(id)]);
+      await isar.memoryNodeModels.putAll([
+        for (final id in ids)
+          MemoryNodeModel()
+            ..noteId = id
+            ..summary = 's'
+            ..keyPoints = const []
+            ..concepts = const []
+            ..linkedNoteIds = const []
+            ..updatedAt = DateTime(2026),
+      ]);
+      await isar.graphEdgeModels.putAll([
+        for (final id in ids)
+          GraphEdgeModel()
+            ..sourceKey = id
+            ..targetKey = 'shared'
+            ..relationType = 'mentions'
+            ..sourceNoteId = id
+            ..createdAt = DateTime(2026),
+      ]);
+    });
+
+    final clock = Stopwatch()..start();
+    await purge(ids);
+    clock.stop();
+
+    expect(await isar.noteModels.where().count(), 0);
+    expect(await isar.memoryNodeModels.where().count(), 0);
+    expect(await isar.graphEdgeModels.where().count(), 0);
+    expect(await queuedVectors(), hasLength(3000));
+    // A scan per id over 3000 rows takes minutes; index lookups take seconds.
+    expect(clock.elapsed, lessThan(const Duration(seconds: 30)));
+  });
 }
