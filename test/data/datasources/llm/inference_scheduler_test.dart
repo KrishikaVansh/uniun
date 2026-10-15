@@ -1249,51 +1249,34 @@ void main() {
   });
 
   group('T2 soft budget window (rolling 5 minutes)', () {
-    test('a job blocked by an exceeded 60% budget dispatches once the '
-        'offending sample ages out of the rolling window', () {
+    test('an exceeded budget holds an extract back while T4 work waits, and '
+        'a lone extract runs regardless', () {
       fakeAsync((async) {
         final scheduler = InferenceScheduler();
-        // Re-evaluates the picker (decay + budget + tiers) without adding
-        // or disturbing any queued job — `setForeground` calls `_pump()`
-        // as a side effect, and toggling it back to null in the same tick
-        // leaves `_foreground` exactly as it was.
-        void poke() {
-          scheduler.setForeground(LlmTaskKind.chat);
-          scheduler.setForeground(null);
-        }
-
-        // Blow the budget: one sample where 100% of recorded time was
-        // extract work (100/100 > the 60% cap).
+        final order = <String>[];
+        // Blow the budget: 100 s of extract work is 100% of the window.
         scheduler.run<void>(
           kind: LlmTaskKind.extract,
           modelId: 'm',
           work: (_) => Future.delayed(const Duration(seconds: 100)),
         );
-        async.elapse(const Duration(seconds: 100));
-
-        var ran = false;
+        // Queued behind it: an extract and a Nataraj job.
         scheduler.run<void>(
           kind: LlmTaskKind.extract,
           modelId: 'm',
-          work: (_) async => ran = true,
+          work: (_) async => order.add('extract'),
         );
+        scheduler.run<void>(
+          kind: LlmTaskKind.nataraj,
+          modelId: 'm',
+          work: (_) async => order.add('nataraj'),
+        );
+        async.elapse(const Duration(seconds: 100));
         async.elapse(Duration.zero);
-        expect(ran, isFalse,
-            reason: 'tier 2 must be skipped while the budget is exceeded');
 
-        // Just under 5 minutes since the offending sample — still blocked.
-        async.elapse(const Duration(minutes: 4, seconds: 55));
-        poke();
-        async.elapse(Duration.zero);
-        expect(ran, isFalse);
-
-        // Cross the 5-minute mark: `_trimT2Window` drops the offending
-        // sample, the budget check sees an empty window (not exceeded),
-        // and the queued job finally dispatches.
-        async.elapse(const Duration(seconds: 10));
-        poke();
-        async.elapse(Duration.zero);
-        expect(ran, isTrue);
+        expect(order, ['nataraj', 'extract'],
+            reason: 'the capped extract yields to Nataraj, then runs by itself '
+                'with nothing left to protect');
       });
     });
   });
