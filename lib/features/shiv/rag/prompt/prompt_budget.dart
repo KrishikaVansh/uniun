@@ -32,7 +32,8 @@ class PromptBudget {
   /// The 0.6B model copies whatever note it is given, so for it a note must be
   /// really about the question. Measured with the real Gecko on a phone (20
   /// questions, 8 notes): notes that answer the question scored 0.74-0.85,
-  /// the closest note to an unrelated question never above 0.70.
+  /// the closest note to an unrelated question never above 0.70. Document
+  /// chunks measured the same way: 0.78-0.85 against 0.59-0.71.
   static const double smallModelMinScore = 0.72;
 
   final int maxTokens;

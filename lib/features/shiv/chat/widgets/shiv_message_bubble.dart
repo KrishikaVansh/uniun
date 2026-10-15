@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:uniun/core/enum/message_role.dart';
 import 'package:uniun/common/widgets/drop_icon.dart';
 import 'package:uniun/domain/entities/shiv/shiv_message_entity.dart';
+import 'package:uniun/features/shiv/chat/utils/reply_marker_label.dart';
 import 'package:uniun/features/shiv/chat/widgets/shiv_sources_sheet.dart';
 import 'package:uniun/l10n/app_localizations.dart';
 
@@ -89,7 +90,7 @@ class ShivMessageBubble extends StatelessWidget {
       padding: const EdgeInsets.only(left: 16, right: 56, bottom: 24),
       child: _ShivBubble(
         thinkingText: parsed.thinking,
-        responseText: parsed.response,
+        responseText: replyDisplayText(parsed.response, AppLocalizations.of(context)!),
         isStreaming: streamingContent != null,
         isInThinkBlock: parsed.isInThinkBlock,
         isLastAssistant: isLastAssistant,

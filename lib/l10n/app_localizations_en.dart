@@ -1412,6 +1412,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shivDefaultConversationTitle => 'New conversation';
 
   @override
+  String get shivStopped => 'Stopped';
+
+  @override
+  String get shivInterrupted => 'Interrupted';
+
+  @override
   String get shivNoResponse => 'No response from the model.';
 
   @override

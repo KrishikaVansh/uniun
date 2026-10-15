@@ -1512,6 +1512,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i918.SendChatStreamUseCase>(),
         gh<_i651.ManasContextLoader>(),
         gh<_i918.HasActiveLlmModelUseCase>(),
+        gh<_i918.GetActiveLlmModelUseCase>(),
       ),
     );
     gh.factory<_i1019.ShareRepository>(

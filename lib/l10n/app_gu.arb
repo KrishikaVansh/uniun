@@ -1738,6 +1738,14 @@
   "@shivDefaultConversationTitle": {
     "description": "Default title for a newly created conversation"
   },
+  "shivStopped": "અટકાવ્યું",
+  "@shivStopped": {
+    "description": "Shown in place of a Shiv reply the user stopped before any text arrived"
+  },
+  "shivInterrupted": "વિક્ષેપિત",
+  "@shivInterrupted": {
+    "description": "Shown in place of a Shiv reply that was cut off when the chat was closed"
+  },
   "shivNoResponse": "મોડેલ તરફથી કોઈ જવાબ મળ્યો નથી.",
   "@shivNoResponse": {
     "description": "Shown in place of a Shiv reply that ended with no text"

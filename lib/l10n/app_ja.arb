@@ -1738,6 +1738,14 @@
   "@shivDefaultConversationTitle": {
     "description": "Default title for a newly created conversation"
   },
+  "shivStopped": "停止しました",
+  "@shivStopped": {
+    "description": "Shown in place of a Shiv reply the user stopped before any text arrived"
+  },
+  "shivInterrupted": "中断されました",
+  "@shivInterrupted": {
+    "description": "Shown in place of a Shiv reply that was cut off when the chat was closed"
+  },
   "shivNoResponse": "モデルからの応答がありません。",
   "@shivNoResponse": {
     "description": "Shown in place of a Shiv reply that ended with no text"

@@ -242,7 +242,7 @@ class ShivAIBloc extends Bloc<ShivAIEvent, ShivAIState> {
     // the assistant placeholder permanently blank — finalize whatever
     // streamed so far, same as the explicit Stop button.
     if (state.status == ShivChatStatus.streaming) {
-      await _persistInterruptedStream('(interrupted)');
+      await _persistInterruptedStream(kInterruptedReply);
     }
     _streamSub?.cancel();
     _cancelTokenFlush();
@@ -445,7 +445,7 @@ class ShivAIBloc extends Bloc<ShivAIEvent, ShivAIState> {
     _cancelTokenFlush();
 
     final msgId = state.streamingMessageId;
-    final finalContent = await _persistInterruptedStream('(stopped)');
+    final finalContent = await _persistInterruptedStream(kStoppedReply);
 
     if (msgId != null && finalContent != null) {
       final updatedMessages = state.messages.map((m) {
@@ -633,7 +633,7 @@ class ShivAIBloc extends Bloc<ShivAIEvent, ShivAIState> {
     // Bloc/app teardown mid-generation (logout, HomePage disposal) — same
     // finalize-don't-leave-blank rule as _onCloseConversation.
     if (state.status == ShivChatStatus.streaming) {
-      await _persistInterruptedStream('(interrupted)');
+      await _persistInterruptedStream(kInterruptedReply);
     }
     await _streamSub?.cancel();
     await _conversationsSub?.cancel();

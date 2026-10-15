@@ -78,6 +78,7 @@ import 'package:uniun/data/repositories/isar_document_vector_repository_impl.dar
 import 'package:uniun/domain/repositories/document_vector_repository.dart';
 import 'package:uniun/features/shiv/rag/embedding/embedding_service.dart';
 import 'package:uniun/features/shiv/rag/indexing/document_indexer.dart';
+import 'package:uniun/features/shiv/rag/prompt/prompt_budget.dart';
 
 /// Two pages (or sections) on plainly different subjects, so a semantic query
 /// can only reach the right one by meaning rather than by luck.
@@ -263,6 +264,61 @@ void main() {
       'E2E PDF OK — ${chunks.length} chunk(s), top hit '
       'p.${hits.first.label} score ${hits.first.score.toStringAsFixed(3)}',
     );
+    await purge(sha);
+  }, timeout: const Timeout(Duration(minutes: 5)));
+
+  test('document chunk relevance: scores of answering vs unrelated '
+      'questions (calibrates the small-model chunk cut-off)', () async {
+    await expectModelLoaded();
+    final sha = await index(
+      (await tempFile('two_subjects_rel.pdf', _twoPagePdf())).path,
+      DocumentKind.pdf,
+    );
+
+    // question -> true when this PDF answers it (cloud computing or tomatoes).
+    const questions = <(String, bool)>[
+      ('What are the service models of cloud computing?', true),
+      ('What does infrastructure as a service mean?', true),
+      ('Which deployment models exist for the cloud?', true),
+      ('How should I water tomato plants?', true),
+      ('When should tomatoes be harvested?', true),
+      ('How do I support the stems of tomato plants?', true),
+      ('What is the capital of France?', false),
+      ('How to grow in life?', false),
+      ('Write me a poem about the sea', false),
+      ('What is 12 times 8?', false),
+      ('who are you', false),
+      ('Translate good morning into Spanish', false),
+      ('What is the best way to learn guitar?', false),
+      ('please explain how photosynthesis works', false),
+    ];
+    final related = <double>[];
+    final unrelated = <double>[];
+    for (final (q, answered) in questions) {
+      final hits = await vectors.search(
+        await embedding.embed(q),
+        topK: 1,
+        minScore: -1,
+      );
+      final score = hits.first.score;
+      // ignore: avoid_print
+      print('CHUNKREL ${answered ? 'RELATED' : 'NONE   '} '
+          '${score.toStringAsFixed(2)} "$q"');
+      (answered ? related : unrelated).add(score);
+    }
+    related.sort();
+    unrelated.sort();
+    // ignore: avoid_print
+    print('CHUNKREL SUMMARY related min=${related.first.toStringAsFixed(2)} '
+        'max=${related.last.toStringAsFixed(2)} | unrelated '
+        'min=${unrelated.first.toStringAsFixed(2)} '
+        'max=${unrelated.last.toStringAsFixed(2)}');
+    // The small-model cut-off must sit between the two groups for chunks too.
+    const cutOff = PromptBudget.smallModelMinScore;
+    expect(unrelated.last, lessThan(cutOff),
+        reason: 'an unrelated question would pull a chunk into the prompt');
+    expect(related.first, greaterThanOrEqualTo(cutOff),
+        reason: 'an answering chunk would be dropped');
     await purge(sha);
   }, timeout: const Timeout(Duration(minutes: 5)));
 

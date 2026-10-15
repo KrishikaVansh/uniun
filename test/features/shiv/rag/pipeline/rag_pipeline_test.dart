@@ -464,6 +464,7 @@ void main() {
         queryVector: any(named: 'queryVector'),
         queryText: any(named: 'queryText'),
         topK: any(named: 'topK'),
+        minScore: any(named: 'minScore'),
       ),
     ).thenAnswer((_) async => chunks);
 
@@ -534,6 +535,7 @@ void main() {
             queryVector: any(named: 'queryVector'),
             queryText: 'q',
             topK: 1,
+            minScore: PromptBudget.smallModelMinScore,
           ),
         ).called(1);
       },
@@ -566,6 +568,14 @@ void main() {
             minScore: expected,
           ),
         ).called(1);
+        verify(
+          () => vectorSearch.searchChunks(
+            queryVector: any(named: 'queryVector'),
+            queryText: 'q',
+            topK: any(named: 'topK'),
+            minScore: expected,
+          ),
+        ).called(1);
       }
     });
 
@@ -586,6 +596,7 @@ void main() {
           queryVector: any(named: 'queryVector'),
           queryText: any(named: 'queryText'),
           topK: any(named: 'topK'),
+          minScore: any(named: 'minScore'),
         ),
       ).thenThrow(Exception('store unavailable'));
 
@@ -668,6 +679,7 @@ void main() {
           queryVector: any(named: 'queryVector'),
           queryText: any(named: 'queryText'),
           topK: any(named: 'topK'),
+          minScore: any(named: 'minScore'),
         ),
       );
     });

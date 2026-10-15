@@ -130,12 +130,17 @@ class ManasContextLoader {
   Future<List<PackedNote>> searchAll({
     required String query,
     int topK = 6,
+    double minScore = 0.3,
   }) async {
     if (query.trim().isEmpty) return const [];
     try {
       final vec = await _embedder.embed(query);
       if (vec.isEmpty) return const [];
-      final hits = await _searcher.search(queryVector: vec, topK: topK);
+      final hits = await _searcher.search(
+        queryVector: vec,
+        topK: topK,
+        minScore: minScore,
+      );
       return [
         for (final h in hits)
           PackedNote(

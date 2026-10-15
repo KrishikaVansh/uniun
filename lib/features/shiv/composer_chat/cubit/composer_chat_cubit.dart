@@ -8,6 +8,7 @@ import 'package:uniun/features/shiv/composer_chat/cubit/composer_chat_state.dart
 import 'package:uniun/features/shiv/generation/chat_helpers.dart';
 import 'package:uniun/features/shiv/generation/context/manas_context_loader.dart';
 import 'package:uniun/features/shiv/generation/prompt/composer_chat_prompt.dart';
+import 'package:uniun/features/shiv/rag/prompt/prompt_budget.dart';
 
 /// Headless chat engine for the composer-chat (WS4): the inline AI chat the
 /// note composer becomes when the user long-presses the avatar and picks a
@@ -21,12 +22,17 @@ import 'package:uniun/features/shiv/generation/prompt/composer_chat_prompt.dart'
 /// is stateless per turn after WS1c).
 @injectable
 class ComposerChatCubit extends Cubit<ComposerChatState> {
-  ComposerChatCubit(this._sendChat, this._manasLoader, this._hasModel)
-      : super(const ComposerChatState());
+  ComposerChatCubit(
+    this._sendChat,
+    this._manasLoader,
+    this._hasModel,
+    this._getActiveModel,
+  ) : super(const ComposerChatState());
 
   final SendChatStreamUseCase _sendChat;
   final ManasContextLoader _manasLoader;
   final HasActiveLlmModelUseCase _hasModel;
+  final GetActiveLlmModelUseCase _getActiveModel;
 
   StreamSubscription<String>? _sub;
   List<String> _manasIds = const [];
@@ -65,8 +71,14 @@ class ComposerChatCubit extends Cubit<ComposerChatState> {
     // Relevance-rank the notes against the question. "All notes" scope
     // (empty manasIds) searches the WHOLE vector index — NOT empty, which was
     // leaving the model ungrounded; a specific Manas filters to its notes.
+    // How similar a note must be depends on the model: the 0.6B one copies
+    // whatever it is given, so it only gets notes that really match.
+    final model = (await _getActiveModel.call()).getOrElse(() => null);
     final manasNotes = _manasIds.isEmpty
-        ? await _manasLoader.searchAll(query: q)
+        ? await _manasLoader.searchAll(
+            query: q,
+            minScore: PromptBudget.forActiveModel(model).minScore,
+          )
         : await _manasLoader.merge(
             manasIds: _manasIds,
             budget: _manasBudgetTokens,
@@ -147,7 +159,7 @@ class ComposerChatCubit extends Cubit<ComposerChatState> {
     _sub = null;
     final partial = stripThinking(state.streaming ?? '');
     emit(state.copyWith(
-      turns: _withLastAnswer(partial.isEmpty ? '(stopped)' : partial),
+      turns: _withLastAnswer(partial.isEmpty ? kStoppedReply : partial),
       status: ComposerChatStatus.idle,
       streaming: null,
     ));

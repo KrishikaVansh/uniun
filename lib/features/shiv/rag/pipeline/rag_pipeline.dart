@@ -198,6 +198,7 @@ class RagPipeline {
           vec,
           query,
           math.max(1, topK ~/ 2),
+          minScore,
         );
       }
       if (seedNotes.isEmpty && seedChunks.isEmpty) return EnrichedContext.empty;
@@ -264,12 +265,14 @@ class RagPipeline {
     List<double> vec,
     String query,
     int topK,
+    double minScore,
   ) async {
     try {
       return await _vectorSearch.searchChunks(
         queryVector: vec,
         queryText: query,
         topK: topK,
+        minScore: minScore,
       );
     } catch (_) {
       return const [];

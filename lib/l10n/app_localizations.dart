@@ -2610,6 +2610,18 @@ abstract class AppLocalizations {
   /// **'New conversation'**
   String get shivDefaultConversationTitle;
 
+  /// Shown in place of a Shiv reply the user stopped before any text arrived
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped'**
+  String get shivStopped;
+
+  /// Shown in place of a Shiv reply that was cut off when the chat was closed
+  ///
+  /// In en, this message translates to:
+  /// **'Interrupted'**
+  String get shivInterrupted;
+
   /// Shown in place of a Shiv reply that ended with no text
   ///
   /// In en, this message translates to:

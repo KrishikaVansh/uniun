@@ -1428,6 +1428,12 @@ class AppLocalizationsGu extends AppLocalizations {
   String get shivDefaultConversationTitle => 'નવી વાતચીત';
 
   @override
+  String get shivStopped => 'અટકાવ્યું';
+
+  @override
+  String get shivInterrupted => 'વિક્ષેપિત';
+
+  @override
   String get shivNoResponse => 'મોડેલ તરફથી કોઈ જવાબ મળ્યો નથી.';
 
   @override

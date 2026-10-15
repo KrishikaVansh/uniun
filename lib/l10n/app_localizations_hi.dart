@@ -1428,6 +1428,12 @@ class AppLocalizationsHi extends AppLocalizations {
   String get shivDefaultConversationTitle => 'नई बातचीत';
 
   @override
+  String get shivStopped => 'रोका गया';
+
+  @override
+  String get shivInterrupted => 'बाधित';
+
+  @override
   String get shivNoResponse => 'मॉडल से कोई जवाब नहीं मिला।';
 
   @override

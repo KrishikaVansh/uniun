@@ -87,6 +87,20 @@ void main() {
     expect(find.text('No response from the model.'), findsNothing);
   });
 
+  testWidgets('a stopped reply is shown in words, not as the stored marker',
+      (t) async {
+    await show(t, host(content: '(stopped)'));
+
+    expect(find.text('Stopped'), findsOneWidget);
+    expect(find.text('(stopped)'), findsNothing);
+  });
+
+  testWidgets('an interrupted reply is shown in words', (t) async {
+    await show(t, host(content: '(interrupted)'));
+
+    expect(find.text('Interrupted'), findsOneWidget);
+  });
+
   testWidgets('a finished reply has no dots', (t) async {
     await show(t, host(content: 'Done.'));
 
