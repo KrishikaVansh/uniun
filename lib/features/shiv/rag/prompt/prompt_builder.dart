@@ -24,7 +24,7 @@ class PersonalizationContext {
 /// Assembles prompts for Shiv inference.
 ///
 /// ## Architecture
-/// flutter_gemma's [InferenceChat] manages conversation history internally.
+/// flutter_edge_ai's [InferenceChat] manages conversation history internally.
 /// We must NOT embed history in our prompts — that causes every prior turn to
 /// be repeated inside the model's context window.
 ///

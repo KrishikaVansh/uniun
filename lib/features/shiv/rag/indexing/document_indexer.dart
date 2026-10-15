@@ -35,7 +35,7 @@ import 'package:uniun/features/shiv/rag/extraction/document_extraction_service.d
 /// both deletion paths (`MediaRepository.removeLocal` and `CleanupManager`,
 /// which deletes cache rows directly from the Gateway isolate).
 ///
-/// Main isolate only: embedding runs through flutter_gemma, which is not
+/// Main isolate only: embedding runs through flutter_edge_ai, which is not
 /// available in the Gateway isolate.
 @lazySingleton
 class DocumentIndexer {

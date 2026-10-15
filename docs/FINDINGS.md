@@ -1,6 +1,6 @@
 # UNIUN — Architecture Findings
 
-> ⚠️ **Historical.** Each entry below reflects the state of the app and its dependencies *at the time that finding was written* — package versions, class names, and designs mentioned inside individual findings may be stale (e.g. an old `flutter_gemma` version, an early flat-RAG design later replaced by GraphRAG). This is a decision log explaining *why* choices were made, not a current-state reference — for that, see `CLAUDE.md`, `docs/UNIUN.md`, and the per-feature docs under `docs/`.
+> ⚠️ **Historical.** Each entry below reflects the state of the app and its dependencies *at the time that finding was written* — package versions, class names, and designs mentioned inside individual findings may be stale (e.g. an old `flutter_edge_ai` version, an early flat-RAG design later replaced by GraphRAG). This is a decision log explaining *why* choices were made, not a current-state reference — for that, see `CLAUDE.md`, `docs/UNIUN.md`, and the per-feature docs under `docs/`.
 
 ---
 
@@ -33,11 +33,11 @@ DMReadStateModel       { conversationId, lastReadEventId, unreadCount }
 
 ---
 
-## Finding 002 — Shiv AI: flutter_gemma + User-Selected Models + Branching Chat
+## Finding 002 — Shiv AI: flutter_edge_ai + User-Selected Models + Branching Chat
 
 **Context:** Designing Shiv's LLM backend, model selection UX, and conversation structure.
 
-**Package:** `flutter_gemma: ^0.13.1` — Flutter plugin wrapping MediaPipe LLM Inference API. Supports GPU acceleration (Android GPU delegate / iOS Metal). Streaming via `getResponseStream(prompt)`.
+**Package:** `flutter_edge_ai: ^0.13.1` — Flutter plugin wrapping MediaPipe LLM Inference API. Supports GPU acceleration (Android GPU delegate / iOS Metal). Streaming via `getResponseStream(prompt)`.
 
 **Model selection:** User picks a model on first open of Shiv (and can change in Settings → AI Model). Models are downloaded once and stored on-device. No cloud inference ever.
 
@@ -54,7 +54,7 @@ DMReadStateModel       { conversationId, lastReadEventId, unreadCount }
 1. Note saved → `EmbeddingService` (all-MiniLM-L6-v2, bundled) → vector → `SavedNoteModel.embedding` in Isar
 2. User asks → same embedding model → query vector → cosine sim over all saved embeddings → top-K notes
 3. `PromptBuilder` injects top-K notes + branch conversation history into prompt
-4. `flutter_gemma` streams answer token-by-token → `ShivAIBloc` emits streaming state
+4. `flutter_edge_ai` streams answer token-by-token → `ShivAIBloc` emits streaming state
 
 **Branching chat system:**
 - Conversations are a **tree of messages** internally, but always display as a **linear chat** (only the active branch path shown)

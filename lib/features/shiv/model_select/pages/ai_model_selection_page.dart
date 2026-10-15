@@ -201,7 +201,7 @@ class _AIModelSelectionView extends StatelessWidget {
   }
 }
 
-/// Shown only when flutter_gemma reports leftover model files on disk
+/// Shown only when flutter_edge_ai reports leftover model files on disk
 /// (partial downloads, or files a previous delete couldn't locate by its
 /// guessed path) — a capability [AIModelRepositoryImpl.deleteModel] can't
 /// catch on its own since it only knows the path of the model it was asked

@@ -18,7 +18,7 @@ import 'package:uniun/core/router/app_routes.dart';
 import 'package:uniun/data/datasources/app_settings_store.dart';
 import 'package:uniun/data/datasources/feed_read_state_store.dart';
 import 'package:uniun/data/datasources/isar_schemas.dart';
-import 'package:uniun/data/datasources/llm/flutter_gemma_gateway.dart';
+import 'package:uniun/data/datasources/llm/flutter_edge_ai_gateway.dart';
 import 'package:uniun/data/datasources/llm/inference_scheduler.dart';
 import 'package:uniun/data/datasources/llm/llm_credentials_data_source.dart';
 import 'package:uniun/data/datasources/llm/llm_preferences_data_source.dart';
@@ -60,6 +60,7 @@ import 'package:uniun/features/settings/widgets/logout_button.dart';
 import 'package:uniun/features/shiv/chat/widgets/shiv_input_composer.dart';
 import 'package:uniun/features/shiv/gana/engine/gana_engine.dart';
 import 'package:uniun/features/shiv/rag/indexing/document_indexer.dart';
+import 'package:uniun/features/shiv/rag/indexing/note_vector_cleanup_worker.dart';
 import 'package:uniun/gateway/gateway.dart';
 import 'package:uniun/l10n/app_localizations.dart';
 
@@ -125,7 +126,7 @@ void main() {
       name: 'logout_ui_${DateTime.now().microsecondsSinceEpoch}',
     );
     final vectors = await NoteVectorStore.open('${root.path}/vectors');
-    final gateway = FlutterGemmaGatewayImpl();
+    final gateway = FlutterEdgeAiGatewayImpl();
     final models = AIModelRepositoryImpl(
       isar,
       settings,
@@ -141,6 +142,8 @@ void main() {
     final gana = _Gana();
     final indexer = _Indexer();
     final embeddings = _Embeddings();
+    final vectorCleanup = _VectorCleanup();
+    when(() => vectorCleanup.stop()).thenAnswer((_) async {});
     final llm = _Llm();
     when(
       () => uniun.disconnect(confirm: true),
@@ -181,6 +184,7 @@ void main() {
           gana,
           indexer,
           embeddings,
+          vectorCleanup,
           PreemptBackgroundWorkUseCase(llm),
         ),
       ),
@@ -375,6 +379,8 @@ class _Indexer extends Mock implements DocumentIndexer {}
 
 class _Embeddings extends Mock implements NoteEmbeddingTrigger {}
 
+class _VectorCleanup extends Mock implements NoteVectorCleanupWorker {}
+
 class _Llm extends Mock implements LlmRepository {}
 
 /// Runs an isolated Account A → logout → Account B journey over the real
@@ -401,6 +407,8 @@ Future<void> runLogoutAccountSwitchScenario(
   final gana = _Gana();
   final indexer = _Indexer();
   final embeddings = _Embeddings();
+  final vectorCleanup = _VectorCleanup();
+  when(() => vectorCleanup.stop()).thenAnswer((_) async {});
   final llm = _Llm();
   final media = MediaCacheDataSource();
   final vectors = await NoteVectorStore.open('${root.path}/vectors');
@@ -449,6 +457,7 @@ Future<void> runLogoutAccountSwitchScenario(
         gana,
         indexer,
         embeddings,
+        vectorCleanup,
         PreemptBackgroundWorkUseCase(llm),
       ),
     ),

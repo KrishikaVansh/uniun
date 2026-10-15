@@ -5,16 +5,16 @@ import 'package:flutter_edge_ai/flutter_edge_ai.dart' hide CancelToken;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:uniun/data/datasources/llm/embedding_queue.dart';
-import 'package:uniun/data/datasources/llm/flutter_gemma_gateway.dart';
+import 'package:uniun/data/datasources/llm/flutter_edge_ai_gateway.dart';
 import 'package:uniun/features/shiv/rag/embedding/embedding_service.dart';
 import '../../../../_helpers/fake_embedding_model.dart';
 
-class _MockGateway extends Mock implements FlutterGemmaGateway {}
+class _MockGateway extends Mock implements FlutterEdgeAiGateway {}
 
 
 /// Covers EmbeddingService's real orchestration logic — install-once,
 /// GPU→CPU backend fallback, embed()'s lazy-init + degrade-to-empty
-/// contract, L2 normalisation — via the FlutterGemmaGateway seam
+/// contract, L2 normalisation — via the FlutterEdgeAiGateway seam
 /// (see docs/AUDIT.md, Group A native-ceiling closure). Before the seam,
 /// this class called `FlutterEdgeAi.*` statics directly with no mockable
 /// path at all.

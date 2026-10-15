@@ -1,9 +1,9 @@
-// Real-device verification of the InferenceScheduler against flutter_gemma.
+// Real-device verification of the InferenceScheduler against flutter_edge_ai.
 //
 // What it verifies (matches docs/SHIVA/scheduling.md Scenario 1):
 //   While a Nataraj job is mid-stream against a real loaded model, a
 //   chat submission must preempt it within one token boundary
-//   (empirically <500 ms on flutter_gemma 1.1.x). This is the
+//   (empirically <500 ms on flutter_edge_ai (then flutter_edge_ai 1.1.x)). This is the
 //   user-visible #118 fix.
 //
 // PASS path: result starts with `OK:` → scheduler preemption works on
@@ -13,7 +13,7 @@
 //            re-run.
 // FAIL path: assertion fires or result starts with `FAIL:` → either the
 //            scheduler isn't actually calling stopGeneration() on the
-//            real InferenceChat, or flutter_gemma's stopGeneration() has
+//            real InferenceChat, or flutter_edge_ai's stopGeneration() has
 //            regressed.
 //
 // Why this file lives at `integration_test/` (project root, not under
@@ -44,7 +44,7 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets(
-    'chat preempts running nataraj on the real flutter_gemma engine',
+    'chat preempts running nataraj on the real flutter_edge_ai engine',
     (tester) async {
       if (!FlutterEdgeAi.hasActiveModel() &&
           !await provisionTestModel(AIModelId.gemma4E2b)) {
@@ -87,7 +87,7 @@ void main() {
       }
 
       // Load the model first and use one maxTokens everywhere: a different
-      // value makes flutter_gemma rebuild the model, and a cold load takes
+      // value makes flutter_edge_ai rebuild the model, and a cold load takes
       // tens of seconds — both would be measured as "preempt latency".
       await FlutterEdgeAi.getActiveModel(maxTokens: 800);
 

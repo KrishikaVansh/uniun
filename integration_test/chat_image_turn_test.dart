@@ -11,7 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uniun/data/datasources/app_settings_store.dart';
-import 'package:uniun/data/datasources/llm/flutter_gemma_gateway.dart';
+import 'package:uniun/data/datasources/llm/flutter_edge_ai_gateway.dart';
 import 'package:uniun/data/datasources/llm/inference_scheduler.dart';
 import 'package:uniun/data/datasources/llm/local_llm_runner.dart';
 import 'package:uniun/domain/entities/ai_model/ai_model_entity.dart';
@@ -43,7 +43,7 @@ void main() {
     final runner = AIModelRunner(
       InferenceScheduler(),
       settings,
-      FlutterGemmaGatewayImpl(),
+      FlutterEdgeAiGatewayImpl(),
     );
 
     final red = Uint8List.fromList(await _solidPng(const Color(0xFFE53935)));

@@ -1488,7 +1488,7 @@ abstract class AppLocalizations {
   /// **'Switching models requires a one-time download. Connect to Wi-Fi to avoid data charges. Your chat history is preserved.'**
   String get aiModelDownloadInfoText;
 
-  /// Banner shown when flutter_gemma reports leftover/orphaned model files on disk
+  /// Banner shown when flutter_edge_ai reports leftover/orphaned model files on disk
   ///
   /// In en, this message translates to:
   /// **'{size} of leftover model files can be cleaned up.'**

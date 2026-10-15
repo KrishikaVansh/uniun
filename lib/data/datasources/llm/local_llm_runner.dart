@@ -6,13 +6,13 @@ import 'package:injectable/injectable.dart';
 import 'package:uniun/core/utils/llm_backend.dart';
 import 'package:uniun/core/utils/llm_text_sanitizer.dart';
 import 'package:uniun/data/datasources/app_settings_store.dart';
-import 'package:uniun/data/datasources/llm/flutter_gemma_gateway.dart';
+import 'package:uniun/data/datasources/llm/flutter_edge_ai_gateway.dart';
 import 'package:uniun/data/datasources/llm/inference_scheduler.dart';
 import 'package:uniun/data/datasources/llm/local_model_params.dart';
 import 'package:uniun/domain/entities/ai_model/ai_model_entity.dart';
 import 'package:uniun/domain/entities/llm/llm_task_kind.dart';
 
-/// Wraps flutter_gemma 1.x for token-streaming inference.
+/// Wraps flutter_edge_ai (then flutter_edge_ai 1.x) for token-streaming inference.
 ///
 /// Serialization is delegated to [InferenceScheduler] (see
 /// `docs/SHIVA/scheduling.md`) — the scheduler picks the next job based on
@@ -36,7 +36,7 @@ import 'package:uniun/domain/entities/llm/llm_task_kind.dart';
 class AIModelRunner {
   final InferenceScheduler _scheduler;
   final AppSettingsStore _settings;
-  final FlutterGemmaGateway _gateway;
+  final FlutterEdgeAiGateway _gateway;
 
   /// The model instance last handed out by [_openActiveModel]. Held so a failed
   /// invoke can [_resetModel] it — closing the native model frees its
@@ -71,7 +71,7 @@ class AIModelRunner {
 
   /// Open the active model, falling back GPU → CPU on engine-creation failure.
   ///
-  /// With [vision] the model is opened to accept images; flutter_gemma
+  /// With [vision] the model is opened to accept images; flutter_edge_ai
   /// rebuilds a cached text-only engine itself when `supportImage` differs
   /// (seconds, once). A vision model is then kept for later turns until the
   /// model changes.
@@ -116,7 +116,7 @@ class AIModelRunner {
   /// Close the cached native model so the next [_openActiveModel] rebuilds a
   /// fresh one. Used to recover when an invoke fails after the native runtime
   /// has degraded over many open/close session cycles (common on the
-  /// resource-limited iOS simulator). flutter_gemma's close-listener resets its
+  /// resource-limited iOS simulator). flutter_edge_ai's close-listener resets its
   /// singleton, so a later getActiveModel re-creates the model.
   Future<void> _resetModel() async {
     final m = _activeModel;

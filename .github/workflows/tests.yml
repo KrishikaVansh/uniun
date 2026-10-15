@@ -82,7 +82,7 @@ jobs:
 
       - uses: actions/cache@v4
         with:
-          path: ~/.cache/flutter_gemma
+          path: ~/.cache/flutter_edge_ai
           key: gemma-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
 
       - uses: actions/cache@v4
@@ -173,7 +173,7 @@ jobs:
 
       - uses: actions/cache@v4
         with:
-          path: ~/.cache/flutter_gemma
+          path: ~/.cache/flutter_edge_ai
           key: gemma-${{ runner.os }}-${{ hashFiles('pubspec.lock') }}
 
       - uses: actions/cache@v4

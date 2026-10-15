@@ -298,7 +298,7 @@ class SelectAIModelCubit extends Cubit<SelectAIModelState> {
     );
   }
 
-  /// Deletes every leftover model file flutter_gemma no longer tracks
+  /// Deletes every leftover model file flutter_edge_ai no longer tracks
   /// (partial downloads, files a previous delete couldn't locate). Returns
   /// the number of files removed, or null on failure — the caller decides
   /// how to surface either outcome (this cubit has no toast/snackbar state).

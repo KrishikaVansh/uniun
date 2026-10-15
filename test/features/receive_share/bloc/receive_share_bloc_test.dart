@@ -201,7 +201,7 @@ void main() {
     // ingests — `sharedFileToPicked` routes image bytes through
     // `ImageCompressor` (flutter_image_compress), a real native plugin with
     // no fake in this environment. Same category of ceiling as
-    // FlutterGemmaGateway/SystemInfoPlus elsewhere in this repo's test
+    // FlutterEdgeAiGateway/SystemInfoPlus elsewhere in this repo's test
     // suite — the nonexistent-file branch above already proves the loop's
     // skip/continue wiring; only the compression step itself is untestable
     // here.

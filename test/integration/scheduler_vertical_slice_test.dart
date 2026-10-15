@@ -2,7 +2,7 @@ import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uniun/data/datasources/app_settings_store.dart';
-import 'package:uniun/data/datasources/llm/flutter_gemma_gateway.dart';
+import 'package:uniun/data/datasources/llm/flutter_edge_ai_gateway.dart';
 import 'package:uniun/data/datasources/llm/inference_scheduler.dart';
 import 'package:uniun/data/datasources/llm/local_llm_runner.dart';
 import 'package:uniun/data/repositories/scheduler_coordinator_impl.dart';
@@ -210,7 +210,7 @@ void main() {
     setUp(() async {
       SharedPreferences.setMockInitialValues({});
       final settings = AppSettingsStore(await SharedPreferences.getInstance());
-      runner = AIModelRunner(scheduler, settings, FlutterGemmaGatewayImpl());
+      runner = AIModelRunner(scheduler, settings, FlutterEdgeAiGatewayImpl());
     });
 
     test('gentle switch waits for a running nataraj job to finish, then '

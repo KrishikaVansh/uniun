@@ -5,30 +5,30 @@ import 'package:flutter_edge_ai/flutter_edge_ai.dart';
 import 'package:injectable/injectable.dart';
 import 'package:uniun/core/utils/llm_backend.dart';
 import 'package:uniun/data/datasources/llm/embedding_queue.dart';
-import 'package:uniun/data/datasources/llm/flutter_gemma_gateway.dart';
+import 'package:uniun/data/datasources/llm/flutter_edge_ai_gateway.dart';
 
 /// On-device text embedding using Gecko 110M (768-dim), run through
-/// flutter_gemma's LiteRT embedder.
+/// flutter_edge_ai's LiteRT embedder.
 ///
-/// ## Why flutter_gemma instead of tflite_flutter
-/// flutter_gemma (MediaPipe) statically embeds its own copy of TensorFlow Lite.
+/// ## Why flutter_edge_ai instead of tflite_flutter
+/// flutter_edge_ai (MediaPipe) statically embeds its own copy of TensorFlow Lite.
 /// `tflite_flutter` linked a *second* copy, so on the iOS arm64 device build
 /// both ended up in one binary → duplicate `TFLBufferConvert` Objective-C class
 /// → corrupted symbol table → `EXC_BAD_ACCESS` / Isar `isar_version` failures.
-/// Running embeddings through flutter_gemma's own LiteRT runtime keeps a single
+/// Running embeddings through flutter_edge_ai's own LiteRT runtime keeps a single
 /// TensorFlow Lite in the binary and removes the conflict entirely.
 ///
 /// ## Bundled, not downloaded
 /// The model + tokenizer ship as app assets (see [modelAsset]/[tokenizerAsset]),
 /// so RAG works offline on first launch with no network fetch. `installEmbedder`
-/// copies the asset into flutter_gemma's managed storage once (idempotent).
+/// copies the asset into flutter_edge_ai's managed storage once (idempotent).
 ///
 /// Output: 768-dimensional L2-normalised float vector.
 @lazySingleton
 class EmbeddingService {
   EmbeddingService(this._gateway, this._queue);
 
-  final FlutterGemmaGateway _gateway;
+  final FlutterEdgeAiGateway _gateway;
   final EmbeddingQueue _queue;
 
   static const int embeddingDim = 768;
@@ -69,7 +69,7 @@ class EmbeddingService {
     }
   }
 
-  /// Registers the bundled Gecko model + tokenizer as flutter_gemma's active
+  /// Registers the bundled Gecko model + tokenizer as flutter_edge_ai's active
   /// embedder. Idempotent — returns fast once installed.
   Future<void> ensureInstalled() async {
     if (_gateway.hasActiveEmbedder()) return;

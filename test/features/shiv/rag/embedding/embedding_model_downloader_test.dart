@@ -1,10 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:uniun/data/datasources/llm/flutter_gemma_gateway.dart';
+import 'package:uniun/data/datasources/llm/flutter_edge_ai_gateway.dart';
 import 'package:uniun/features/shiv/rag/embedding/embedding_model_downloader.dart';
 import 'package:uniun/features/shiv/rag/embedding/embedding_service.dart';
 
-class _MockGateway extends Mock implements FlutterGemmaGateway {}
+class _MockGateway extends Mock implements FlutterEdgeAiGateway {}
 
 class _MockEmbeddingService extends Mock implements EmbeddingService {}
 

@@ -178,7 +178,7 @@ void main() {
   });
 
   group('setActiveModel — local (issue #160 regression: switching between '
-      'two already-downloaded models must re-link flutter_gemma, not just '
+      'two already-downloaded models must re-link flutter_edge_ai, not just '
       'write settings)', () {
     setUp(() {
       when(() => prefs.activeBackend).thenReturn(LlmBackendType.localGemma);
@@ -187,7 +187,7 @@ void main() {
     });
 
     test('writes the settings id AND calls activateModel — a plain settings '
-        'write alone leaves flutter_gemma pointed at the previous model',
+        'write alone leaves flutter_edge_ai pointed at the previous model',
         () async {
       when(() => localCatalog.activateModel(AIModelId.gemma4E2b))
           .thenAnswer((_) async => const Right(unit));

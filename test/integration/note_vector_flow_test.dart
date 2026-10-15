@@ -9,7 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:isar_community/isar.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:uniun/data/datasources/llm/embedding_queue.dart';
-import 'package:uniun/data/datasources/llm/flutter_gemma_gateway.dart';
+import 'package:uniun/data/datasources/llm/flutter_edge_ai_gateway.dart';
 import 'package:uniun/data/datasources/llm/inference_scheduler.dart';
 import 'package:uniun/data/datasources/note_vector_store.dart';
 import 'package:uniun/data/models/notes/note_model.dart';
@@ -25,7 +25,7 @@ import '../_helpers/isar_seeds.dart';
 import '../_helpers/isar_test_harness.dart';
 import '../_helpers/fake_embedding_model.dart';
 
-class _MockGateway extends Mock implements FlutterGemmaGateway {}
+class _MockGateway extends Mock implements FlutterEdgeAiGateway {}
 
 
 class _MockExtract extends Mock implements ExtractKnowledgeUseCase {}

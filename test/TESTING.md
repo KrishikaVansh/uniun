@@ -445,7 +445,7 @@ Isar data and mocked inference/publish calls. It is also included in
   clear message instead of failing.
 - While it works it shows a plain "UNIUN test starting…" screen instead of the
   splash.
-- Used by `gana_local_engine_e2e_test`, `flutter_gemma_bg_isolate_test`,
+- Used by `gana_local_engine_e2e_test`, `flutter_edge_ai_bg_isolate_test`,
   `scheduler_preemption_test`, `scheduler_model_switch_test` and
   `chat_image_turn_test`. Use it in any new test that needs a real model.
 - Real generation is slow (~2.5 tokens/s for E2B): keep prompts short, use one

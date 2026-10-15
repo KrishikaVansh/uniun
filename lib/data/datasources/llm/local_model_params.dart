@@ -1,7 +1,7 @@
 import 'package:flutter_edge_ai/flutter_edge_ai.dart';
 import 'package:uniun/domain/entities/ai_model/ai_model_entity.dart';
 
-/// Static map from our public [AIModelId] to the flutter_gemma engine params
+/// Static map from our public [AIModelId] to the flutter_edge_ai engine params
 /// the chat session needs.
 ///
 /// `openChat` defaults `modelType` to [ModelType.gemmaIt]; if we don't override

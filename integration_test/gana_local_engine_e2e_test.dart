@@ -1,6 +1,6 @@
 // Full end-to-end run of a LOCAL (on-device) Brahma Gana against the real app:
 // real DI, the on-device Isar, the real GanaEngine and GatewayBootstrap, and a
-// real flutter_gemma inference call (Gemma 4 E2B, provisioned by
+// real flutter_edge_ai inference call (Gemma 4 E2B, provisioned by
 // `provisionTestModel`). Verifies the published note used the seeded knowledge.
 //
 // SIDE EFFECT: every run publishes one real, PERMANENT Kind-1 note from the

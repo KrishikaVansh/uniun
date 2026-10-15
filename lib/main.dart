@@ -40,7 +40,7 @@ Future<void> meshEngineMain() => runMeshEngine();
 Future<void> main() async {
   final binding = WidgetsFlutterBinding.ensureInitialized();
   await _ensureDownloaderCacheDir();
-  // flutter_gemma 1.0.0: release builds are silent automatically (the plugin
+  // flutter_edge_ai (then flutter_edge_ai 1.0.0): release builds are silent automatically (the plugin
   // gates every log on `kDebugMode`). In debug, keep `info` — lifecycle and
   // errors, no prompts/output. Bump to `verbose` only when actively chasing a
   // model bug.
@@ -111,7 +111,7 @@ Future<void> main() async {
   );
 }
 
-/// `background_downloader` (used by flutter_gemma to fetch models) stores its
+/// `background_downloader` (used by flutter_edge_ai to fetch models) stores its
 /// partial-download temp files under `<Caches>/<bundleId>/` but does not create
 /// that bundle-id subfolder on sandboxed Apple platforms. Without it the
 /// download fails with `PathNotFoundException ... errno = 2`. Create it up front.

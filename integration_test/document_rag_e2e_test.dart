@@ -1,6 +1,6 @@
 // Device-bound end-to-end test for document RAG with the REAL Gecko embedder.
 //
-// Why this cannot live under `test/`: the embedder loads through flutter_gemma
+// Why this cannot live under `test/`: the embedder loads through flutter_edge_ai
 // from `assets/models/embedding/gecko_1024_quant.tflite`, a 145 MB Git-LFS
 // asset. Headless `flutter test` has no such asset, and CI checks out without
 // LFS, so the file there is a ~130-byte pointer. Worse, `EmbeddingService.embed`
