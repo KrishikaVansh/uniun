@@ -8,6 +8,7 @@ import 'package:uniun/features/shiv/chat/bloc/shiv_ai_bloc.dart';
 import 'package:uniun/features/shiv/gana/engine/gana_engine.dart';
 import 'package:uniun/features/shiv/gana/engine/gana_workmanager_bootstrap.dart';
 import 'package:uniun/features/shiv/rag/indexing/document_indexer.dart';
+import 'package:uniun/features/shiv/rag/indexing/note_vector_cleanup_worker.dart';
 import 'package:uniun/gateway/gateway.dart';
 
 /// Stops account-scoped workers before local storage is cleared.
@@ -19,6 +20,7 @@ class LogoutRuntimeImpl implements LogoutRuntime {
     this._gana,
     this._indexer,
     this._noteEmbeddings,
+    this._vectorCleanup,
     this._preempt,
   );
 
@@ -27,6 +29,7 @@ class LogoutRuntimeImpl implements LogoutRuntime {
   final GanaEngine _gana;
   final DocumentIndexer _indexer;
   final NoteEmbeddingTrigger _noteEmbeddings;
+  final NoteVectorCleanupWorker _vectorCleanup;
   final PreemptBackgroundWorkUseCase _preempt;
 
   @override
@@ -40,5 +43,6 @@ class LogoutRuntimeImpl implements LogoutRuntime {
     await _marmot.stop();
     await _indexer.dispose();
     await _noteEmbeddings.stop();
+    await _vectorCleanup.stop();
   }
 }

@@ -276,6 +276,8 @@ import 'package:uniun/features/shiv/rag/indexing/document_indexer.dart'
     as _i1026;
 import 'package:uniun/features/shiv/rag/indexing/note_embedding_worker.dart'
     as _i714;
+import 'package:uniun/features/shiv/rag/indexing/note_vector_cleanup_worker.dart'
+    as _i609;
 import 'package:uniun/features/shiv/rag/pipeline/rag_pipeline.dart' as _i681;
 import 'package:uniun/features/shiv/rag/prompt/prompt_builder.dart' as _i207;
 import 'package:uniun/features/shiv/rag/retrieval/vector_search_service.dart'
@@ -388,6 +390,13 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i775.DeletedNoteRepository>(
       () => _i438.DeletedNoteRepositoryImpl(isar: gh<_i214.Isar>()),
+    );
+    gh.lazySingleton<_i609.NoteVectorCleanupWorker>(
+      () => _i609.NoteVectorCleanupWorker(
+        gh<_i214.Isar>(),
+        gh<_i796.NoteVectorStore>(),
+        gh<_i107.AppSettingsStore>(),
+      ),
     );
     gh.factory<_i125.NatarajRepository>(
       () => _i455.NatarajRepositoryImpl(isar: gh<_i214.Isar>()),
@@ -1761,6 +1770,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i426.GanaEngine>(),
         gh<_i1026.DocumentIndexer>(),
         gh<_i491.NoteEmbeddingTrigger>(),
+        gh<_i609.NoteVectorCleanupWorker>(),
         gh<_i918.PreemptBackgroundWorkUseCase>(),
       ),
     );

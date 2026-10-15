@@ -30,6 +30,7 @@ import 'package:uniun/domain/repositories/llm_repository.dart';
 import 'package:uniun/features/mesh/service/mesh_service.dart';
 import 'package:uniun/features/shiv/gana/engine/gana_engine.dart';
 import 'package:uniun/features/shiv/rag/indexing/document_indexer.dart';
+import 'package:uniun/features/shiv/rag/indexing/note_vector_cleanup_worker.dart';
 
 import '../../_helpers/isar_seeds.dart';
 import '../../_helpers/isar_test_harness.dart';
@@ -51,6 +52,8 @@ class _Gana extends Mock implements GanaEngine {}
 class _Indexer extends Mock implements DocumentIndexer {}
 
 class _Embeddings extends Mock implements NoteEmbeddingTrigger {}
+
+class _VectorCleanup extends Mock implements NoteVectorCleanupWorker {}
 
 class _Media extends Mock implements MediaCacheDataSource {}
 
@@ -83,6 +86,7 @@ void main() {
     final gana = _Gana();
     final indexer = _Indexer();
     final embeddings = _Embeddings();
+    final vectorCleanup = _VectorCleanup();
     final media = _Media();
     final marmot = _Marmot();
     final llm = _LlmRepository();
@@ -96,6 +100,7 @@ void main() {
     when(() => gana.stop()).thenAnswer((_) async {});
     when(() => indexer.dispose()).thenAnswer((_) async {});
     when(() => embeddings.stop()).thenAnswer((_) async {});
+    when(() => vectorCleanup.stop()).thenAnswer((_) async {});
     when(() => media.clear()).thenAnswer((_) async {});
     when(() => marmot.stop()).thenAnswer((_) async {});
     when(
@@ -121,6 +126,7 @@ void main() {
         gana,
         indexer,
         embeddings,
+        vectorCleanup,
         PreemptBackgroundWorkUseCase(llm),
       ),
     );

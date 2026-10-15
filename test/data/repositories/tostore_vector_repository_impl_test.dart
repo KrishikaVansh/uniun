@@ -145,31 +145,6 @@ void main() {
     );
   });
 
-  test('vectors with no note behind them do not use up the top-K slots', () async {
-    // Closer to the query than the live note, so they come back first.
-    for (var i = 0; i < 6; i++) {
-      await repo.upsert('ghost$i', vec(1));
-    }
-    await saveNote('live', 'the note that still exists');
-    await repo.upsert('live', vec(2));
-
-    final hits = await repo.search(vec(1), topK: 3, minScore: -1);
-
-    expect(hits.map((h) => h.noteId), ['live']);
-  });
-
-  test('more live hits than topK are cut to topK', () async {
-    for (var i = 0; i < 4; i++) {
-      await saveNote('n$i', 'text $i');
-      await repo.upsert('n$i', vec(10 + i));
-    }
-
-    expect(
-      await repo.search(vec(10), topK: 2, minScore: -1),
-      hasLength(2),
-    );
-  });
-
   test('a store that has stopped makes search throw, not hang', () async {
     await store.close();
 

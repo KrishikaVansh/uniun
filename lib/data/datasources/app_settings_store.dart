@@ -18,6 +18,7 @@ class AppSettingsStore {
       'app_settings.auto_delete_old_notes_days';
   static const _kRecentSyncWindowDays = 'app_settings.recent_sync_window_days';
   static const _kNatarajCoachSeen = 'app_settings.nataraj_coach_seen';
+  static const _kVectorIndexRebuilt = 'app_settings.note_vector_index_rebuilt';
   static const _kLocaleCode = 'app_settings.locale_code';
   static const _kThemeMode = 'app_settings.theme_mode';
   static const _kMeshEnabled = 'app_settings.mesh_enabled';
@@ -92,6 +93,14 @@ class AppSettingsStore {
 
   Future<void> setNatarajCoachSeen(bool seen) =>
       _prefs.setBool(_kNatarajCoachSeen, seen);
+
+  /// The vector-store format whose search index was last rebuilt from its
+  /// rows, or `null` if never. Deleted vectors can linger in tostore's index
+  /// from before deletes were cleaned up; one rebuild per format clears them.
+  int? get noteVectorIndexRebuiltFormat => _prefs.getInt(_kVectorIndexRebuilt);
+
+  Future<void> setNoteVectorIndexRebuiltFormat(int format) =>
+      _prefs.setInt(_kVectorIndexRebuilt, format);
 
   /// The user's explicitly-chosen app language code (e.g. `'en'`, `'hi'`), or
   /// `null` when they've never picked one (⇒ fall back to the system locale).

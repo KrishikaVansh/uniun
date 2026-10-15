@@ -4,6 +4,7 @@ import 'package:uniun/data/models/deleted_note_model.dart';
 import 'package:uniun/data/models/note_relation_model.dart';
 import 'package:uniun/data/models/notes/note_model.dart';
 import 'package:uniun/data/models/notes/unread_note_model.dart';
+import 'package:uniun/data/models/pending_vector_delete_model.dart';
 import 'package:uniun/data/repositories/deleted_note_repository_impl.dart';
 
 import '../../_helpers/isar_seeds.dart';
@@ -50,6 +51,18 @@ void main() {
       expect(await isar.noteModels.count(), 1);
       await repo.deleteNote('ev-1');
       expect(await isar.noteModels.count(), 0);
+    });
+
+    test('queues the note\'s vector for deletion in the same commit', () async {
+      await seedNote('ev-1');
+
+      await repo.deleteNote('ev-1');
+
+      expect(
+        (await isar.pendingVectorDeleteModels.where().findAll())
+            .map((r) => r.eventId),
+        ['ev-1'],
+      );
     });
 
     test('deletes the unread row projection', () async {

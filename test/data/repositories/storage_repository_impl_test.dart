@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:isar_community/isar.dart';
+import 'package:uniun/data/models/pending_vector_delete_model.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:uniun/data/models/followed_note_model.dart';
 import 'package:uniun/data/models/notes/note_model.dart';
@@ -172,6 +173,20 @@ void main() {
           .map((u) => u.eventId)
           .toList();
       expect(unread, ['own-note']);
+    });
+
+    test('every purged note queues its vector delete, survivors do not',
+        () async {
+      await seedNoteRow(isar, 'gone-1', authorPubkey: kAlicePub);
+      await seedNoteRow(isar, 'own-note', authorPubkey: kSelfPub);
+
+      await repo.deleteFeedNotes(kSelfPub);
+
+      expect(
+        (await isar.pendingVectorDeleteModels.where().findAll())
+            .map((r) => r.eventId),
+        ['gone-1'],
+      );
     });
 
     test('nothing deletable → Right(0), database untouched', () async {
