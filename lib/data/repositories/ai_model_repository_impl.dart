@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:dartz/dartz.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_gemma/flutter_gemma.dart';
+import 'package:flutter_edge_ai/flutter_edge_ai.dart';
 import 'package:injectable/injectable.dart';
 import 'package:isar_community/isar.dart';
 import 'package:path_provider/path_provider.dart';
@@ -42,13 +42,13 @@ class AIModelRepositoryImpl implements AIModelRepository {
   static const List<AIModelEntity> _catalog = [
     AIModelEntity(
       modelId: AIModelId.qwen25_05b,
-      sizeLabel: '586 MB',
-      sizeBytes: 614572032,
+      sizeLabel: '329 MB',
+      sizeBytes: 344671744,
       tier: AIModelTier.lite,
       isRecommended: false,
       optimization: AIModelOptimization.cpu,
       downloadUrl:
-          'https://huggingface.co/litert-community/Qwen3-0.6B/resolve/main/Qwen3-0.6B.litertlm',
+          'https://huggingface.co/litert-community/Qwen3-0.6B/resolve/main/Qwen3-0.6B_dynamic_wi4b32_afp32.litertlm',
     ),
     AIModelEntity(
       modelId: AIModelId.deepseekR1,

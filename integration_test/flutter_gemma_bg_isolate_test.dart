@@ -33,10 +33,10 @@
 // WHAT THIS TEST PROBES (in one isolate, in this order):
 //   1. RootIsolateToken is obtainable from the main isolate.
 //   2. BackgroundIsolateBinaryMessenger.ensureInitialized accepts the token.
-//   3. FlutterGemma.initialize() succeeds from the bg isolate (engine
+//   3. FlutterEdgeAi.initialize() succeeds from the bg isolate (engine
 //      registration is the part most likely to fail — engines may be
 //      gated on main-isolate-only platform groups).
-//   4. FlutterGemma.hasActiveModel() returns the same answer as the main
+//   4. FlutterEdgeAi.hasActiveModel() returns the same answer as the main
 //      isolate (shared state via SharedPreferences-equivalent storage).
 //   5. getActiveModel() returns a usable handle.
 //   6. openChat() opens a session.
@@ -49,9 +49,10 @@
 import 'dart:isolate';
 
 import 'package:flutter/services.dart';
-import 'package:flutter_gemma/flutter_gemma.dart';
-import 'package:flutter_gemma_litertlm/flutter_gemma_litertlm.dart';
-import 'package:flutter_gemma_mediapipe/flutter_gemma_mediapipe.dart';
+import 'package:flutter_edge_ai_embeddings/flutter_edge_ai_embeddings.dart' show GemmaEmbeddingTokenizers;
+import 'package:flutter_edge_ai/flutter_edge_ai.dart';
+import 'package:flutter_edge_ai_litertlm/flutter_edge_ai_litertlm.dart';
+import 'package:flutter_edge_ai_mediapipe/flutter_edge_ai_mediapipe.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:uniun/domain/entities/ai_model/ai_model_entity.dart';
@@ -127,7 +128,7 @@ Future<void> _workerEntry(_WorkerMessage msg) async {
     //    on a background isolate if any registered engine touches a
     //    main-isolate-only group during initialize() — that's exactly
     //    what we want to detect.
-    await FlutterGemma.initialize(
+    await FlutterEdgeAi.initialize(
       inferenceEngines: const [
         LiteRtLmEngine(),
         MediaPipeEngine(),
@@ -135,12 +136,13 @@ Future<void> _workerEntry(_WorkerMessage msg) async {
       embeddingBackends: const [
         LiteRtEmbeddingBackend(),
       ],
+      embeddingTokenizers: const [GemmaEmbeddingTokenizers()],
     );
 
     // 3. Active-model state should be shared across isolates because it's
     //    backed by on-disk storage. If the main isolate has an active
     //    model, so should we.
-    if (!FlutterGemma.hasActiveModel()) {
+    if (!FlutterEdgeAi.hasActiveModel()) {
       msg.reply.send(
         'SKIP: no active model installed on this device — open Shiv → '
         'Select AI model → download one, then re-run',
@@ -159,7 +161,7 @@ Future<void> _workerEntry(_WorkerMessage msg) async {
     //    the WorkManager-killed-app case. Annotate the result so we can
     //    tell which path the test actually exercised.
     final openStart = DateTime.now();
-    final model = await FlutterGemma.getActiveModel(maxTokens: 64);
+    final model = await FlutterEdgeAi.getActiveModel(maxTokens: 64);
     final chat = await model.openChat(
       temperature: 0.2,
       topK: 20,

@@ -1,8 +1,9 @@
 import 'package:flutter/widgets.dart';
-import 'package:flutter_gemma/flutter_gemma.dart' hide Message;
-import 'package:flutter_gemma/core/message.dart' as gemma_msg;
-import 'package:flutter_gemma_litertlm/flutter_gemma_litertlm.dart';
-import 'package:flutter_gemma_mediapipe/flutter_gemma_mediapipe.dart';
+import 'package:flutter_edge_ai_embeddings/flutter_edge_ai_embeddings.dart' show GemmaEmbeddingTokenizers;
+import 'package:flutter_edge_ai/flutter_edge_ai.dart' hide Message;
+import 'package:flutter_edge_ai/flutter_edge_ai.dart' as gemma_msg;
+import 'package:flutter_edge_ai_litertlm/flutter_edge_ai_litertlm.dart';
+import 'package:flutter_edge_ai_mediapipe/flutter_edge_ai_mediapipe.dart';
 import 'package:isar_community/isar.dart';
 import 'package:nostr/nostr.dart';
 import 'package:path_provider/path_provider.dart';
@@ -233,11 +234,11 @@ void ganaWorkManagerDispatcher() {
       final needsLocalModel = due.any(
           (g) => !ganaResolvesToCloud(g, globalBackend: globalBackend));
       if (needsLocalModel) {
-        _log('step 4: FlutterGemma.initialize '
+        _log('step 4: FlutterEdgeAi.initialize '
             '(LiteRtLm + MediaPipe + LiteRtEmbedder)');
         final initStart = DateTime.now();
         try {
-          await FlutterGemma.initialize(
+          await FlutterEdgeAi.initialize(
             inferenceEngines: const [
               LiteRtLmEngine(),
               MediaPipeEngine(),
@@ -245,9 +246,10 @@ void ganaWorkManagerDispatcher() {
             embeddingBackends: const [
               LiteRtEmbeddingBackend(),
             ],
+            embeddingTokenizers: const [GemmaEmbeddingTokenizers()],
           );
         } catch (e, st) {
-          _log('step 4: ABORT — FlutterGemma.initialize threw: $e');
+          _log('step 4: ABORT — FlutterEdgeAi.initialize threw: $e');
           debugPrint('$_logTag stack: $st');
           await isar.close();
           return false;
@@ -255,7 +257,7 @@ void ganaWorkManagerDispatcher() {
         _log('step 4: initialized in '
             '${DateTime.now().difference(initStart).inMilliseconds}ms');
 
-        // 4b. `FlutterGemma.initialize()` only registers engines — it does NOT
+        // 4b. `FlutterEdgeAi.initialize()` only registers engines — it does NOT
         // restore which model is active. In the foreground app that happens
         // lazily the first time a Shiv screen calls
         // `AIModelRepository.getActiveModel()`. This isolate never opens a
@@ -284,7 +286,7 @@ void ganaWorkManagerDispatcher() {
         }
 
         _log('step 4c: checking hasActiveModel()');
-        if (!FlutterGemma.hasActiveModel()) {
+        if (!FlutterEdgeAi.hasActiveModel()) {
           _log('step 4c: ABORT — no active model installed');
           await isar.close();
           return true;
@@ -475,14 +477,14 @@ Future<void> _runOneGana({
       final backend = preferredLlmBackend;
       InferenceModel model;
       try {
-        model = await FlutterGemma.getActiveModel(
+        model = await FlutterEdgeAi.getActiveModel(
           maxTokens: kBackgroundMaxTokens,
           preferredBackend: backend,
         );
       } catch (e) {
         if (backend == PreferredBackend.cpu) rethrow;
         _log('  GPU open failed ($e) — retrying on CPU');
-        model = await FlutterGemma.getActiveModel(
+        model = await FlutterEdgeAi.getActiveModel(
           maxTokens: kBackgroundMaxTokens,
           preferredBackend: PreferredBackend.cpu,
         );

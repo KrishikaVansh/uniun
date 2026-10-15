@@ -17,7 +17,7 @@ enum GanaRunStatus {
 
 /// Why a [GanaRunStatus.skipped] run was a no-op.
 enum GanaSkipReason {
-  /// `FlutterGemma.hasActiveModel() == false` — user hasn't installed/loaded
+  /// `FlutterEdgeAi.hasActiveModel() == false` — user hasn't installed/loaded
   /// a model. Retry on next trigger.
   noActiveModel,
 

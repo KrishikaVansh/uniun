@@ -11,9 +11,10 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:flutter_gemma/flutter_gemma.dart';
-import 'package:flutter_gemma_litertlm/flutter_gemma_litertlm.dart';
-import 'package:flutter_gemma_mediapipe/flutter_gemma_mediapipe.dart';
+import 'package:flutter_edge_ai_embeddings/flutter_edge_ai_embeddings.dart' show GemmaEmbeddingTokenizers;
+import 'package:flutter_edge_ai/flutter_edge_ai.dart';
+import 'package:flutter_edge_ai_litertlm/flutter_edge_ai_litertlm.dart';
+import 'package:flutter_edge_ai_mediapipe/flutter_edge_ai_mediapipe.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:isar_community/isar.dart';
@@ -62,12 +63,13 @@ void main() {
     'extraction for one note: how much it stalls the main isolate',
     (tester) async {
       await configureDependencies();
-      await FlutterGemma.initialize(
+      await FlutterEdgeAi.initialize(
         inferenceEngines: const [LiteRtLmEngine(), MediaPipeEngine()],
         embeddingBackends: const [LiteRtEmbeddingBackend()],
+        embeddingTokenizers: const [GemmaEmbeddingTokenizers()],
       );
       await getIt<GetActiveAIModelUseCase>().call();
-      if (!FlutterGemma.hasActiveModel() &&
+      if (!FlutterEdgeAi.hasActiveModel() &&
           !await provisionTestModel(AIModelId.gemma4E2b)) {
         // ignore: avoid_print
         print('SKIP: push the model first — scripts/device_test.sh push-model');

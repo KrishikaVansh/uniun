@@ -5,9 +5,10 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_gemma/flutter_gemma.dart';
-import 'package:flutter_gemma_litertlm/flutter_gemma_litertlm.dart';
-import 'package:flutter_gemma_mediapipe/flutter_gemma_mediapipe.dart';
+import 'package:flutter_edge_ai_embeddings/flutter_edge_ai_embeddings.dart' show GemmaEmbeddingTokenizers;
+import 'package:flutter_edge_ai/flutter_edge_ai.dart';
+import 'package:flutter_edge_ai_litertlm/flutter_edge_ai_litertlm.dart';
+import 'package:flutter_edge_ai_mediapipe/flutter_edge_ai_mediapipe.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -40,9 +41,10 @@ void showTestScreen(String message) {
 /// `configureDependencies()`.
 Future<bool> provisionTestModel(AIModelId id) async {
   showTestScreen('UNIUN test starting — preparing ${id.name}…');
-  await FlutterGemma.initialize(
+  await FlutterEdgeAi.initialize(
     inferenceEngines: const [LiteRtLmEngine(), MediaPipeEngine()],
     embeddingBackends: const [LiteRtEmbeddingBackend()],
+    embeddingTokenizers: const [GemmaEmbeddingTokenizers()],
   );
 
   final filename = _filename(id);
@@ -70,13 +72,13 @@ Future<bool> provisionTestModel(AIModelId id) async {
       showTestScreen('UNIUN test starting — copying ${id.name} (one time)…');
       await fixture.copy(file.path);
     }
-    await FlutterGemma.installModel(
+    await FlutterEdgeAi.installModel(
       modelType: _modelType(id),
       fileType: filename.endsWith('.task')
           ? ModelFileType.task
           : ModelFileType.litertlm,
     ).fromFile(file.path).install();
-  } else if (!await FlutterGemma.isModelInstalled(filename)) {
+  } else if (!await FlutterEdgeAi.isModelInstalled(filename)) {
     showTestScreen('No ${id.name} model fixture is available');
     return false;
   }
@@ -95,7 +97,7 @@ ModelType _modelType(AIModelId id) => switch (id) {
 
 /// Matches the basename of each model's `downloadUrl` in the catalog.
 String _filename(AIModelId id) => switch (id) {
-  AIModelId.qwen25_05b => 'Qwen3-0.6B.litertlm',
+  AIModelId.qwen25_05b => 'Qwen3-0.6B_dynamic_wi4b32_afp32.litertlm',
   AIModelId.deepseekR1 => 'deepseek_q8_ekv1280.task',
   AIModelId.gemma4E2b => 'gemma-4-E2B-it.litertlm',
   AIModelId.gemma4E4b => 'gemma-4-E4B-it.litertlm',

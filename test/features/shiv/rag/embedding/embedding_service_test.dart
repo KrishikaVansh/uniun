@@ -1,22 +1,22 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_gemma/flutter_gemma.dart' hide CancelToken;
+import 'package:flutter_edge_ai/flutter_edge_ai.dart' hide CancelToken;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:uniun/data/datasources/llm/embedding_queue.dart';
 import 'package:uniun/data/datasources/llm/flutter_gemma_gateway.dart';
 import 'package:uniun/features/shiv/rag/embedding/embedding_service.dart';
+import '../../../../_helpers/fake_embedding_model.dart';
 
 class _MockGateway extends Mock implements FlutterGemmaGateway {}
 
-class _MockEmbeddingModel extends Mock implements EmbeddingModel {}
 
 /// Covers EmbeddingService's real orchestration logic — install-once,
 /// GPU→CPU backend fallback, embed()'s lazy-init + degrade-to-empty
 /// contract, L2 normalisation — via the FlutterGemmaGateway seam
 /// (see docs/AUDIT.md, Group A native-ceiling closure). Before the seam,
-/// this class called `FlutterGemma.*` statics directly with no mockable
+/// this class called `FlutterEdgeAi.*` statics directly with no mockable
 /// path at all.
 void main() {
   setUpAll(() {
@@ -73,7 +73,7 @@ void main() {
             modelAsset: any(named: 'modelAsset'),
             tokenizerAsset: any(named: 'tokenizerAsset'),
           )).thenAnswer((_) async {});
-      final model = _MockEmbeddingModel();
+      final model = FakeEmbeddingModel();
       when(() => gateway.getActiveEmbedder(preferredBackend: any(named: 'preferredBackend')))
           .thenAnswer((_) async => model);
 
@@ -86,7 +86,7 @@ void main() {
 
     test('is idempotent — a second call is a no-op once ready', () async {
       when(() => gateway.hasActiveEmbedder()).thenReturn(true);
-      final model = _MockEmbeddingModel();
+      final model = FakeEmbeddingModel();
       when(() => gateway.getActiveEmbedder(preferredBackend: any(named: 'preferredBackend')))
           .thenAnswer((_) async => model);
 
@@ -100,7 +100,7 @@ void main() {
     test('GPU open failure falls back to CPU and still becomes ready',
         () async {
       when(() => gateway.hasActiveEmbedder()).thenReturn(true);
-      final cpuModel = _MockEmbeddingModel();
+      final cpuModel = FakeEmbeddingModel();
       when(() => gateway.getActiveEmbedder(preferredBackend: PreferredBackend.gpu))
           .thenThrow(Exception('Metal texture binding overflow'));
       when(() => gateway.getActiveEmbedder(preferredBackend: PreferredBackend.cpu))
@@ -139,10 +139,10 @@ void main() {
   group('embed', () {
     test('lazily calls init() when not yet ready', () async {
       when(() => gateway.hasActiveEmbedder()).thenReturn(true);
-      final model = _MockEmbeddingModel();
+      final model = FakeEmbeddingModel();
       when(() => gateway.getActiveEmbedder(preferredBackend: any(named: 'preferredBackend')))
           .thenAnswer((_) async => model);
-      when(() => model.generateEmbedding(any(), taskType: any(named: 'taskType')))
+      when(() => model.calls.embed(any(), any()))
           .thenAnswer((_) async => [0.6, 0.8]); // already unit-norm
 
       final vec = await service.embed('hello');
@@ -165,27 +165,27 @@ void main() {
     test('passes retrievalDocument taskType when isDocument:true, '
         'retrievalQuery otherwise', () async {
       when(() => gateway.hasActiveEmbedder()).thenReturn(true);
-      final model = _MockEmbeddingModel();
+      final model = FakeEmbeddingModel();
       when(() => gateway.getActiveEmbedder(preferredBackend: any(named: 'preferredBackend')))
           .thenAnswer((_) async => model);
-      when(() => model.generateEmbedding(any(), taskType: any(named: 'taskType')))
+      when(() => model.calls.embed(any(), any()))
           .thenAnswer((_) async => [1.0]);
 
       await service.embed('q', isDocument: true);
       await service.embed('q');
 
-      verify(() => model.generateEmbedding('q', taskType: TaskType.retrievalDocument))
+      verify(() => model.calls.embed('q', TaskType.retrievalDocument))
           .called(1);
-      verify(() => model.generateEmbedding('q', taskType: TaskType.retrievalQuery))
+      verify(() => model.calls.embed('q', TaskType.retrievalQuery))
           .called(1);
     });
 
     test('L2-normalizes a non-unit vector', () async {
       when(() => gateway.hasActiveEmbedder()).thenReturn(true);
-      final model = _MockEmbeddingModel();
+      final model = FakeEmbeddingModel();
       when(() => gateway.getActiveEmbedder(preferredBackend: any(named: 'preferredBackend')))
           .thenAnswer((_) async => model);
-      when(() => model.generateEmbedding(any(), taskType: any(named: 'taskType')))
+      when(() => model.calls.embed(any(), any()))
           .thenAnswer((_) async => [3.0, 4.0]); // norm = 5
 
       final vec = await service.embed('hello');
@@ -196,10 +196,10 @@ void main() {
 
     test('a zero vector is returned unchanged (no divide-by-zero)', () async {
       when(() => gateway.hasActiveEmbedder()).thenReturn(true);
-      final model = _MockEmbeddingModel();
+      final model = FakeEmbeddingModel();
       when(() => gateway.getActiveEmbedder(preferredBackend: any(named: 'preferredBackend')))
           .thenAnswer((_) async => model);
-      when(() => model.generateEmbedding(any(), taskType: any(named: 'taskType')))
+      when(() => model.calls.embed(any(), any()))
           .thenAnswer((_) async => [0.0, 0.0]);
 
       final vec = await service.embed('hello');
@@ -207,12 +207,75 @@ void main() {
       expect(vec, [0.0, 0.0]);
     });
 
-    test('a generateEmbedding failure degrades to [], not a throw', () async {
+    test('an over-long input is shortened by the reported ratio and retried',
+        () async {
       when(() => gateway.hasActiveEmbedder()).thenReturn(true);
-      final model = _MockEmbeddingModel();
+      final model = FakeEmbeddingModel();
       when(() => gateway.getActiveEmbedder(preferredBackend: any(named: 'preferredBackend')))
           .thenAnswer((_) async => model);
-      when(() => model.generateEmbedding(any(), taskType: any(named: 'taskType')))
+      final seen = <int>[];
+      when(() => model.calls.embed(any(), any())).thenAnswer((i) async {
+        final text = i.positionalArguments.first as String;
+        seen.add(text.length);
+        if (text.length > 600) {
+          throw const EmbeddingInputTooLongException(
+            'too long',
+            maxInputTokens: 512,
+            actualTokens: 1024,
+          );
+        }
+        return [1.0, 0.0];
+      });
+
+      final vec = await service.embed('x' * 1000, isDocument: true);
+
+      expect(vec, [1.0, 0.0]);
+      expect(seen.first, 1000);
+      expect(seen.last, lessThanOrEqualTo(600));
+    });
+
+    test('an input that never fits gives up with [] instead of looping',
+        () async {
+      when(() => gateway.hasActiveEmbedder()).thenReturn(true);
+      final model = FakeEmbeddingModel();
+      when(() => gateway.getActiveEmbedder(preferredBackend: any(named: 'preferredBackend')))
+          .thenAnswer((_) async => model);
+      var calls = 0;
+      when(() => model.calls.embed(any(), any())).thenAnswer((_) async {
+        calls++;
+        throw const EmbeddingInputTooLongException(
+          'too long',
+          maxInputTokens: 8,
+        );
+      });
+
+      final vec = await service.embed('y' * 5000);
+
+      expect(vec, isEmpty);
+      expect(calls, 4);
+    });
+
+    test('a one-character input that is too long stops at once', () async {
+      when(() => gateway.hasActiveEmbedder()).thenReturn(true);
+      final model = FakeEmbeddingModel();
+      when(() => gateway.getActiveEmbedder(preferredBackend: any(named: 'preferredBackend')))
+          .thenAnswer((_) async => model);
+      var calls = 0;
+      when(() => model.calls.embed(any(), any())).thenAnswer((_) async {
+        calls++;
+        throw const EmbeddingInputTooLongException('x', maxInputTokens: 1);
+      });
+
+      expect(await service.embed('z'), isEmpty);
+      expect(calls, 1);
+    });
+
+    test('a generateEmbedding failure degrades to [], not a throw', () async {
+      when(() => gateway.hasActiveEmbedder()).thenReturn(true);
+      final model = FakeEmbeddingModel();
+      when(() => gateway.getActiveEmbedder(preferredBackend: any(named: 'preferredBackend')))
+          .thenAnswer((_) async => model);
+      when(() => model.calls.embed(any(), any()))
           .thenThrow(Exception('inference crashed'));
 
       final vec = await service.embed('hello');
@@ -224,15 +287,15 @@ void main() {
   group('dispose', () {
     test('closes the model and resets isReady to false', () async {
       when(() => gateway.hasActiveEmbedder()).thenReturn(true);
-      final model = _MockEmbeddingModel();
+      final model = FakeEmbeddingModel();
       when(() => gateway.getActiveEmbedder(preferredBackend: any(named: 'preferredBackend')))
           .thenAnswer((_) async => model);
-      when(() => model.close()).thenAnswer((_) async {});
+      when(() => model.calls.close()).thenAnswer((_) async {});
       await service.init();
 
       await service.dispose();
 
-      verify(() => model.close()).called(1);
+      verify(() => model.calls.close()).called(1);
       expect(service.isReady, isFalse);
     });
 
@@ -244,14 +307,14 @@ void main() {
   });
 
   group('the shared gate', () {
-    late _MockEmbeddingModel model;
+    late FakeEmbeddingModel model;
     final started = <String>[];
     final release = <String, Completer<List<double>>>{};
 
     setUp(() {
       started.clear();
       release.clear();
-      model = _MockEmbeddingModel();
+      model = FakeEmbeddingModel();
       when(() => gateway.hasActiveEmbedder()).thenReturn(true);
       when(
         () => gateway.getActiveEmbedder(
@@ -260,7 +323,7 @@ void main() {
       ).thenAnswer((_) async => model);
       // Each embed starts, then waits until the test lets it finish.
       when(
-        () => model.generateEmbedding(any(), taskType: any(named: 'taskType')),
+        () => model.calls.embed(any(), any()),
       ).thenAnswer((i) {
         final text = i.positionalArguments.first as String;
         started.add(text);
@@ -341,7 +404,7 @@ void main() {
 
     test('a failed embed frees the gate for the next one', () async {
       when(
-        () => model.generateEmbedding('boom', taskType: any(named: 'taskType')),
+        () => model.calls.embed('boom', any()),
       ).thenThrow(Exception('inference crashed'));
 
       final failed = await service.embed('boom', isDocument: true);

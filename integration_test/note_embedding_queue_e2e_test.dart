@@ -6,9 +6,10 @@
 //
 //   scripts/device_test.sh run integration_test/note_embedding_queue_e2e_test.dart
 
-import 'package:flutter_gemma/flutter_gemma.dart';
-import 'package:flutter_gemma_litertlm/flutter_gemma_litertlm.dart';
-import 'package:flutter_gemma_mediapipe/flutter_gemma_mediapipe.dart';
+import 'package:flutter_edge_ai_embeddings/flutter_edge_ai_embeddings.dart' show GemmaEmbeddingTokenizers;
+import 'package:flutter_edge_ai/flutter_edge_ai.dart';
+import 'package:flutter_edge_ai_litertlm/flutter_edge_ai_litertlm.dart';
+import 'package:flutter_edge_ai_mediapipe/flutter_edge_ai_mediapipe.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:isar_community/isar.dart';
@@ -28,9 +29,10 @@ void main() {
     'a queued note is embedded, stored and leaves the queue',
     (tester) async {
       await configureDependencies();
-      await FlutterGemma.initialize(
+      await FlutterEdgeAi.initialize(
         inferenceEngines: const [LiteRtLmEngine(), MediaPipeEngine()],
         embeddingBackends: const [LiteRtEmbeddingBackend()],
+        embeddingTokenizers: const [GemmaEmbeddingTokenizers()],
       );
       final pending = getIt<PendingEmbeddingRepository>();
       final vectors = getIt<VectorRepository>();
@@ -43,6 +45,15 @@ void main() {
         isNotEmpty,
         reason: '[] means the bundled embedding model did not load',
       );
+
+      // `--no-uninstall` keeps the device database, so rows queued by earlier
+      // tests are still pending and would each cost an embed plus an extract
+      // pass. This test is about its own note, so start from an empty queue.
+      for (;;) {
+        final next = (await pending.next()).getOrElse(() => null);
+        if (next == null) break;
+        await pending.remove(next.eventId);
+      }
 
       final id = 'e2e-pending-${DateTime.now().microsecondsSinceEpoch}';
       const text = 'The harbour lighthouse keeper logged every ship at dawn.';

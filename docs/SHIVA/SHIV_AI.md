@@ -629,7 +629,7 @@ All four files come from the `litert-community` org on HuggingFace — the same 
 
 | AIModelId | Display | Size | Format | ModelType | isThinking |
 |---|---|---|---|---|---|
-| `qwen25_05b` | Qwen3 0.6B | 586 MB | `.litertlm` | `qwen3` | false |
+| `qwen25_05b` | Qwen3 0.6B | 329 MB | `.litertlm` | `qwen3` | false |
 | `deepseekR1` | DeepSeek R1 1.5B ⭐ | 1.7 GB | `.task` | `deepSeek` | true |
 | `gemma4E2b` | Gemma 4 E2B | 2.4 GB | `.litertlm` | `gemma4` | false |
 | `gemma4E4b` | Gemma 4 E4B | 4.3 GB | `.litertlm` | `gemma4` | false |

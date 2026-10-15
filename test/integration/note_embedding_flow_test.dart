@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter_gemma/flutter_gemma.dart' hide CancelToken;
+import 'package:flutter_edge_ai/flutter_edge_ai.dart' hide CancelToken;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:isar_community/isar.dart';
 import 'package:mocktail/mocktail.dart';
@@ -18,10 +18,10 @@ import 'package:uniun/features/shiv/rag/embedding/embedding_service.dart';
 
 import '../_helpers/note_embedding_worker_factory.dart';
 import '../_helpers/isar_test_harness.dart';
+import '../_helpers/fake_embedding_model.dart';
 
 class _MockGateway extends Mock implements FlutterGemmaGateway {}
 
-class _MockModel extends Mock implements EmbeddingModel {}
 
 class _MockExtract extends Mock implements ExtractKnowledgeUseCase {}
 
@@ -56,7 +56,7 @@ void main() {
   late Isar isar;
   late PendingEmbeddingRepositoryImpl pending;
   late _MockGateway gateway;
-  late _MockModel model;
+  late FakeEmbeddingModel model;
   late EmbeddingService embedding;
   late _Vectors vectors;
   late _MockExtract extract;
@@ -95,7 +95,7 @@ void main() {
     isar = await openTestIsar();
     pending = PendingEmbeddingRepositoryImpl(isar: isar);
     gateway = _MockGateway();
-    model = _MockModel();
+    model = FakeEmbeddingModel();
     vectors = _Vectors();
     extract = _MockExtract();
     asked = [];
@@ -115,10 +115,10 @@ void main() {
       return model;
     });
     when(
-      () => model.generateEmbedding(any(), taskType: any(named: 'taskType')),
+      () => model.calls.embed(any(), any()),
     ).thenAnswer((i) async {
       final text = i.positionalArguments.first as String;
-      asked.add((text, i.namedArguments[#taskType] as TaskType));
+      asked.add((text, i.positionalArguments[1] as TaskType));
       inFlight++;
       if (inFlight > maxInFlight) maxInFlight = inFlight;
       await Future<void>.delayed(embedTime);
@@ -303,7 +303,7 @@ void main() {
         final hang = Completer<List<double>>();
         when(
           () =>
-              model.generateEmbedding(any(), taskType: any(named: 'taskType')),
+              model.calls.embed(any(), any()),
         ).thenAnswer((_) => hang.future); // never completes: the process "died"
         await save.call(('n1', 'a note that was mid-embed'));
         await Future<void>.delayed(const Duration(milliseconds: 50));
@@ -316,7 +316,7 @@ void main() {
         // "Next launch": new service and worker over the same database.
         when(
           () =>
-              model.generateEmbedding(any(), taskType: any(named: 'taskType')),
+              model.calls.embed(any(), any()),
         ).thenAnswer((_) async => [1.0, 2.0]);
         wire();
         worker.nudge();
