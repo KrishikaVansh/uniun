@@ -12,7 +12,7 @@ import 'package:uniun/data/datasources/llm/local_model_params.dart';
 import 'package:uniun/domain/entities/ai_model/ai_model_entity.dart';
 import 'package:uniun/domain/entities/llm/llm_task_kind.dart';
 
-/// Wraps flutter_edge_ai (then flutter_edge_ai 1.x) for token-streaming inference.
+/// Wraps flutter_edge_ai (then flutter_gemma 1.x) for token-streaming inference.
 ///
 /// Serialization is delegated to [InferenceScheduler] (see
 /// `docs/SHIVA/scheduling.md`) — the scheduler picks the next job based on

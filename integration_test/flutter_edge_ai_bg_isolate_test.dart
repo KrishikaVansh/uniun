@@ -1,4 +1,4 @@
-// Phase 6a verification — does flutter_edge_ai (then flutter_edge_ai 1.0.0) work in a background
+// Phase 6a verification — does flutter_edge_ai (then flutter_gemma 1.0.0) work in a background
 // isolate via RootIsolateToken / BackgroundIsolateBinaryMessenger?
 //
 // PASS path: result starts with `OK:` → green light for true background
@@ -22,7 +22,7 @@
 //   flutter test integration_test/ -d <device-id>
 //
 // PRECONDITIONS:
-//   1. flutter_edge_ai (then flutter_edge_ai ^1.0.0) + the matching engine sub-package present in
+//   1. flutter_edge_ai (then flutter_gemma ^1.0.0) + the matching engine sub-package present in
 //      pubspec.yaml (we ship both LiteRtLm and MediaPipe; the test
 //      registers both so whichever the active model needs works).
 //   2. A model is already installed on the device — use the Shiv
@@ -62,7 +62,7 @@ import 'support/test_model.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  test('flutter_edge_ai (then flutter_edge_ai 1.0.0) runs inference in a background isolate',
+  test('flutter_edge_ai (then flutter_gemma 1.0.0) runs inference in a background isolate',
       () async {
     final token = RootIsolateToken.instance;
     expect(
@@ -124,7 +124,7 @@ Future<void> _workerEntry(_WorkerMessage msg) async {
     // 1. Open the platform-group bridge so plugin calls work.
     BackgroundIsolateBinaryMessenger.ensureInitialized(msg.token);
 
-    // 2. Initialize flutter_edge_ai (then flutter_edge_ai 1.0.0.) Engine registration MAY throw
+    // 2. Initialize flutter_edge_ai (then flutter_gemma 1.0.0.) Engine registration MAY throw
     //    on a background isolate if any registered engine touches a
     //    main-isolate-only group during initialize() — that's exactly
     //    what we want to detect.

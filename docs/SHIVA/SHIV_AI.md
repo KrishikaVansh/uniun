@@ -2,7 +2,7 @@
 
 Shiv is UNIUN's AI assistant. It reasons over the user's saved notes via vector + graph RAG, and runs against **two interchangeable backends** behind one repository:
 
-- **Local** — `flutter_edge_ai (then flutter_edge_ai 1.5.1)` on-device inference (default, fully offline).
+- **Local** — `flutter_edge_ai (then flutter_gemma 1.5.1)` on-device inference (default, fully offline).
 - **Cloud (UNIUN Cloud)** — UNIUN's own inference gateway (`api.uniun.in`), authenticated with the user's own Nostr keypair — no separate password/account. See `UniunRepository`/`UniunRepositoryImpl` below; this replaced an earlier direct-OpenRouter integration entirely (`openrouter_api` is no longer a dependency).
 
 The user picks the backend in Settings. The chat code, RAG pipeline, knowledge extractor and BLoC have **no idea which backend is active** — they call the same `LlmRepository` interface.
@@ -57,7 +57,7 @@ AIModelRunner ▶ openChat(modelType…)         UniunRepository.streamChat()
         │  InferenceScheduler (5-tier — see              │
         │  docs/SHIVA/scheduling.md)                     ▼
         ▼                                     UniunRepositoryImpl
-flutter_edge_ai (then flutter_edge_ai 1.5.1) (LiteRT-LM / MediaPipe)        (the ONLY class that
+flutter_edge_ai (then flutter_gemma 1.5.1) (LiteRT-LM / MediaPipe)        (the ONLY class that
                                                  imports UniunGatewayClient)
                                                         │
                                                         ▼
@@ -160,7 +160,7 @@ lib/data/datasources/llm/
 ├── local_llm_data_source.dart       wraps AIModelRunner + InferenceScheduler
 │                                    listAvailableModels → local catalog (downloaded only)
 │
-├── local_llm_runner.dart            opens InferenceChat via flutter_edge_ai (then flutter_edge_ai 1.5.1)
+├── local_llm_runner.dart            opens InferenceChat via flutter_edge_ai (then flutter_gemma 1.5.1)
 │                                    passes modelType + isThinking per active model
 │                                    holds _activeExtraction → safe preemption
 │

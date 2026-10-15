@@ -155,7 +155,7 @@ When a new job arrives whose tier < the running job's tier:
 ### Model affinity rule
 
 Each job carries a `modelId` (the model it expects to run on). Model
-swap is expensive — ~10 s to unload + load on flutter_edge_ai (then flutter_edge_ai 1.1.x.)
+swap is expensive — ~10 s to unload + load on flutter_edge_ai (then flutter_gemma 1.1.x.)
 
 - **T0 chat** ignores affinity; it preempts even across a swap. User-
   facing latency wins.

@@ -40,7 +40,7 @@ Future<void> meshEngineMain() => runMeshEngine();
 Future<void> main() async {
   final binding = WidgetsFlutterBinding.ensureInitialized();
   await _ensureDownloaderCacheDir();
-  // flutter_edge_ai (then flutter_edge_ai 1.0.0): release builds are silent automatically (the plugin
+  // flutter_edge_ai (then flutter_gemma 1.0.0): release builds are silent automatically (the plugin
   // gates every log on `kDebugMode`). In debug, keep `info` — lifecycle and
   // errors, no prompts/output. Bump to `verbose` only when actively chasing a
   // model bug.

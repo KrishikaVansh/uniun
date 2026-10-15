@@ -3,7 +3,7 @@
 // What it verifies (matches docs/SHIVA/scheduling.md Scenario 1):
 //   While a Nataraj job is mid-stream against a real loaded model, a
 //   chat submission must preempt it within one token boundary
-//   (empirically <500 ms on flutter_edge_ai (then flutter_edge_ai 1.1.x)). This is the
+//   (empirically <500 ms on flutter_edge_ai (then flutter_gemma 1.1.x)). This is the
 //   user-visible #118 fix.
 //
 // PASS path: result starts with `OK:` → scheduler preemption works on

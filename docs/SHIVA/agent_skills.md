@@ -1,7 +1,7 @@
 # Agent Skills — Agentic Ganas + User-Defined Skills
 
 How UNIUN turns Ganas from one-shot generators into multi-step agents,
-using the skill runtime that shipped with `flutter_edge_ai (then flutter_edge_ai 1.2.0)`
+using the skill runtime that shipped with `flutter_edge_ai (then flutter_gemma 1.2.0)`
 (`skillExecutors:` seam) + the opt-in `flutter_edge_ai_agent` package.
 Extends [`Ganas.md`](Ganas.md); scheduling constraints come from
 [`scheduling.md`](scheduling.md); all knowledge retrieval stays rooted
@@ -54,7 +54,7 @@ once, and either publish the body or honor the `<NOOP>` sentinel
 - **Capabilities require app releases.** A Gana can only do what the
   prompt builder hard-codes.
 
-`flutter_edge_ai (then flutter_edge_ai 1.2.0)` added the `skillExecutors:` registration seam;
+`flutter_edge_ai (then flutter_gemma 1.2.0)` added the `skillExecutors:` registration seam;
 `flutter_edge_ai_agent` (0.1.x) supplies the agent loop: the model reads
 skill descriptions, emits a function call picking a skill, the
 executor runs it, the result feeds back, the model continues. This doc
@@ -70,7 +70,7 @@ CPU is flat and Metal (iOS) is flat. Fixed upstream
 multiply a per-turn leak on either GPU backend.
 
 **Status update (2026-09-15):** fixed in `flutter_edge_ai_litertlm` 1.4.1
-(LiteRT-LM v0.16.0). UNIUN now ships flutter_edge_ai (then flutter_edge_ai 1.8.3) / litertlm 1.6.3
+(LiteRT-LM v0.16.0). UNIUN now ships flutter_edge_ai (then flutter_gemma 1.8.3) / litertlm 1.6.3
 and prefers GPU on Android as well (`lib/core/utils/llm_backend.dart`). The
 "separate SIGSEGV" previously cited as a second blocker was never tied to an
 upstream issue; the known Android GPU native-crash classes (flutter_edge_ai
@@ -146,7 +146,7 @@ each:
 | `NativeIntentExecutor` | Whitelisted OS intents + confirmation | 🔶 Phase 3 (reminders, share sheet) |
 | `McpSkillExecutor` | Remote MCP tools over HTTP | ❌ Never — violates offline-first / no-cloud-AI |
 
-`SkillExecutorProvider` (core contract in flutter_edge_ai (then flutter_edge_ai 1.2.0)) is a
+`SkillExecutorProvider` (core contract in flutter_edge_ai (then flutter_gemma 1.2.0)) is a
 3-member interface — `name`, `priority`, `canExecute(skillType)` — so
 `UniunSkillExecutor` is a plain data-layer class implementing it and
 dispatching skill calls to injected use cases.
