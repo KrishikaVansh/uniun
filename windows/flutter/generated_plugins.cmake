@@ -6,7 +6,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   bonsoir_windows
   connectivity_plus
   file_selector_windows
-  flutter_gemma
+  flutter_edge_ai
   flutter_secure_storage_windows
   isar_community_flutter_libs
   share_plus

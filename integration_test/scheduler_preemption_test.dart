@@ -31,7 +31,7 @@
 
 import 'dart:async';
 
-import 'package:flutter_gemma/flutter_gemma.dart' hide CancelToken;
+import 'package:flutter_edge_ai/flutter_edge_ai.dart' hide CancelToken;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:uniun/data/datasources/llm/inference_scheduler.dart';
@@ -46,7 +46,7 @@ void main() {
   testWidgets(
     'chat preempts running nataraj on the real flutter_gemma engine',
     (tester) async {
-      if (!FlutterGemma.hasActiveModel() &&
+      if (!FlutterEdgeAi.hasActiveModel() &&
           !await provisionTestModel(AIModelId.gemma4E2b)) {
         // ignore: avoid_print
         print('SKIP: no active model on device — install one via Shiv first');
@@ -65,7 +65,7 @@ void main() {
         CancelToken cancel, {
         int maxTokens = 800,
       }) async {
-        final model = await FlutterGemma.getActiveModel(maxTokens: maxTokens);
+        final model = await FlutterEdgeAi.getActiveModel(maxTokens: maxTokens);
         final chat = await model.openChat(temperature: 0.8, topK: 40);
         try {
           await chat.addQueryChunk(Message.text(text: prompt));
@@ -89,7 +89,7 @@ void main() {
       // Load the model first and use one maxTokens everywhere: a different
       // value makes flutter_gemma rebuild the model, and a cold load takes
       // tens of seconds — both would be measured as "preempt latency".
-      await FlutterGemma.getActiveModel(maxTokens: 800);
+      await FlutterEdgeAi.getActiveModel(maxTokens: 800);
 
       // 1. Submit a long Nataraj-equivalent at T4.
       final natarajFuture = scheduler.run<String?>(
@@ -117,7 +117,7 @@ void main() {
         kind: LlmTaskKind.chat,
         modelId: 'integration_test_model',
         work: (cancel) async {
-          final model = await FlutterGemma.getActiveModel(maxTokens: 800);
+          final model = await FlutterEdgeAi.getActiveModel(maxTokens: 800);
           final chat = await model.openChat(temperature: 0.8, topK: 40);
           try {
             await chat.addQueryChunk(Message.text(text: 'Say hello.'));

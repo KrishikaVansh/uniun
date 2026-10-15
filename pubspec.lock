@@ -579,6 +579,46 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  flutter_edge_ai:
+    dependency: "direct main"
+    description:
+      name: flutter_edge_ai
+      sha256: "1be99ff7d86c68332571ea3252844457dfc3f69afda0f6f2da7622ce4a7787ec"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.3.2"
+  flutter_edge_ai_diagnostics:
+    dependency: "direct dev"
+    description:
+      name: flutter_edge_ai_diagnostics
+      sha256: "15b7d046448ed9ccf6a07bbf11f33b1119da368ac18a8969dd03c9de34fdf314"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.2.2"
+  flutter_edge_ai_embeddings:
+    dependency: "direct main"
+    description:
+      name: flutter_edge_ai_embeddings
+      sha256: d440b5eebc61c09b10a45cb22e3e9df29a33fe2d1c6cced57955c99342a04671
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.3.0"
+  flutter_edge_ai_litertlm:
+    dependency: "direct main"
+    description:
+      name: flutter_edge_ai_litertlm
+      sha256: a804f2b0eea6f7d4446b1bc1ef76af0acdd7a3c77e0b3d2040eaacfc335b1c7a
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.13.2"
+  flutter_edge_ai_mediapipe:
+    dependency: "direct main"
+    description:
+      name: flutter_edge_ai_mediapipe
+      sha256: "60b6c136d473735d43a67b48a57547c2da20d6b2e2cb4d895c6e7c9191dc095c"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.2.2"
   flutter_file_dialog:
     dependency: "direct main"
     description:
@@ -587,38 +627,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.3"
-  flutter_gemma:
-    dependency: "direct main"
-    description:
-      name: flutter_gemma
-      sha256: "35708ea9005504433db7eb0a81ed899691fea988a2b07f626cd30b0ef0bd481e"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.8.3"
-  flutter_gemma_embeddings:
-    dependency: "direct main"
-    description:
-      name: flutter_gemma_embeddings
-      sha256: "05856544fe015812a59f93f215455a04e7c8c1d05f76a3fe58ecb98811149d51"
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.1.1"
-  flutter_gemma_litertlm:
-    dependency: "direct main"
-    description:
-      name: flutter_gemma_litertlm
-      sha256: "6926612c00ade0e5c79b66a92d302567565991901596c0baddd03be98d711f89"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.6.3"
-  flutter_gemma_mediapipe:
-    dependency: "direct main"
-    description:
-      name: flutter_gemma_mediapipe
-      sha256: "1f5543f5bcbbdb7fa76b532507056a07187776a77fc68497f1d8be9d5c91ed0d"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.0.6"
   flutter_image_compress:
     dependency: "direct main"
     description:

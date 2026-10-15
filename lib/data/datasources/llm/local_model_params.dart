@@ -1,4 +1,4 @@
-import 'package:flutter_gemma/flutter_gemma.dart';
+import 'package:flutter_edge_ai/flutter_edge_ai.dart';
 import 'package:uniun/domain/entities/ai_model/ai_model_entity.dart';
 
 /// Static map from our public [AIModelId] to the flutter_gemma engine params

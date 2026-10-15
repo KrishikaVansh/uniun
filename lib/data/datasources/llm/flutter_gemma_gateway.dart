@@ -1,15 +1,15 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter_gemma/flutter_gemma.dart';
+import 'package:flutter_edge_ai/flutter_edge_ai.dart';
 import 'package:injectable/injectable.dart';
 
-/// Thin seam around every `FlutterGemma.*` static call [AIModelRunner],
+/// Thin seam around every `FlutterEdgeAi.*` static call [AIModelRunner],
 /// [AIModelRepositoryImpl], and [EmbeddingService] make. Exists purely so
 /// those classes' real logic (retry, backend fallback, prompt composition,
 /// scheduler coordination, orchestration branching) can be unit tested with
-/// a mock — `FlutterGemma`'s own statics have no seam of their own, and the
-/// plugin's real behavior needs either a device or `FlutterGemma.
+/// a mock — `FlutterEdgeAi`'s own statics have no seam of their own, and the
+/// plugin's real behavior needs either a device or `FlutterEdgeAi.
 /// initialize()` + mocked platform channels (both already used elsewhere
 /// this session, neither reaches every branch these classes have).
 ///
@@ -73,7 +73,7 @@ abstract class FlutterGemmaGateway {
 @Injectable(as: FlutterGemmaGateway)
 class FlutterGemmaGatewayImpl implements FlutterGemmaGateway {
   @override
-  bool hasActiveModel() => FlutterGemma.hasActiveModel();
+  bool hasActiveModel() => FlutterEdgeAi.hasActiveModel();
 
   @override
   Future<InferenceModel> getActiveModel({
@@ -82,7 +82,7 @@ class FlutterGemmaGatewayImpl implements FlutterGemmaGateway {
     bool supportImage = false,
     int? maxNumImages,
   }) =>
-      FlutterGemma.getActiveModel(
+      FlutterEdgeAi.getActiveModel(
         maxTokens: maxTokens,
         preferredBackend: preferredBackend,
         supportImage: supportImage,
@@ -91,7 +91,7 @@ class FlutterGemmaGatewayImpl implements FlutterGemmaGateway {
 
   @override
   Future<bool> isModelInstalled(String filename) =>
-      FlutterGemma.isModelInstalled(filename);
+      FlutterEdgeAi.isModelInstalled(filename);
 
   /// Android-only: runs the download under a dataSync foreground service, so a
   /// multi-GB model survives backgrounding and Doze. iOS gains nothing from it
@@ -104,7 +104,7 @@ class FlutterGemmaGatewayImpl implements FlutterGemmaGateway {
     required ModelFileType fileType,
     required String networkUrl,
   }) =>
-      FlutterGemma.installModel(modelType: modelType, fileType: fileType)
+      FlutterEdgeAi.installModel(modelType: modelType, fileType: fileType)
           .fromNetwork(networkUrl, foreground: _foreground)
           .install();
 
@@ -116,7 +116,7 @@ class FlutterGemmaGatewayImpl implements FlutterGemmaGateway {
     required CancelToken cancelToken,
   }) {
     final controller = StreamController<int>();
-    FlutterGemma.installModel(modelType: modelType, fileType: fileType)
+    FlutterEdgeAi.installModel(modelType: modelType, fileType: fileType)
         .fromNetwork(networkUrl, foreground: _foreground)
         .withProgress((percent) {
           if (!controller.isClosed) controller.add(percent);
@@ -137,31 +137,31 @@ class FlutterGemmaGatewayImpl implements FlutterGemmaGateway {
 
   @override
   Future<void> uninstallModel(String filename) =>
-      FlutterGemma.uninstallModel(filename);
+      FlutterEdgeAi.uninstallModel(filename);
 
   @override
-  Future<StorageStats> getStorageInfo() => FlutterGemma.getStorageInfo();
+  Future<StorageStats> getStorageInfo() => FlutterEdgeAi.getStorageInfo();
 
   @override
   Future<List<OrphanedFileInfo>> getOrphanedFiles() =>
-      FlutterGemma.getOrphanedFiles();
+      FlutterEdgeAi.getOrphanedFiles();
 
   @override
-  Future<int> cleanupStorage() => FlutterGemma.cleanupStorage();
+  Future<int> cleanupStorage() => FlutterEdgeAi.cleanupStorage();
 
   @override
-  bool hasActiveEmbedder() => FlutterGemma.hasActiveEmbedder();
+  bool hasActiveEmbedder() => FlutterEdgeAi.hasActiveEmbedder();
 
   @override
   Future<EmbeddingModel> getActiveEmbedder({PreferredBackend? preferredBackend}) =>
-      FlutterGemma.getActiveEmbedder(preferredBackend: preferredBackend);
+      FlutterEdgeAi.getActiveEmbedder(preferredBackend: preferredBackend);
 
   @override
   Future<void> installEmbedder({
     required String modelAsset,
     required String tokenizerAsset,
   }) =>
-      FlutterGemma.installEmbedder()
+      FlutterEdgeAi.installEmbedder()
           .modelFromAsset(modelAsset)
           .tokenizerFromAsset(tokenizerAsset)
           .install();

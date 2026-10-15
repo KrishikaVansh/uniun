@@ -4,10 +4,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_gemma/flutter_gemma.dart';
-import 'package:flutter_gemma_litertlm/flutter_gemma_litertlm.dart';
+import 'package:flutter_edge_ai_embeddings/flutter_edge_ai_embeddings.dart' show GemmaEmbeddingTokenizers;
+import 'package:flutter_edge_ai/flutter_edge_ai.dart';
+import 'package:flutter_edge_ai_litertlm/flutter_edge_ai_litertlm.dart';
 import 'package:pdfrx/pdfrx.dart';
-import 'package:flutter_gemma_mediapipe/flutter_gemma_mediapipe.dart';
+import 'package:flutter_edge_ai_mediapipe/flutter_edge_ai_mediapipe.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -42,16 +43,17 @@ Future<void> main() async {
   // gates every log on `kDebugMode`). In debug, keep `info` — lifecycle and
   // errors, no prompts/output. Bump to `verbose` only when actively chasing a
   // model bug.
-  FlutterGemma.logLevel = kReleaseMode
-      ? GemmaLogLevel.none
-      : GemmaLogLevel.info;
+  FlutterEdgeAi.logLevel = kReleaseMode
+      ? EdgeAiLogLevel.none
+      : EdgeAiLogLevel.info;
   // 1.0.0 split the monolith — the core registers no engine on its own. We
   // ship .task models (MediaPipe — DeepSeek R1) and .litertlm models
   // (LiteRT-LM — Qwen3 0.6B, Gemma 4 E2B/E4B), plus the LiteRT embedder
   // used by the Shiv RAG pipeline.
-  await FlutterGemma.initialize(
+  await FlutterEdgeAi.initialize(
     inferenceEngines: const [LiteRtLmEngine(), MediaPipeEngine()],
     embeddingBackends: const [LiteRtEmbeddingBackend()],
+    embeddingTokenizers: const [GemmaEmbeddingTokenizers()],
   );
   // Loads PDFium, which PdfrxTextSource needs to pull the text layer out of an
   // attached PDF for the Shiv RAG index. Idempotent.

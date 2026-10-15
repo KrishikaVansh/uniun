@@ -136,9 +136,11 @@ deleting the active model) route through.
 ### Soft budget
 
 T2 is capped at ~60 % of cumulative LLM time over each rolling 5-minute
-window. If T2 overruns, the picker pretends T2 is empty until the
-window rolls. This stops a 500-note backfill from monopolizing the
-chip.
+window. If T2 overruns and T3/T4 work is waiting, the picker pretends T2
+is empty until that work has run. This stops a 500-note backfill from
+monopolizing the chip. With nothing else queued the cap does not apply:
+holding an extract back then helps nobody, and nothing would wake the
+picker when the window rolls (#287).
 
 ### Preemption rule
 

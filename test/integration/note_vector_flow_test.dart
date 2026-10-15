@@ -4,7 +4,7 @@ library;
 import 'dart:io';
 import 'dart:math';
 
-import 'package:flutter_gemma/flutter_gemma.dart' hide CancelToken;
+import 'package:flutter_edge_ai/flutter_edge_ai.dart' hide CancelToken;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:isar_community/isar.dart';
 import 'package:mocktail/mocktail.dart';
@@ -23,10 +23,10 @@ import 'package:uniun/features/shiv/rag/indexing/note_embedding_worker.dart';
 import '../_helpers/note_embedding_worker_factory.dart';
 import '../_helpers/isar_seeds.dart';
 import '../_helpers/isar_test_harness.dart';
+import '../_helpers/fake_embedding_model.dart';
 
 class _MockGateway extends Mock implements FlutterGemmaGateway {}
 
-class _MockModel extends Mock implements EmbeddingModel {}
 
 class _MockExtract extends Mock implements ExtractKnowledgeUseCase {}
 
@@ -38,7 +38,7 @@ void main() {
   late Directory dir;
   late PendingEmbeddingRepositoryImpl pending;
   late _MockGateway gateway;
-  late _MockModel model;
+  late FakeEmbeddingModel model;
   late _MockExtract extract;
   late EmbeddingService embedding;
   late NoteVectorStore store;
@@ -87,7 +87,7 @@ void main() {
     dir = await Directory.systemTemp.createTemp('note_vector_flow_');
     pending = PendingEmbeddingRepositoryImpl(isar: isar);
     gateway = _MockGateway();
-    model = _MockModel();
+    model = FakeEmbeddingModel();
     extract = _MockExtract();
     modelFailure = null;
     embedTime = const Duration(milliseconds: 2);
@@ -102,7 +102,7 @@ void main() {
       return model;
     });
     when(
-      () => model.generateEmbedding(any(), taskType: any(named: 'taskType')),
+      () => model.calls.embed(any(), any()),
     ).thenAnswer((i) async {
       await Future<void>.delayed(embedTime);
       return vectorFor(i.positionalArguments.first as String);

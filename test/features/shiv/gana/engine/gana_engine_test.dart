@@ -63,7 +63,7 @@ class _MockGateway extends Mock implements FlutterGemmaGateway {}
 
 /// Covers: [GanaEngine]'s cloud/local dispatch gate (cloud routes through
 /// [GenerateOneShotUseCase] with a backend/model override and skips the
-/// on-device gate; local is unaffected — `FlutterGemma.hasActiveModel()` is
+/// on-device gate; local is unaffected — `FlutterEdgeAi.hasActiveModel()` is
 /// false in this plain-Dart environment, no platform channel needed since
 /// that call reads a static in-memory field); one-shot auto-disable; cloud
 /// output routing through every [GanaOutputType] (feed/group/privateGroup/
@@ -558,7 +558,7 @@ void main({bool routingMatrixOnly = false}) {
       await engine.start();
       final run = await waitForRun('legacy-local-pin');
 
-      // Still resolves local (FlutterGemma.hasActiveModel() is false here),
+      // Still resolves local (FlutterEdgeAi.hasActiveModel() is false here),
       // never even asks whether the global backend is cloud-relevant beyond
       // the initial resolution check — the point is it does NOT silently
       // switch this explicitly-pinned-local Gana over to cloud.

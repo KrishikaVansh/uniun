@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_gemma/flutter_gemma.dart' hide CancelToken;
+import 'package:flutter_edge_ai/flutter_edge_ai.dart' hide CancelToken;
 import 'package:injectable/injectable.dart';
 import 'package:uniun/core/utils/llm_backend.dart';
 import 'package:uniun/core/utils/llm_text_sanitizer.dart';
@@ -210,14 +210,14 @@ class AIModelRunner {
                   topK: 40,
                   tokenBuffer: 512,
                   modelType: params?.modelType,
-                  isThinking: params?.isThinking ?? false,
+                  enableThinking: params?.isThinking ?? false,
                 )
               : await model.createChat(
                   temperature: 0.8,
                   topK: 40,
                   tokenBuffer: 512,
                   modelType: params?.modelType,
-                  isThinking: params?.isThinking ?? false,
+                  enableThinking: params?.isThinking ?? false,
                   supportImage: true,
                 );
 
@@ -336,7 +336,7 @@ class AIModelRunner {
         topK: 20,
         tokenBuffer: 256,
         modelType: params?.modelType,
-        isThinking: params?.isThinking ?? false,
+        enableThinking: params?.isThinking ?? false,
       );
 
       // isUser stays false — see the note in sendAndStream.
@@ -430,7 +430,6 @@ class AIModelRunner {
 
 /// Strips per-model stop tokens from a streaming token feed.
 ///
-/// flutter_gemma 0.16.5's [StopTokenFilter] only matches `<end_of_turn>` (Gemma).
 /// On iOS the MediaPipe `.litertlm` backend does not honour stop tokens itself,
 /// so non-Gemma models (Qwen, DeepSeek, Llama) leak their terminator plus BPE
 /// byte-level junk after it. We catch the rest here. Safe on Android too —

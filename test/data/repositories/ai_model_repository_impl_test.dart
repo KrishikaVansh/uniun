@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:dartz/dartz.dart';
-import 'package:flutter_gemma/flutter_gemma.dart';
+import 'package:flutter_edge_ai/flutter_edge_ai.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:isar_community/isar.dart';
 import 'package:mocktail/mocktail.dart';
@@ -33,7 +33,7 @@ class _MockGateway extends Mock implements FlutterGemmaGateway {}
 ///
 /// Two test styles, deliberately kept side by side:
 ///
-///  1. The top-level groups use a REAL `FlutterGemma.initialize()` (with
+///  1. The top-level groups use a REAL `FlutterEdgeAi.initialize()` (with
 ///     mocked shared_preferences) via the real `FlutterGemmaGatewayImpl` —
 ///     proving the repository genuinely works against flutter_gemma's real
 ///     static surface, not just a mock's promise that it would. Nothing is
@@ -78,7 +78,7 @@ void main() {
     );
 
     SharedPreferences.setMockInitialValues({});
-    await FlutterGemma.initialize();
+    await FlutterEdgeAi.initialize();
   });
 
   tearDown(() async {
@@ -213,7 +213,7 @@ void main() {
   });
 
   group('with a mocked gateway — the "installed"/success branches a real, '
-      'empty FlutterGemma.initialize() environment can never reach', () {
+      'empty FlutterEdgeAi.initialize() environment can never reach', () {
     late _MockGateway gateway;
     late AIModelRepositoryImpl repo2;
 
@@ -597,7 +597,7 @@ void main() {
         when(() => settings.setActiveModelId(any())).thenAnswer((_) async {});
         when(() => gateway.uninstallModel(any()))
             .thenThrow(Exception('metadata already gone'));
-        final orphan = File('${tempDir.path}/Qwen3-0.6B.litertlm');
+        final orphan = File('${tempDir.path}/Qwen3-0.6B_dynamic_wi4b32_afp32.litertlm');
         orphan.writeAsStringSync('fake model bytes');
         expect(orphan.existsSync(), isTrue);
 

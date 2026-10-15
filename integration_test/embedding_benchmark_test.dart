@@ -7,9 +7,10 @@
 
 import 'dart:math' as math;
 
-import 'package:flutter_gemma/flutter_gemma.dart';
-import 'package:flutter_gemma_litertlm/flutter_gemma_litertlm.dart';
-import 'package:flutter_gemma_mediapipe/flutter_gemma_mediapipe.dart';
+import 'package:flutter_edge_ai_embeddings/flutter_edge_ai_embeddings.dart' show GemmaEmbeddingTokenizers;
+import 'package:flutter_edge_ai/flutter_edge_ai.dart';
+import 'package:flutter_edge_ai_litertlm/flutter_edge_ai_litertlm.dart';
+import 'package:flutter_edge_ai_mediapipe/flutter_edge_ai_mediapipe.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:uniun/core/utils/llm_backend.dart';
@@ -43,9 +44,10 @@ void main() {
   testWidgets(
     'per-call vs two-at-a-time vs generateEmbeddings',
     (tester) async {
-      await FlutterGemma.initialize(
+      await FlutterEdgeAi.initialize(
         inferenceEngines: const [LiteRtLmEngine(), MediaPipeEngine()],
         embeddingBackends: const [LiteRtEmbeddingBackend()],
+        embeddingTokenizers: const [GemmaEmbeddingTokenizers()],
       );
       final gateway = FlutterGemmaGatewayImpl();
       final service = EmbeddingService(gateway, EmbeddingQueue());
@@ -148,9 +150,10 @@ void main() {
   testWidgets(
     'text length: a few characters vs several thousand',
     (tester) async {
-      await FlutterGemma.initialize(
+      await FlutterEdgeAi.initialize(
         inferenceEngines: const [LiteRtLmEngine(), MediaPipeEngine()],
         embeddingBackends: const [LiteRtEmbeddingBackend()],
+        embeddingTokenizers: const [GemmaEmbeddingTokenizers()],
       );
       final gateway = FlutterGemmaGatewayImpl();
       await EmbeddingService(gateway, EmbeddingQueue()).ensureInstalled();

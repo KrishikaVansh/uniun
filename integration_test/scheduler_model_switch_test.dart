@@ -24,7 +24,7 @@
 // activateModel()` — the actual production entry point, not a stand-in —
 // switching between them while a real generation is in flight on the
 // first, and confirms flutter_gemma's active model identity
-// (`FlutterGemma.activeModelSpec`) genuinely changes afterward. It does
+// (`FlutterEdgeAi.activeModelSpec`) genuinely changes afterward. It does
 // NOT test the forced/delete path with real models — deleting one of your
 // downloaded models is destructive and not worth risking just for this
 // test; the forced-preemption *scheduling* logic is already fully proven
@@ -43,7 +43,7 @@
 //
 //   flutter test integration_test/scheduler_model_switch_test.dart -d <device-id>
 
-import 'package:flutter_gemma/flutter_gemma.dart' hide CancelToken;
+import 'package:flutter_edge_ai/flutter_edge_ai.dart' hide CancelToken;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -66,7 +66,7 @@ void main() {
     CancelToken cancel, {
     int maxTokens = 256,
   }) async {
-    final model = await FlutterGemma.getActiveModel(maxTokens: maxTokens);
+    final model = await FlutterEdgeAi.getActiveModel(maxTokens: maxTokens);
     final chat = await model.openChat(temperature: 0.8, topK: 40);
     try {
       await chat.addQueryChunk(Message.text(text: prompt));
@@ -88,7 +88,7 @@ void main() {
     'gentle model switch waits for a real generation to finish, forced '
     'switch preempts it immediately',
     (tester) async {
-      if (!FlutterGemma.hasActiveModel() &&
+      if (!FlutterEdgeAi.hasActiveModel() &&
           !await provisionTestModel(AIModelId.gemma4E2b)) {
         // ignore: avoid_print
         print('SKIP: no active model on device — install one via Shiv first');
@@ -193,8 +193,8 @@ void main() {
       final activatedA = await catalog.activateModel(modelA);
       expect(activatedA.isRight(), isTrue,
           reason: 'failed to activate modelA: $activatedA');
-      expect(FlutterGemma.hasActiveModel(), isTrue);
-      final specBefore = FlutterGemma.activeModelSpec;
+      expect(FlutterEdgeAi.hasActiveModel(), isTrue);
+      final specBefore = FlutterEdgeAi.activeModelSpec;
 
       // Real generation running against A.
       final order = <String>[];
@@ -202,7 +202,7 @@ void main() {
         kind: LlmTaskKind.nataraj,
         modelId: modelA.name,
         work: (cancel) async {
-          final model = await FlutterGemma.getActiveModel(maxTokens: 400);
+          final model = await FlutterEdgeAi.getActiveModel(maxTokens: 400);
           final chat = await model.openChat(temperature: 0.8, topK: 40);
           try {
             await chat.addQueryChunk(Message.text(
@@ -241,7 +241,7 @@ void main() {
       expect(switched.isRight(), isTrue,
           reason: 'failed to activate modelB: $switched');
 
-      final specAfter = FlutterGemma.activeModelSpec;
+      final specAfter = FlutterEdgeAi.activeModelSpec;
       expect(specAfter?.name, isNot(equals(specBefore?.name)),
           reason: 'flutter_gemma\'s active model identity should have '
               'genuinely changed from A to B, not just our app settings');

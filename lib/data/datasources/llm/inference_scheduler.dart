@@ -191,7 +191,12 @@ class InferenceScheduler {
 
   _Job? _pickBestInternal({required bool removeFromQueue}) {
     _decayVruntimeIfDue();
-    final t2BudgetBlown = _t2BudgetExceeded();
+    // The cap only protects T3/T4 from being starved by extracts, so it
+    // applies while such work is waiting; an extract queue alone runs on.
+    // Held back with nothing else queued, an extract also stalled: nothing
+    // re-runs the picker when the window ages out.
+    final t2BudgetBlown =
+        _q.any((j) => _tier(j) > 2) && _t2BudgetExceeded();
     // While the user is on the chat surface, never start new background work.
     // T0 (chat) and T1 (foreground=chat ⇒ chat-kind ⇒ still T0) are the only
     // dispatchable tiers. Resumed when [setForeground] clears.

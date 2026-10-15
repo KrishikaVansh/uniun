@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 import 'package:isar_community/isar.dart';
@@ -9,6 +11,9 @@ import 'package:uniun/domain/repositories/vector_repository.dart';
 
 @LazySingleton(as: VectorRepository)
 class TostoreVectorRepositoryImpl implements VectorRepository {
+  static const _overFetch = 10;
+  static const _minFetch = 50;
+
   final NoteVectorStore _store;
   final Isar _isar;
 
@@ -31,7 +36,13 @@ class TostoreVectorRepositoryImpl implements VectorRepository {
   }) async {
     if (queryVector.isEmpty) return const [];
 
-    final hits = await _store.search(queryVector, topK: topK);
+    // A vector whose note is gone (evicted, or deleted and still returned by
+    // the index) takes a slot here and is only dropped below, so fetch well
+    // past [topK] and trim after the notes are resolved.
+    final hits = await _store.search(
+      queryVector,
+      topK: math.max(topK * _overFetch, _minFetch),
+    );
     debugPrint('🔍 Tostore.vectorSearch → ${hits.length} raw hit(s)');
 
     // Keep qualifying hits in score order, then resolve ALL their content in
@@ -49,7 +60,7 @@ class TostoreVectorRepositoryImpl implements VectorRepository {
       for (final h in qualified)
         if (contentById[h.id] != null)
           ScoredNote(noteId: h.id, score: h.score, content: contentById[h.id]!),
-    ];
+    ].take(topK).toList();
     debugPrint('🔍 Tostore ANN returning ${results.length} ScoredNote(s)');
     return results;
   }

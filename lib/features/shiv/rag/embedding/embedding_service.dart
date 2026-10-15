@@ -1,7 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_gemma/flutter_gemma.dart';
+import 'package:flutter_edge_ai/flutter_edge_ai.dart';
 import 'package:injectable/injectable.dart';
 import 'package:uniun/core/utils/llm_backend.dart';
 import 'package:uniun/data/datasources/llm/embedding_queue.dart';
@@ -100,20 +100,44 @@ class EmbeddingService {
     );
   }
 
+  /// flutter_edge_ai 2.3 refuses an input longer than the model's window
+  /// ([EmbeddingInputTooLongException]) instead of truncating it as 1.x did.
+  /// A note can be arbitrarily long, so shrink it by the reported ratio and
+  /// retry, a few times at most: the head of a note carries what it is about.
+  static const int _maxFitAttempts = 4;
+
   Future<List<double>> _embed(String text, {required bool isDocument}) async {
     if (!isReady) await init();
     if (!isReady) return [];
-    try {
-      final vec = await _model!.generateEmbedding(
-        text,
-        taskType:
-            isDocument ? TaskType.retrievalDocument : TaskType.retrievalQuery,
-      );
-      return _l2Normalize(vec);
-    } catch (e) {
-      debugPrint('🧠 Embedding: generate failed — $e');
-      return [];
+    final taskType =
+        isDocument ? TaskType.retrievalDocument : TaskType.retrievalQuery;
+    var input = text;
+    for (var attempt = 0; attempt < _maxFitAttempts; attempt++) {
+      try {
+        final vec = await _model!.embed(
+          EmbeddingInput.text(input),
+          taskType: taskType,
+        );
+        return _l2Normalize(vec);
+      } on EmbeddingInputTooLongException catch (e) {
+        final ratio = e.actualTokens != null && e.actualTokens! > 0
+            ? e.maxInputTokens / e.actualTokens!
+            : 0.5;
+        final next = (input.length * ratio * 0.9).floor();
+        if (next <= 0 || next >= input.length) break;
+        debugPrint(
+          '🧠 Embedding: input too long '
+          '(${e.actualTokens ?? '?'}/${e.maxInputTokens} tokens) — '
+          'shortening ${input.length} → $next chars',
+        );
+        input = input.substring(0, next);
+      } catch (e) {
+        debugPrint('🧠 Embedding: generate failed — $e');
+        return [];
+      }
     }
+    debugPrint('🧠 Embedding: could not fit input into the model window');
+    return [];
   }
 
   Future<void> dispose() async {

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter_gemma/flutter_gemma.dart' hide CancelToken;
+import 'package:flutter_edge_ai/flutter_edge_ai.dart' hide CancelToken;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:uniun/data/datasources/app_settings_store.dart';
@@ -95,7 +95,7 @@ void main() {
             topK: any(named: 'topK'),
             tokenBuffer: any(named: 'tokenBuffer'),
             modelType: any(named: 'modelType'),
-            isThinking: any(named: 'isThinking'),
+            enableThinking: any(named: 'enableThinking'),
           )).thenAnswer((_) async => chat);
 
       final result = await runner.generateOneShot('prompt');
@@ -120,7 +120,7 @@ void main() {
             topK: any(named: 'topK'),
             tokenBuffer: any(named: 'tokenBuffer'),
             modelType: any(named: 'modelType'),
-            isThinking: any(named: 'isThinking'),
+            enableThinking: any(named: 'enableThinking'),
           )).thenAnswer((_) async => chat);
 
       final result = await runner.generateOneShot('prompt');
@@ -149,7 +149,7 @@ void main() {
             topK: any(named: 'topK'),
             tokenBuffer: any(named: 'tokenBuffer'),
             modelType: any(named: 'modelType'),
-            isThinking: any(named: 'isThinking'),
+            enableThinking: any(named: 'enableThinking'),
           )).thenAnswer((_) async => chat);
 
       final result = await runner.generateOneShot('prompt');
@@ -174,7 +174,7 @@ void main() {
             topK: any(named: 'topK'),
             tokenBuffer: any(named: 'tokenBuffer'),
             modelType: any(named: 'modelType'),
-            isThinking: any(named: 'isThinking'),
+            enableThinking: any(named: 'enableThinking'),
           )).thenAnswer(
               (_) async => chatReturning(const [TextResponse('cpu-ok')]));
       return cpuModel;
@@ -194,7 +194,7 @@ void main() {
             topK: any(named: 'topK'),
             tokenBuffer: any(named: 'tokenBuffer'),
             modelType: any(named: 'modelType'),
-            isThinking: any(named: 'isThinking'),
+            enableThinking: any(named: 'enableThinking'),
           )).thenAnswer((_) async => chat);
 
       await runner.generateOneShot('my prompt');
@@ -257,7 +257,7 @@ void main() {
             topK: any(named: 'topK'),
             tokenBuffer: any(named: 'tokenBuffer'),
             modelType: any(named: 'modelType'),
-            isThinking: any(named: 'isThinking'),
+            enableThinking: any(named: 'enableThinking'),
           )).thenAnswer((_) async {
         openChatCalls++;
         if (openChatCalls == 1) throw Exception('native runtime degraded');
@@ -285,7 +285,7 @@ void main() {
             topK: any(named: 'topK'),
             tokenBuffer: any(named: 'tokenBuffer'),
             modelType: any(named: 'modelType'),
-            isThinking: any(named: 'isThinking'),
+            enableThinking: any(named: 'enableThinking'),
           )).thenThrow(Exception('permanently broken'));
 
       final result = await runner.generateOneShot('prompt');
@@ -349,7 +349,7 @@ void main() {
             topK: any(named: 'topK'),
             tokenBuffer: any(named: 'tokenBuffer'),
             modelType: any(named: 'modelType'),
-            isThinking: any(named: 'isThinking'),
+            enableThinking: any(named: 'enableThinking'),
           )).thenAnswer((_) async {
         openChatCalls++;
         if (openChatCalls == 1) return abortedChat;
@@ -398,7 +398,7 @@ void main() {
             topK: any(named: 'topK'),
             tokenBuffer: any(named: 'tokenBuffer'),
             modelType: any(named: 'modelType'),
-            isThinking: any(named: 'isThinking'),
+            enableThinking: any(named: 'enableThinking'),
           )).thenAnswer((_) async => chat);
 
       await runner.sendAndStream('hi', systemInstruction: 'sys').toList();
@@ -432,7 +432,7 @@ void main() {
             topK: any(named: 'topK'),
             tokenBuffer: any(named: 'tokenBuffer'),
             modelType: any(named: 'modelType'),
-            isThinking: any(named: 'isThinking'),
+            enableThinking: any(named: 'enableThinking'),
           ),
         ).thenAnswer((i) async {
           onOpenChat(i);
@@ -444,7 +444,7 @@ void main() {
             topK: any(named: 'topK'),
             tokenBuffer: any(named: 'tokenBuffer'),
             modelType: any(named: 'modelType'),
-            isThinking: any(named: 'isThinking'),
+            enableThinking: any(named: 'enableThinking'),
             supportImage: any(named: 'supportImage'),
           ),
         ).thenAnswer((i) async {
@@ -468,7 +468,7 @@ void main() {
               topK: any(named: 'topK'),
               tokenBuffer: any(named: 'tokenBuffer'),
               modelType: any(named: 'modelType'),
-              isThinking: any(named: 'isThinking'),
+              enableThinking: any(named: 'enableThinking'),
               supportImage: any(named: 'supportImage'),
             ),
           ).thenAnswer((i) async {
@@ -525,7 +525,7 @@ void main() {
             topK: any(named: 'topK'),
             tokenBuffer: any(named: 'tokenBuffer'),
             modelType: any(named: 'modelType'),
-            isThinking: any(named: 'isThinking'),
+            enableThinking: any(named: 'enableThinking'),
             ),
         ).thenAnswer((i) async {
           chatSupportImage = i.namedArguments[#supportImage] as bool?;
@@ -613,7 +613,7 @@ void main() {
             topK: any(named: 'topK'),
             tokenBuffer: any(named: 'tokenBuffer'),
             modelType: any(named: 'modelType'),
-            isThinking: any(named: 'isThinking'),
+            enableThinking: any(named: 'enableThinking'),
           )).thenAnswer((_) async => chat);
 
       final tokens = await runner
@@ -642,7 +642,7 @@ void main() {
             topK: any(named: 'topK'),
             tokenBuffer: any(named: 'tokenBuffer'),
             modelType: any(named: 'modelType'),
-            isThinking: any(named: 'isThinking'),
+            enableThinking: any(named: 'enableThinking'),
           )).thenAnswer((_) async => chat);
 
       final tokens = await runner
@@ -666,7 +666,7 @@ void main() {
             topK: any(named: 'topK'),
             tokenBuffer: any(named: 'tokenBuffer'),
             modelType: any(named: 'modelType'),
-            isThinking: any(named: 'isThinking'),
+            enableThinking: any(named: 'enableThinking'),
           )).thenAnswer((_) async => chat);
 
       // deepseekR1's maxTokens is 1280 -> history budget = round(1280*0.2) = 256
@@ -713,7 +713,7 @@ void main() {
             topK: any(named: 'topK'),
             tokenBuffer: any(named: 'tokenBuffer'),
             modelType: any(named: 'modelType'),
-            isThinking: any(named: 'isThinking'),
+            enableThinking: any(named: 'enableThinking'),
           )).thenAnswer((_) async => chat);
 
       final stream = runner.sendAndStream('hi', systemInstruction: 'sys');
@@ -747,7 +747,7 @@ void main() {
             topK: any(named: 'topK'),
             tokenBuffer: any(named: 'tokenBuffer'),
             modelType: any(named: 'modelType'),
-            isThinking: any(named: 'isThinking'),
+            enableThinking: any(named: 'enableThinking'),
           )).thenAnswer((_) async => chat);
 
       final firstTurn =
@@ -808,7 +808,7 @@ void main() {
             topK: any(named: 'topK'),
             tokenBuffer: any(named: 'tokenBuffer'),
             modelType: any(named: 'modelType'),
-            isThinking: any(named: 'isThinking'),
+            enableThinking: any(named: 'enableThinking'),
           )).thenAnswer((_) async => chat);
       // Prime _activeModel via a real one-shot call first.
       await runner.generateOneShot('warm up');

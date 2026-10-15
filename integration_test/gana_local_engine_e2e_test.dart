@@ -10,9 +10,10 @@
 //
 //   scripts/device_test.sh run integration_test/gana_local_engine_e2e_test.dart
 
-import 'package:flutter_gemma/flutter_gemma.dart';
-import 'package:flutter_gemma_litertlm/flutter_gemma_litertlm.dart';
-import 'package:flutter_gemma_mediapipe/flutter_gemma_mediapipe.dart';
+import 'package:flutter_edge_ai_embeddings/flutter_edge_ai_embeddings.dart' show GemmaEmbeddingTokenizers;
+import 'package:flutter_edge_ai/flutter_edge_ai.dart';
+import 'package:flutter_edge_ai_litertlm/flutter_edge_ai_litertlm.dart';
+import 'package:flutter_edge_ai_mediapipe/flutter_edge_ai_mediapipe.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:isar_community/isar.dart';
@@ -42,9 +43,10 @@ void main() {
     if (!getIt.isRegistered<Isar>()) await configureDependencies();
     final isar = getIt<Isar>();
 
-    await FlutterGemma.initialize(
+    await FlutterEdgeAi.initialize(
       inferenceEngines: const [LiteRtLmEngine(), MediaPipeEngine()],
       embeddingBackends: const [LiteRtEmbeddingBackend()],
+      embeddingTokenizers: const [GemmaEmbeddingTokenizers()],
     );
     // Restore the persisted model registration before provisioning the fixture.
     await getIt<GetActiveAIModelUseCase>().call();
