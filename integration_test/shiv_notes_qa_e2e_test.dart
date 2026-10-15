@@ -10,12 +10,20 @@
 //
 //   scripts/device_test.sh run integration_test/shiv_notes_qa_e2e_test.dart
 
+import 'dart:io';
+
+import 'package:flutter_edge_ai/flutter_edge_ai.dart';
+import 'package:flutter_edge_ai_embeddings/flutter_edge_ai_embeddings.dart'
+    show GemmaEmbeddingTokenizers;
+import 'package:flutter_edge_ai_litertlm/flutter_edge_ai_litertlm.dart';
+import 'package:flutter_edge_ai_mediapipe/flutter_edge_ai_mediapipe.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:isar_community/isar.dart';
 import 'package:uniun/common/locator.dart';
 import 'package:uniun/core/enum/note_type.dart';
 import 'package:uniun/data/datasources/llm/local_llm_runner.dart';
+import 'package:uniun/data/datasources/note_vector_store.dart';
 import 'package:uniun/data/models/graph_edge_model.dart';
 import 'package:uniun/data/models/memory_node_model.dart';
 import 'package:uniun/data/models/notes/note_model.dart';
@@ -26,6 +34,7 @@ import 'package:uniun/domain/usecases/vector_usecases.dart';
 import 'package:uniun/features/shiv/generation/chat_helpers.dart';
 import 'package:uniun/features/shiv/rag/embedding/embedding_service.dart';
 import 'package:uniun/features/shiv/rag/pipeline/rag_pipeline.dart';
+import 'package:uniun/features/shiv/rag/prompt/prompt_budget.dart';
 
 import 'support/test_model.dart';
 
@@ -113,6 +122,124 @@ Future<void> _dropDerived(Isar isar) => isar.writeTxn(() async {
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+
+  // How similar the real Gecko says a note is to a question, for notes that
+  // answer it and notes that do not. It is what the relevance cut-off for
+  // small models is chosen from, and it is printed, not just asserted.
+  testWidgets('relevance scores: related notes vs unrelated notes',
+      (tester) async {
+    if (!getIt.isRegistered<Isar>()) await configureDependencies();
+    await FlutterEdgeAi.initialize(
+      inferenceEngines: const [LiteRtLmEngine(), MediaPipeEngine()],
+      embeddingBackends: const [LiteRtEmbeddingBackend()],
+      embeddingTokenizers: const [GemmaEmbeddingTokenizers()],
+    );
+    final embedder = getIt<EmbeddingService>();
+    expect(await embedder.embed('probe'), isNotEmpty);
+
+    const notes = <String, String>{
+      'trip': 'Trip plan: we fly to Lisbon on 14 March and stay at the Alfama '
+          'Garden hotel for five nights. Remember to book the tram tickets '
+          'early.',
+      'recipe': "Grandmother's lentil soup: simmer red lentils with two "
+          'carrots, one onion and a teaspoon of cumin for twenty five '
+          'minutes, then add lemon.',
+      'bike': 'Bike service log: the rear tyre was replaced at 4,200 km, and '
+          'the chain must be oiled every 300 km. Next full service is due in '
+          'June.',
+      'codeword': 'This is a test post. The celebration codeword is '
+          'marmalade.',
+      'report': 'Quarterly report is due on Friday: finish the sales slides '
+          'and send them to the team.',
+      'dentist': 'Dentist appointment on 3 May at 10:30, bring the insurance '
+          'card.',
+      'book': 'Reading Dune: finished part one, the desert planet and the '
+          'spice are the best bits so far.',
+      'garden': 'Tomatoes need watering every second day, and the basil '
+          'should stay in the shade.',
+    };
+    // question -> the note that answers it (null: no note does).
+    const questions = <(String, String?)>[
+      ('Which hotel are we staying at in Lisbon?', 'trip'),
+      ('What do I need to book early for the trip?', 'trip'),
+      ('How long should the lentils simmer?', 'recipe'),
+      ('When is the next service for my bike?', 'bike'),
+      ('How often should I oil the chain?', 'bike'),
+      ('What is the celebration codeword?', 'codeword'),
+      ('When is my dentist appointment?', 'dentist'),
+      ('What is due on Friday?', 'report'),
+      ('How far have I got in Dune?', 'book'),
+      ('How often do the tomatoes need water?', 'garden'),
+      ('What did I write about my travel plans?', 'trip'),
+      ('Tell me about my notes on food', 'recipe'),
+      ('What is the capital of France?', null),
+      ('How to grow in life?', null),
+      ('Write me a poem about the sea', null),
+      ('What is 12 times 8?', null),
+      ('who are you', null),
+      ('please explain how photosynthesis works', null),
+      ('Translate good morning into Spanish', null),
+      ('What is the best way to learn guitar?', null),
+    ];
+
+    final dir = await Directory.systemTemp.createTemp('relevance_');
+    final store = await NoteVectorStore.open(dir.path);
+    try {
+      for (final e in notes.entries) {
+        await store.upsert(
+          e.key,
+          await embedder.embed(e.value, isDocument: true),
+        );
+      }
+      final related = <double>[];
+      final unrelatedTop = <double>[];
+      final unrelatedAll = <double>[];
+      for (final (q, answer) in questions) {
+        final hits = await store.search(await embedder.embed(q), topK: 8);
+        final byId = {for (final h in hits) h.id: h.score};
+        final top = hits.first;
+        final line = hits
+            .take(3)
+            .map((h) => '${h.id}:${h.score.toStringAsFixed(2)}')
+            .join(' ');
+        // ignore: avoid_print
+        print('RELEVANCE ${answer == null ? 'NONE ' : 'RELATED'} '
+            '"$q" -> top: $line');
+        if (answer != null) {
+          related.add(byId[answer] ?? 0);
+        } else {
+          unrelatedTop.add(top.score);
+        }
+        for (final h in hits) {
+          if (h.id != answer) unrelatedAll.add(h.score);
+        }
+      }
+      related.sort();
+      unrelatedTop.sort();
+      // ignore: avoid_print
+      print('RELEVANCE SUMMARY related(answering note): '
+          'min=${related.first.toStringAsFixed(2)} '
+          'median=${related[related.length ~/ 2].toStringAsFixed(2)} '
+          'max=${related.last.toStringAsFixed(2)} | '
+          'unrelated question, closest note: '
+          'min=${unrelatedTop.first.toStringAsFixed(2)} '
+          'median=${unrelatedTop[unrelatedTop.length ~/ 2].toStringAsFixed(2)} '
+          'max=${unrelatedTop.last.toStringAsFixed(2)}');
+      expect(related, hasLength(12));
+      expect(unrelatedTop, hasLength(8));
+      // The small-model cut-off must sit between the two groups: no unrelated
+      // question reaches it, and at least ten of the twelve related ones do.
+      // If this fails after an embedder change, re-measure the cut-off.
+      const cutOff = PromptBudget.smallModelMinScore;
+      expect(unrelatedTop.last, lessThan(cutOff),
+          reason: 'an unrelated question would pull a note into the prompt');
+      expect(related.where((s) => s >= cutOff).length, greaterThanOrEqualTo(10),
+          reason: 'too many answering notes would be dropped');
+    } finally {
+      await store.close();
+      await dir.delete(recursive: true);
+    }
+  }, timeout: const Timeout(Duration(minutes: 20)));
 
   for (final id in [AIModelId.qwen25_05b, AIModelId.gemma4E2b]) {
     testWidgets(

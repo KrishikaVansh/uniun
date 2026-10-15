@@ -534,14 +534,16 @@ See the [RAG per turn](#rag-per-turn--what-happens-inside-ragpipelinebuildmessag
 
 `PromptBudget.forActiveModel(LlmModelInfo)` resolves the budget each turn — RAG automatically grows or shrinks to match the active engine's context window. Caller does nothing special.
 
-| Active model | RAG budget | topK seed notes | graph hops | Engine `maxTokens` |
-|---|---:|---:|---:|---:|
-| Qwen3 0.6B (default small) | 2,048 | 3 | 1 | 2,048 |
-| DeepSeek R1 1.5B | 1,024 | 3 | 1 | 1,280 |
-| Gemma 4 E2B | 4,096 | 5 | 2 | 4,096 |
-| Gemma 4 E4B | 8,192 | 10 | 2 | 8,192 |
-| **Cloud (UNIUN Cloud)** | **16,384** | **15** | **2** | — |
-| no active model | 2,048 | 3 | 1 | — |
+| Active model | RAG budget | topK seed notes | min similarity | graph hops | Engine `maxTokens` |
+|---|---:|---:|---:|---:|---:|
+| Qwen3 0.6B (default small) | 2,048 | 3 | **0.72** | 1 | 2,048 |
+| DeepSeek R1 1.5B | 1,024 | 3 | 0.3 | 1 | 1,280 |
+| Gemma 4 E2B | 4,096 | 5 | 0.3 | 2 | 4,096 |
+| Gemma 4 E4B | 8,192 | 10 | 0.3 | 2 | 8,192 |
+| **Cloud (UNIUN Cloud)** | **16,384** | **15** | 0.3 | **2** | — |
+| no active model | 2,048 | 3 | 0.72 | 1 | — |
+
+**Why Qwen3 0.6B has a higher cut-off (#199).** Any note scores about 0.6-0.7 against any question with the Gecko embedder, so the default 0.3 puts the closest note into every prompt. Gemma ignores a note that does not belong; Qwen3 0.6B copies it, which showed as one reply (for example "Marmalade") for every question. Measured on a phone with the real Gecko (20 questions, 8 notes, `shiv_notes_qa_e2e_test`): notes that answer the question scored 0.74-0.85, the closest note to an unrelated question never above 0.70. The cut-off is `PromptBudget.smallModelMinScore` (0.72). The gap is narrow, so it applies to this model only; a vague question ("what are my notes on food") scored 0.64 and no longer pulls a note in on this model. Re-measure if the embedder changes.
 
 Engine `maxTokens` is the hard KV-cache size baked into the local model file (e.g. `deepseek_q8_ekv1280.task` = 1,280-token cache; opening larger aborts at `CalculatorGraph::Run`). RAG budget for DeepSeek therefore reserves ~256 tokens for the generated response.
 
