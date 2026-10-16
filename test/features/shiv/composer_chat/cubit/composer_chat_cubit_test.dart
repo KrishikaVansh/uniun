@@ -1,8 +1,11 @@
 import 'dart:async';
 
 import 'package:bloc_test/bloc_test.dart';
+import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:uniun/domain/entities/llm/llm_backend_type.dart';
+import 'package:uniun/domain/entities/llm/llm_model_info.dart';
 import 'package:uniun/domain/usecases/llm_usecases.dart';
 import 'package:uniun/features/shiv/composer_chat/cubit/composer_chat_cubit.dart';
 import 'package:uniun/features/shiv/composer_chat/cubit/composer_chat_state.dart';
@@ -13,6 +16,8 @@ class _MockSendChat extends Mock implements SendChatStreamUseCase {}
 class _MockManasLoader extends Mock implements ManasContextLoader {}
 
 class _MockHasModel extends Mock implements HasActiveLlmModelUseCase {}
+
+class _MockGetActiveModel extends Mock implements GetActiveLlmModelUseCase {}
 
 PackedNote _note(String id, String content) => PackedNote(
       id: id,
@@ -25,18 +30,22 @@ void main() {
   late _MockSendChat sendChat;
   late _MockManasLoader manasLoader;
   late _MockHasModel hasModel;
+  late _MockGetActiveModel getActiveModel;
 
   setUpAll(() {
     registerFallbackValue(const SendChatStreamInput(message: 'x'));
   });
 
-  ComposerChatCubit build() => ComposerChatCubit(sendChat, manasLoader, hasModel);
+  ComposerChatCubit build() =>
+      ComposerChatCubit(sendChat, manasLoader, hasModel, getActiveModel);
 
   setUp(() {
     sendChat = _MockSendChat();
     manasLoader = _MockManasLoader();
     hasModel = _MockHasModel();
+    getActiveModel = _MockGetActiveModel();
     when(() => hasModel.call()).thenAnswer((_) async => true);
+    when(() => getActiveModel.call()).thenAnswer((_) async => const Right(null));
   });
 
   group('start / updateEntityContext / exit', () {
@@ -128,18 +137,51 @@ void main() {
         return build()..start(manasIds: const []);
       },
       setUp: () {
-        when(() => manasLoader.searchAll(query: any(named: 'query')))
+        when(() => manasLoader.searchAll(
+              query: any(named: 'query'),
+              minScore: any(named: 'minScore'),
+            ))
             .thenAnswer((_) async => [_note('n1', 'hit')]);
         when(() => sendChat.call(any())).thenAnswer((_) => const Stream.empty());
       },
       act: (cubit) => cubit.send('question'),
       verify: (_) {
-        verify(() => manasLoader.searchAll(query: 'question')).called(1);
+        verify(() => manasLoader.searchAll(query: 'question', minScore: 0.72))
+            .called(1);
         verifyNever(() => manasLoader.merge(
               manasIds: any(named: 'manasIds'),
               budget: any(named: 'budget'),
               relevanceQuery: any(named: 'relevanceQuery'),
             ));
+      },
+    );
+
+    blocTest<ComposerChatCubit, ComposerChatState>(
+      'the active model sets how similar a note must be: Gemma keeps 0.3 '
+      '(#199)',
+      build: () {
+        when(() => getActiveModel.call()).thenAnswer(
+          (_) async => const Right(
+            LlmModelInfo(
+              id: 'gemma4E2b',
+              displayName: 'Gemma',
+              backend: LlmBackendType.localGemma,
+            ),
+          ),
+        );
+        return build()..start(manasIds: const []);
+      },
+      setUp: () {
+        when(() => manasLoader.searchAll(
+              query: any(named: 'query'),
+              minScore: any(named: 'minScore'),
+            )).thenAnswer((_) async => [_note('n1', 'hit')]);
+        when(() => sendChat.call(any())).thenAnswer((_) => const Stream.empty());
+      },
+      act: (cubit) => cubit.send('question'),
+      verify: (_) {
+        verify(() => manasLoader.searchAll(query: 'question', minScore: 0.3))
+            .called(1);
       },
     );
 
@@ -176,7 +218,10 @@ void main() {
         return build()..start(manasIds: const []);
       },
       setUp: () {
-        when(() => manasLoader.searchAll(query: any(named: 'query')))
+        when(() => manasLoader.searchAll(
+              query: any(named: 'query'),
+              minScore: any(named: 'minScore'),
+            ))
             .thenAnswer((_) async => const []);
         when(() => sendChat.call(any()))
             .thenAnswer((_) => Stream.fromIterable(['Hel', 'lo']));
@@ -201,7 +246,10 @@ void main() {
         return build()..start(manasIds: const []);
       },
       setUp: () {
-        when(() => manasLoader.searchAll(query: any(named: 'query')))
+        when(() => manasLoader.searchAll(
+              query: any(named: 'query'),
+              minScore: any(named: 'minScore'),
+            ))
             .thenAnswer((_) async => const []);
         when(() => sendChat.call(any())).thenAnswer((_) => const Stream.empty());
       },
@@ -219,7 +267,10 @@ void main() {
         return build()..start(manasIds: const []);
       },
       setUp: () {
-        when(() => manasLoader.searchAll(query: any(named: 'query')))
+        when(() => manasLoader.searchAll(
+              query: any(named: 'query'),
+              minScore: any(named: 'minScore'),
+            ))
             .thenAnswer((_) async => const []);
         when(() => sendChat.call(any()))
             .thenAnswer((_) => Stream.error(Exception('native crash')));
@@ -245,7 +296,10 @@ void main() {
         ComposerTurn(question: 'q4', answer: ''), // unanswered — excluded
       ]),
       setUp: () {
-        when(() => manasLoader.searchAll(query: any(named: 'query')))
+        when(() => manasLoader.searchAll(
+              query: any(named: 'query'),
+              minScore: any(named: 'minScore'),
+            ))
             .thenAnswer((_) async => const []);
         when(() => sendChat.call(any())).thenAnswer((_) => const Stream.empty());
       },
@@ -266,7 +320,10 @@ void main() {
       seed: () => ComposerChatState(turns: List.generate(
           5, (i) => ComposerTurn(question: 'q$i', answer: 'a$i'))),
       setUp: () {
-        when(() => manasLoader.searchAll(query: any(named: 'query')))
+        when(() => manasLoader.searchAll(
+              query: any(named: 'query'),
+              minScore: any(named: 'minScore'),
+            ))
             .thenAnswer((_) async => const []);
         when(() => sendChat.call(any())).thenAnswer((_) => const Stream.empty());
       },
@@ -317,7 +374,10 @@ void main() {
         return build()..start(manasIds: const []);
       },
       setUp: () {
-        when(() => manasLoader.searchAll(query: any(named: 'query')))
+        when(() => manasLoader.searchAll(
+              query: any(named: 'query'),
+              minScore: any(named: 'minScore'),
+            ))
             .thenAnswer((_) async => const []);
         // Never completes on its own — only stop() should finalize it.
         when(() => sendChat.call(any()))
@@ -350,7 +410,10 @@ void main() {
         'does not crash with "emit after close" — regression: send() had '
         'no isClosed guards before its first emit, unlike every sibling '
         'bloc/cubit in this codebase (NatarajBloc, ShivAIBloc)', () async {
-      when(() => manasLoader.searchAll(query: any(named: 'query')))
+      when(() => manasLoader.searchAll(
+              query: any(named: 'query'),
+              minScore: any(named: 'minScore'),
+            ))
           .thenAnswer((_) async => const []);
       when(() => sendChat.call(any())).thenAnswer((_) => const Stream.empty());
       final cubit = build()..start(manasIds: const []);

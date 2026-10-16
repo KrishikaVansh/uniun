@@ -417,6 +417,27 @@ void main() {
     });
 
     blocTest<ShivAIBloc, ShivAIState>(
+      'a stream that ends with no visible text is saved blank and the turn '
+      'ends; the bubble labels it (#123)',
+      build: build,
+      act: (b) async {
+        b.add(const ShivAIEvent.createConversation());
+        await Future<void>.delayed(Duration.zero);
+        b.add(const ShivAIEvent.sendMessage('question'));
+        await Future<void>.delayed(Duration.zero);
+        tokenController.add('<think>working it out</think>');
+        await Future<void>.delayed(const Duration(milliseconds: 60));
+        await tokenController.close();
+      },
+      wait: const Duration(milliseconds: 80),
+      verify: (b) {
+        expect(b.state.status, ShivChatStatus.chatIdle);
+        expect(b.state.streamingContent, isNull);
+        expect(b.state.messages.last.content, isEmpty);
+      },
+    );
+
+    blocTest<ShivAIBloc, ShivAIState>(
       'tapping Stop mid-stream persists the partial tokens generated so far',
       build: build,
       act: (b) async {

@@ -60,6 +60,34 @@ void main() {
     });
   });
 
+  group('PromptBudget minScore — only the 0.6B model is strict (#199)', () {
+    test('qwen25_05b and an unknown model need a note to really match', () {
+      expect(PromptBudget.forModel(AIModelId.qwen25_05b).minScore, 0.72);
+      expect(PromptBudget.forModel(null).minScore, 0.72);
+    });
+
+    test('every other local model keeps the default 0.3', () {
+      for (final id in [
+        AIModelId.deepseekR1,
+        AIModelId.gemma4E2b,
+        AIModelId.gemma4E4b,
+      ]) {
+        expect(PromptBudget.forModel(id).minScore, 0.3, reason: id.name);
+      }
+    });
+
+    test('a cloud model keeps the default 0.3', () {
+      final b = PromptBudget.forActiveModel(
+        const LlmModelInfo(
+          id: 'some-cloud-model',
+          displayName: 'Cloud',
+          backend: LlmBackendType.uniunCloud,
+        ),
+      );
+      expect(b.minScore, 0.3);
+    });
+  });
+
   group('PromptBudget.forActiveModel', () {
     test('a null active model falls back to the local default bucket', () {
       final b = PromptBudget.forActiveModel(null);

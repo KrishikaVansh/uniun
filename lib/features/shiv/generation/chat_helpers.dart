@@ -6,6 +6,11 @@ import 'package:uniun/domain/entities/shiv/shiv_message_entity.dart';
 /// chat surface (e.g. the composer-chat in WS4). Kept out of the bloc so both
 /// can reuse them without cross-bloc coupling.
 
+/// What a reply is stored as when the user pressed Stop before any text came,
+/// or the chat was closed mid-reply. Shown localized by `replyDisplayText`.
+const String kStoppedReply = '(stopped)';
+const String kInterruptedReply = '(interrupted)';
+
 /// Removes `<think>...</think>` blocks emitted by reasoning models (DeepSeek R1,
 /// Qwen3) before content is persisted — keeps model reasoning out of stored
 /// messages, branch summaries, and any future RAG lookups.

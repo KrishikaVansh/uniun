@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:uniun/core/enum/message_role.dart';
 import 'package:uniun/common/widgets/drop_icon.dart';
 import 'package:uniun/domain/entities/shiv/shiv_message_entity.dart';
+import 'package:uniun/features/shiv/chat/utils/reply_marker_label.dart';
 import 'package:uniun/features/shiv/chat/widgets/shiv_sources_sheet.dart';
 import 'package:uniun/l10n/app_localizations.dart';
 
@@ -89,7 +90,7 @@ class ShivMessageBubble extends StatelessWidget {
       padding: const EdgeInsets.only(left: 16, right: 56, bottom: 24),
       child: _ShivBubble(
         thinkingText: parsed.thinking,
-        responseText: parsed.response,
+        responseText: replyDisplayText(parsed.response, AppLocalizations.of(context)!),
         isStreaming: streamingContent != null,
         isInThinkBlock: parsed.isInThinkBlock,
         isLastAssistant: isLastAssistant,
@@ -185,7 +186,8 @@ class _ShivBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final showTyping = isStreaming && responseText.isEmpty && !isInThinkBlock;
+    final showTyping =
+        isStreaming && responseText.trim().isEmpty && !isInThinkBlock;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -250,8 +252,23 @@ class _ShivBubble extends StatelessWidget {
               ],
             ),
             child: showTyping
-                ? const _TypingIndicator()
-                : _MarkdownText(text: responseText),
+                ? const _TypingIndicator(key: ValueKey('shiv-typing-indicator'))
+                : (!isStreaming &&
+                          responseText.trim().isEmpty &&
+                          thinkingText.isEmpty)
+                      // A reply that ended with nothing to show (an empty
+                      // completion, or reasoning only) is stored blank.
+                      ? Text(
+                          l10n.shivNoResponse,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontStyle: FontStyle.italic,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
+                        )
+                      : _MarkdownText(text: responseText),
           ),
 
         // "Sources" chip — only under the latest reply, once it's complete,
@@ -585,7 +602,7 @@ class _InlineText extends StatelessWidget {
 // ── Typing indicator ─────────────────────────────────────────────────────────
 
 class _TypingIndicator extends StatelessWidget {
-  const _TypingIndicator();
+  const _TypingIndicator({super.key});
 
   @override
   Widget build(BuildContext context) {

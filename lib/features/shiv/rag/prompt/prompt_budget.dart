@@ -21,7 +21,20 @@ class PromptBudget {
     required this.memoriesTokens,
     required this.topK,
     required this.maxHops,
+    this.minScore = defaultMinScore,
   });
+
+  /// How similar a note must be to the question (0..1, from the embedder) to
+  /// be put in the prompt. Most unrelated notes score 0.6-0.7 against any
+  /// question, so this only keeps out the clearly unrelated ones.
+  static const double defaultMinScore = 0.3;
+
+  /// The 0.6B model copies whatever note it is given, so for it a note must be
+  /// really about the question. Measured with the real Gecko on a phone (20
+  /// questions, 8 notes): notes that answer the question scored 0.74-0.85,
+  /// the closest note to an unrelated question never above 0.70. Document
+  /// chunks measured the same way: 0.78-0.85 against 0.59-0.71.
+  static const double smallModelMinScore = 0.72;
 
   final int maxTokens;
   final int queryTokens;
@@ -31,6 +44,9 @@ class PromptBudget {
 
   /// How many vector seed notes to retrieve. Larger models can handle more context.
   final int topK;
+
+  /// Notes below this similarity are not retrieved. See [defaultMinScore].
+  final double minScore;
 
   /// Graph traversal depth. 1-hop for small models (speed + context limit),
   /// 2-hop for larger models (richer multi-hop reasoning).
@@ -61,6 +77,7 @@ class PromptBudget {
     final int max;
     final int topK;
     final int maxHops;
+    var minScore = defaultMinScore;
     switch (modelId) {
       case AIModelId.gemma4E4b:
         max = 8192;
@@ -82,8 +99,9 @@ class PromptBudget {
         max = 2048;
         topK = 3;
         maxHops = 1;
+        minScore = smallModelMinScore;
     }
-    return _build(max, topK, maxHops);
+    return _build(max, topK, maxHops, minScore: minScore);
   }
 
   /// Cloud models routinely expose 32k–200k context windows. We don't try
@@ -100,7 +118,12 @@ class PromptBudget {
     return _build(cap, 15, 2);
   }
 
-  static PromptBudget _build(int max, int topK, int maxHops) {
+  static PromptBudget _build(
+    int max,
+    int topK,
+    int maxHops, {
+    double minScore = defaultMinScore,
+  }) {
     // Split: query 10%, topNotes 35%, graphRelations 20%, summaries 15%.
     return PromptBudget(
       maxTokens: max,
@@ -110,6 +133,7 @@ class PromptBudget {
       memoriesTokens: (max * 0.15).round(),
       topK: topK,
       maxHops: maxHops,
+      minScore: minScore,
     );
   }
 

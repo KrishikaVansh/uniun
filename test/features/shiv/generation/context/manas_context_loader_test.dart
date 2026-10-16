@@ -311,6 +311,7 @@ void main() {
       when(() => searcher.search(
             queryVector: any(named: 'queryVector'),
             topK: any(named: 'topK'),
+            minScore: any(named: 'minScore'),
           )).thenAnswer((_) async => const [
             ScoredNote(noteId: 'n1', score: 0.9, content: 'hit one'),
             ScoredNote(noteId: 'n2', score: 0.5, content: 'hit two'),
@@ -323,6 +324,24 @@ void main() {
       verify(() => searcher.search(
             queryVector: [1.0],
             topK: 3,
+            minScore: 0.3,
+          )).called(1);
+    });
+
+    test('passes the caller\'s minScore to the search (#199)', () async {
+      when(() => embedder.embed(any())).thenAnswer((_) async => [1.0]);
+      when(() => searcher.search(
+            queryVector: any(named: 'queryVector'),
+            topK: any(named: 'topK'),
+            minScore: any(named: 'minScore'),
+          )).thenAnswer((_) async => const []);
+
+      await loader.searchAll(query: 'q', minScore: 0.72);
+
+      verify(() => searcher.search(
+            queryVector: [1.0],
+            topK: 6,
+            minScore: 0.72,
           )).called(1);
     });
 

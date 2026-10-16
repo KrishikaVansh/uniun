@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:uniun/common/snackbar.dart';
+import 'package:uniun/features/shiv/chat/utils/reply_marker_label.dart';
 import 'package:uniun/features/shiv/composer_chat/cubit/composer_chat_state.dart';
 import 'package:uniun/l10n/app_localizations.dart';
 import 'package:uniun/core/theme/app_custom_colors.dart';
@@ -56,7 +57,10 @@ class ComposerChatPanel extends StatelessWidget {
                   for (final t in state.turns) ...[
                     _Bubble(text: t.question, isUser: true),
                     if (t.answer.isNotEmpty) ...[
-                      _Bubble(text: t.answer, isUser: false),
+                      _Bubble(
+                        text: replyDisplayText(t.answer, l10n),
+                        isUser: false,
+                      ),
                       _AnswerActions(
                           text: t.answer, onUseAsReply: onUseAsReply),
                     ],

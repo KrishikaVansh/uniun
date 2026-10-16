@@ -76,7 +76,7 @@ const int kBackgroundMaxGanasPerTick = 1;
 ///
 /// 1. Boots BackgroundIsolateBinaryMessenger so plugin groups work.
 /// 2. Opens its own Isar handle at the shared DB path.
-/// 3. Initializes flutter_edge_ai (then flutter_edge_ai 1.0.0) with the same engine list as
+/// 3. Initializes flutter_edge_ai (then flutter_gemma 1.0.0) with the same engine list as
 ///    `main.dart` — skipped when the one due Gana is cloud-pinned (see 4).
 ///    Verified PASS by `integration_test/flutter_edge_ai_bg_isolate_test.dart`
 ///    (Qwen3 0.6B fresh-load on Android arm64 in 9.2s).

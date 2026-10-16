@@ -129,6 +129,7 @@ class RagPipeline {
     final context = await _retrieveContext(
       userQuestion,
       topK: budget.topK,
+      minScore: budget.minScore,
       maxHops: budget.maxHops,
       manasIds: manasIds,
     );
@@ -164,6 +165,7 @@ class RagPipeline {
   Future<EnrichedContext> _retrieveContext(
     String query, {
     int topK = 5,
+    double minScore = PromptBudget.defaultMinScore,
     int maxHops = 1,
     List<String> manasIds = const [],
   }) async {
@@ -185,13 +187,18 @@ class RagPipeline {
       } else {
         final vec = await _embedding.embed(query);
         if (vec.isEmpty) return EnrichedContext.empty;
-        seedNotes = await _vectorSearch.search(queryVector: vec, topK: topK);
+        seedNotes = await _vectorSearch.search(
+          queryVector: vec,
+          topK: topK,
+          minScore: minScore,
+        );
         // Documents are unscoped-chat only: a Manas scopes by note membership,
         // which a PDF blob has none of.
         seedChunks = await _safeChunkSearch(
           vec,
           query,
           math.max(1, topK ~/ 2),
+          minScore,
         );
       }
       if (seedNotes.isEmpty && seedChunks.isEmpty) return EnrichedContext.empty;
@@ -258,12 +265,14 @@ class RagPipeline {
     List<double> vec,
     String query,
     int topK,
+    double minScore,
   ) async {
     try {
       return await _vectorSearch.searchChunks(
         queryVector: vec,
         queryText: query,
         topK: topK,
+        minScore: minScore,
       );
     } catch (_) {
       return const [];

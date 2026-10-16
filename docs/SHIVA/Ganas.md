@@ -242,7 +242,7 @@ What we kept:
 
 - **`InferenceScheduler`** (see [`scheduling.md`](scheduling.md)) — chat
   preemption still matters because the GPU is one-at-a-time.
-  flutter_edge_ai (then flutter_edge_ai 1.x)'s concurrent-sessions feature removes model
+  flutter_edge_ai (then flutter_gemma 1.x)'s concurrent-sessions feature removes model
   duplication, not GPU serialization. The scheduler's T0 chat tier is
   what makes preemption usable in practice.
 - **WorkManager bg isolate** — separate concern. OS-dispatched, can't
@@ -627,7 +627,7 @@ adb shell cmd jobscheduler run -f in.uniun.app 999
 
 ### 8.3 The unanswered question — v2 background inference
 
-flutter_edge_ai (then flutter_edge_ai 1.0.0)'s docs are silent on whether `FlutterEdgeAi.initialize()` + `openChat()` work in a background isolate. We don't ship background inference in v1 because shipping unverified inference behaviour means broken Ganas that the user can't debug.
+flutter_edge_ai (then flutter_gemma 1.0.0)'s docs are silent on whether `FlutterEdgeAi.initialize()` + `openChat()` work in a background isolate. We don't ship background inference in v1 because shipping unverified inference behaviour means broken Ganas that the user can't debug.
 
 The test that answers this lives at `test/integration/flutter_edge_ai_bg_isolate_test.dart`. Move to `integration_test/` and run on a real device with a model already installed. Three outcomes:
 
@@ -813,7 +813,7 @@ test/integration/
 | Item | Trigger to ship |
 |---|---|
 | **Background inference for DM/PC** | Currently bg tick skips kind 14 / 9023 (native plugins are main-isolate-only). Plumbing NIP-17 / MLS into the bg isolate would lift the limitation. |
-| **Function-calling output** | Dropped from the prompt entirely (models leaked `publish_message(body=...)` as text; sanitizer rule + plain-text prompt instead). flutter_edge_ai (then flutter_edge_ai 1.2.0) now exposes true tool-calling + a skill runtime — the revisit is designed in [`agent_skills.md`](agent_skills.md) (agentic Ganas, typed publish via `publish-*` skills, per-round scheduling). Note the historical text-leak is exactly the small-model reliability risk that doc's P1 gate must measure. |
+| **Function-calling output** | Dropped from the prompt entirely (models leaked `publish_message(body=...)` as text; sanitizer rule + plain-text prompt instead). flutter_edge_ai (then flutter_gemma 1.2.0) now exposes true tool-calling + a skill runtime — the revisit is designed in [`agent_skills.md`](agent_skills.md) (agentic Ganas, typed publish via `publish-*` skills, per-round scheduling). Note the historical text-leak is exactly the small-model reliability risk that doc's P1 gate must measure. |
 | **Real `outputEventId` for DM + private channel** | Transport use cases (`SendDmUseCase`, `SendPrivateChannelMessageUsecase`) return `void` / `Unit`. Engine snapshots `noteModels` before/after the call to recover the new eventId — works but feels fragile. |
 | **User-private config sync across devices** | Out of scope; would need encrypted Nostr-based sync layer |
 | **"Run now" button** | Deferred; once we see how trigger model behaves in the wild |

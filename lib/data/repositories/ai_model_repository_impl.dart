@@ -28,7 +28,7 @@ class AIModelRepositoryImpl implements AIModelRepository {
   AIModelRepositoryImpl(this._isar, this._settings, this._runner, this._gateway);
 
   // ── Model catalog ────────────────────────────────────────────────────────────
-  // All URLs are real HuggingFace releases compatible with flutter_edge_ai (then flutter_edge_ai 0.13.x)
+  // All URLs are real HuggingFace releases compatible with flutter_edge_ai (then flutter_gemma 0.13.x)
   // on Android and iOS (no auth token required).
   //
   // Mobile file format rules:

@@ -2,7 +2,7 @@
 
 Shiv is UNIUN's AI assistant. It reasons over the user's saved notes via vector + graph RAG, and runs against **two interchangeable backends** behind one repository:
 
-- **Local** — `flutter_edge_ai (then flutter_edge_ai 1.5.1)` on-device inference (default, fully offline).
+- **Local** — `flutter_edge_ai (then flutter_gemma 1.5.1)` on-device inference (default, fully offline).
 - **Cloud (UNIUN Cloud)** — UNIUN's own inference gateway (`api.uniun.in`), authenticated with the user's own Nostr keypair — no separate password/account. See `UniunRepository`/`UniunRepositoryImpl` below; this replaced an earlier direct-OpenRouter integration entirely (`openrouter_api` is no longer a dependency).
 
 The user picks the backend in Settings. The chat code, RAG pipeline, knowledge extractor and BLoC have **no idea which backend is active** — they call the same `LlmRepository` interface.
@@ -57,7 +57,7 @@ AIModelRunner ▶ openChat(modelType…)         UniunRepository.streamChat()
         │  InferenceScheduler (5-tier — see              │
         │  docs/SHIVA/scheduling.md)                     ▼
         ▼                                     UniunRepositoryImpl
-flutter_edge_ai (then flutter_edge_ai 1.5.1) (LiteRT-LM / MediaPipe)        (the ONLY class that
+flutter_edge_ai (then flutter_gemma 1.5.1) (LiteRT-LM / MediaPipe)        (the ONLY class that
                                                  imports UniunGatewayClient)
                                                         │
                                                         ▼
@@ -160,7 +160,7 @@ lib/data/datasources/llm/
 ├── local_llm_data_source.dart       wraps AIModelRunner + InferenceScheduler
 │                                    listAvailableModels → local catalog (downloaded only)
 │
-├── local_llm_runner.dart            opens InferenceChat via flutter_edge_ai (then flutter_edge_ai 1.5.1)
+├── local_llm_runner.dart            opens InferenceChat via flutter_edge_ai (then flutter_gemma 1.5.1)
 │                                    passes modelType + isThinking per active model
 │                                    holds _activeExtraction → safe preemption
 │
@@ -534,14 +534,16 @@ See the [RAG per turn](#rag-per-turn--what-happens-inside-ragpipelinebuildmessag
 
 `PromptBudget.forActiveModel(LlmModelInfo)` resolves the budget each turn — RAG automatically grows or shrinks to match the active engine's context window. Caller does nothing special.
 
-| Active model | RAG budget | topK seed notes | graph hops | Engine `maxTokens` |
-|---|---:|---:|---:|---:|
-| Qwen3 0.6B (default small) | 2,048 | 3 | 1 | 2,048 |
-| DeepSeek R1 1.5B | 1,024 | 3 | 1 | 1,280 |
-| Gemma 4 E2B | 4,096 | 5 | 2 | 4,096 |
-| Gemma 4 E4B | 8,192 | 10 | 2 | 8,192 |
-| **Cloud (UNIUN Cloud)** | **16,384** | **15** | **2** | — |
-| no active model | 2,048 | 3 | 1 | — |
+| Active model | RAG budget | topK seed notes | min similarity | graph hops | Engine `maxTokens` |
+|---|---:|---:|---:|---:|---:|
+| Qwen3 0.6B (default small) | 2,048 | 3 | **0.72** | 1 | 2,048 |
+| DeepSeek R1 1.5B | 1,024 | 3 | 0.3 | 1 | 1,280 |
+| Gemma 4 E2B | 4,096 | 5 | 0.3 | 2 | 4,096 |
+| Gemma 4 E4B | 8,192 | 10 | 0.3 | 2 | 8,192 |
+| **Cloud (UNIUN Cloud)** | **16,384** | **15** | 0.3 | **2** | — |
+| no active model | 2,048 | 3 | 0.72 | 1 | — |
+
+**Why Qwen3 0.6B has a higher cut-off (#199).** Any note scores about 0.6-0.7 against any question with the Gecko embedder, so the default 0.3 puts the closest note into every prompt. Gemma ignores a note that does not belong; Qwen3 0.6B copies it, which showed as one reply (for example "Marmalade") for every question. Measured on a phone with the real Gecko (20 questions, 8 notes, `shiv_notes_qa_e2e_test`): notes that answer the question scored 0.74-0.85, the closest note to an unrelated question never above 0.70. The cut-off is `PromptBudget.smallModelMinScore` (0.72). It applies to notes, to document chunks (measured the same way on a phone: answering chunks 0.78-0.85, unrelated questions 0.59-0.71) and to the composer-chat "All notes" search; the Manas-scoped paths rank inside the picked Manas and are not filtered by score. A reply the user stopped or that was cut off is stored as a fixed marker and shown in the user's language (`replyDisplayText`). The gap is narrow, so it applies to this model only; a vague question ("what are my notes on food") scored 0.64 and no longer pulls a note in on this model. Re-measure if the embedder changes. A local model id that is not in `AIModelId` (and "no active model") falls into this same tier, so it gets the strict cut-off too.
 
 Engine `maxTokens` is the hard KV-cache size baked into the local model file (e.g. `deepseek_q8_ekv1280.task` = 1,280-token cache; opening larger aborts at `CalculatorGraph::Run`). RAG budget for DeepSeek therefore reserves ~256 tokens for the generated response.
 

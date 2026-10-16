@@ -6,6 +6,8 @@ import 'package:uniun/core/enum/message_role.dart';
 import 'package:uniun/core/error/failures.dart';
 import 'package:uniun/domain/entities/graph_edge/graph_edge_entity.dart';
 import 'package:uniun/domain/entities/graph_node/graph_node_entity.dart';
+import 'package:uniun/domain/entities/llm/llm_backend_type.dart';
+import 'package:uniun/domain/entities/llm/llm_model_info.dart';
 import 'package:uniun/domain/entities/memory_node/memory_node_entity.dart';
 import 'package:uniun/domain/entities/shiv/scored_chunk.dart';
 import 'package:uniun/domain/entities/shiv/scored_note.dart';
@@ -238,6 +240,7 @@ void main() {
         () => vectorSearch.search(
           queryVector: any(named: 'queryVector'),
           topK: any(named: 'topK'),
+          minScore: any(named: 'minScore'),
         ),
       );
     });
@@ -248,6 +251,7 @@ void main() {
         () => vectorSearch.search(
           queryVector: any(named: 'queryVector'),
           topK: any(named: 'topK'),
+          minScore: any(named: 'minScore'),
         ),
       ).thenAnswer((_) async => const []);
 
@@ -264,6 +268,7 @@ void main() {
         () => vectorSearch.search(
           queryVector: any(named: 'queryVector'),
           topK: any(named: 'topK'),
+          minScore: any(named: 'minScore'),
         ),
       ).thenAnswer(
         (_) async => const [
@@ -337,6 +342,7 @@ void main() {
           () => vectorSearch.search(
             queryVector: any(named: 'queryVector'),
             topK: any(named: 'topK'),
+            minScore: any(named: 'minScore'),
           ),
         ).thenAnswer(
           (_) async => const [
@@ -377,6 +383,7 @@ void main() {
         () => vectorSearch.search(
           queryVector: any(named: 'queryVector'),
           topK: any(named: 'topK'),
+          minScore: any(named: 'minScore'),
         ),
       ).thenAnswer(
         (_) async => const [
@@ -447,6 +454,7 @@ void main() {
         () => vectorSearch.search(
           queryVector: any(named: 'queryVector'),
           topK: any(named: 'topK'),
+          minScore: any(named: 'minScore'),
         ),
       ).thenAnswer((_) async => const []);
     });
@@ -456,6 +464,7 @@ void main() {
         queryVector: any(named: 'queryVector'),
         queryText: any(named: 'queryText'),
         topK: any(named: 'topK'),
+        minScore: any(named: 'minScore'),
       ),
     ).thenAnswer((_) async => chunks);
 
@@ -490,6 +499,7 @@ void main() {
         () => vectorSearch.search(
           queryVector: any(named: 'queryVector'),
           topK: any(named: 'topK'),
+          minScore: any(named: 'minScore'),
         ),
       ).thenAnswer(
         (_) async => const [
@@ -517,6 +527,7 @@ void main() {
           () => vectorSearch.search(
             queryVector: any(named: 'queryVector'),
             topK: 3,
+            minScore: PromptBudget.smallModelMinScore,
           ),
         ).called(1);
         verify(
@@ -524,16 +535,56 @@ void main() {
             queryVector: any(named: 'queryVector'),
             queryText: 'q',
             topK: 1,
+            minScore: PromptBudget.smallModelMinScore,
           ),
         ).called(1);
       },
     );
+
+    test('the active model decides how similar a note must be (#199)',
+        () async {
+      stubChunks(const []);
+      for (final (id, expected) in [
+        ('qwen25_05b', PromptBudget.smallModelMinScore),
+        ('gemma4E2b', PromptBudget.defaultMinScore),
+      ]) {
+        clearInteractions(vectorSearch);
+        when(() => getActiveModel.call()).thenAnswer(
+          (_) async => Right(
+            LlmModelInfo(
+              id: id,
+              displayName: id,
+              backend: LlmBackendType.localGemma,
+            ),
+          ),
+        );
+
+        await pipeline.buildMessage(userQuestion: 'q');
+
+        verify(
+          () => vectorSearch.search(
+            queryVector: any(named: 'queryVector'),
+            topK: any(named: 'topK'),
+            minScore: expected,
+          ),
+        ).called(1);
+        verify(
+          () => vectorSearch.searchChunks(
+            queryVector: any(named: 'queryVector'),
+            queryText: 'q',
+            topK: any(named: 'topK'),
+            minScore: expected,
+          ),
+        ).called(1);
+      }
+    });
 
     test('a chunk search that throws degrades to notes only', () async {
       when(
         () => vectorSearch.search(
           queryVector: any(named: 'queryVector'),
           topK: any(named: 'topK'),
+          minScore: any(named: 'minScore'),
         ),
       ).thenAnswer(
         (_) async => const [
@@ -545,6 +596,7 @@ void main() {
           queryVector: any(named: 'queryVector'),
           queryText: any(named: 'queryText'),
           topK: any(named: 'topK'),
+          minScore: any(named: 'minScore'),
         ),
       ).thenThrow(Exception('store unavailable'));
 
@@ -619,6 +671,7 @@ void main() {
         () => vectorSearch.search(
           queryVector: any(named: 'queryVector'),
           topK: any(named: 'topK'),
+          minScore: any(named: 'minScore'),
         ),
       );
       verifyNever(
@@ -626,6 +679,7 @@ void main() {
           queryVector: any(named: 'queryVector'),
           queryText: any(named: 'queryText'),
           topK: any(named: 'topK'),
+          minScore: any(named: 'minScore'),
         ),
       );
     });
