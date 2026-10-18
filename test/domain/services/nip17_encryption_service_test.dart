@@ -303,7 +303,7 @@ void main() {
   group('start', () {
     test('processes what is queued now and what arrives later', () async {
       await queueWrap(await giftWrap(rumor(id: 'early'), eventId: 'w1'));
-      final service = serviceFor(bob)..start();
+      serviceFor(bob).start();
       await _until(() async => await isar.noteModels.count() == 1);
 
       await queueWrap(await giftWrap(rumor(id: 'late'), eventId: 'w2'));
