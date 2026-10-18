@@ -1,20 +1,19 @@
 import 'package:dartz/dartz.dart';
 import 'package:injectable/injectable.dart';
-import 'package:isar_community/isar.dart';
 import 'package:nostr_core_dart/nostr.dart';
 import 'package:uniun/core/enum/note_type.dart';
 import 'package:uniun/core/error/failures.dart';
 import 'package:uniun/core/utils/pubkey_normalizer.dart';
 import 'package:uniun/core/notes/note_kinds.dart';
 import 'package:uniun/core/usecases/usecase.dart';
-import 'package:uniun/data/models/notes/media_attachment.dart';
-import 'package:uniun/data/models/notes/note_model.dart';
-import 'package:uniun/data/repositories/note_relation_repository_impl.dart';
 import 'package:uniun/domain/entities/dm/dm_conversation_entity.dart';
 import 'package:uniun/domain/entities/media/media_blob_entity.dart';
 import 'package:uniun/domain/entities/note/note_entity.dart';
 import 'package:uniun/domain/repositories/dm_conversation_repository.dart';
 import 'package:uniun/domain/repositories/dm_message_repository.dart';
+import 'package:uniun/domain/repositories/event_queue_repository.dart';
+import 'package:uniun/domain/repositories/nip17_repository.dart';
+import 'package:uniun/domain/repositories/profile_repository.dart';
 import 'package:uniun/domain/services/nip17_encryption_service.dart';
 import 'package:uniun/domain/usecases/user_usecases.dart';
 import 'package:crypto/crypto.dart' as crypto;
@@ -55,7 +54,7 @@ class CreateDmConversationUseCase
       final normalizedPubkey = normalizeNostrPubkey(params.otherPubkey);
       return _repository.saveConversation(
         DmConversationEntity(
-          id: Isar.autoIncrement,
+          id: 0, // assigned by the store
           otherPubkey: normalizedPubkey,
           relays: params.relays,
         ),
@@ -99,11 +98,19 @@ class SendDmParams {
 
 @lazySingleton
 class SendDmUseCase extends UseCase<Either<Failure, Unit>, SendDmParams> {
-  final Isar _isar;
+  final Nip17Repository _nip17;
+  final EventQueueRepository _queue;
+  final ProfileRepository _profiles;
   final GetActiveUserKeysUseCase _getKeys;
   final DmConversationRepository _convRepo;
 
-  SendDmUseCase(this._isar, this._getKeys, this._convRepo);
+  SendDmUseCase(
+    this._nip17,
+    this._queue,
+    this._profiles,
+    this._getKeys,
+    this._convRepo,
+  );
 
   @override
   Future<Either<Failure, Unit>> call(
@@ -145,7 +152,7 @@ class SendDmUseCase extends UseCase<Either<Failure, Unit>, SendDmParams> {
           // Auto-create if it doesn't exist
           convResult = await _convRepo.saveConversation(
             DmConversationEntity(
-              id: Isar.autoIncrement,
+              id: 0, // assigned by the store
               otherPubkey: resolvedOtherPubkey,
               relays: [],
             ),
@@ -167,13 +174,14 @@ class SendDmUseCase extends UseCase<Either<Failure, Unit>, SendDmParams> {
 
           // Spin up a transient encryption service using the decoded privkey hex.
           final service = Nip17EncryptionService(
-            _isar,
-            NoteRelationRepositoryImpl(isar: _isar),
+            _nip17,
+            _queue,
+            _profiles,
             privkeyHex: privkeyHex,
           );
 
-          final dm = NoteModel(
-            eventId: localId,
+          final dm = NoteEntity(
+            id: localId,
             sig: '',
             authorPubkey: keys.pubkeyHex,
             conversationId: conv.id,
@@ -191,18 +199,7 @@ class SendDmUseCase extends UseCase<Either<Failure, Unit>, SendDmParams> {
               ...params.mentionRefs,
             ],
             embeddedNoteJson: params.embeddedNoteJson,
-            attachments: [
-              for (final b in params.attachments)
-                MediaAttachment()
-                  ..sha256 = b.sha256
-                  ..mime = b.mime
-                  ..sizeBytes = b.sizeBytes
-                  ..url = b.serverUrls.isNotEmpty ? b.serverUrls.first : null
-                  ..width = b.dim?.width
-                  ..height = b.dim?.height
-                  ..blurhash = b.blurhash
-                  ..filename = b.filename,
-            ],
+            attachments: params.attachments,
           );
 
           await service.sendDm(dm, receiverPubkey: resolvedOtherPubkey);
@@ -217,10 +214,12 @@ class SendDmUseCase extends UseCase<Either<Failure, Unit>, SendDmParams> {
 
 @lazySingleton
 class GetDmUseCase extends NoParamsUseCase<Either<Failure, Unit>> {
-  final Isar _isar;
+  final Nip17Repository _nip17;
+  final EventQueueRepository _queue;
+  final ProfileRepository _profiles;
   final GetActiveUserKeysUseCase _getKeys;
 
-  GetDmUseCase(this._isar, this._getKeys);
+  GetDmUseCase(this._nip17, this._queue, this._profiles, this._getKeys);
 
   @override
   Future<Either<Failure, Unit>> call({bool cached = false}) async {
@@ -230,8 +229,9 @@ class GetDmUseCase extends NoParamsUseCase<Either<Failure, Unit>> {
       // See SendDmUseCase.call for why `await` here is load-bearing.
       return await keysResult.fold((f) => Left(f), (keys) async {
         final service = Nip17EncryptionService(
-          _isar,
-          NoteRelationRepositoryImpl(isar: _isar),
+          _nip17,
+          _queue,
+          _profiles,
           privkeyHex: keys.privkeyHex,
         );
         await service.processInboundQueue();

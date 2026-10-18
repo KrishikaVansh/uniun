@@ -6,6 +6,20 @@ Format: one dated section per audit pass, newest first. Each item states what wa
 
 ---
 
+## 2026-10-18 — domain layer no longer imports Isar (#163)
+
+`nip17_encryption_service.dart`, `marmot_transport_service.dart` and `dm_usecases.dart` imported `isar_community` and `lib/data/` directly, breaking the layer rule and making the DM and private-group paths untestable without a real database. They now reach storage only through repositories; behaviour is meant to be identical.
+
+- **New:** `Nip17Repository` (gift-wrap queue, inbound save, outgoing save) and plain entities `EncryptedDmEntity`, `EncryptedGroupMessageEntity`, `QueuedEventEntity`. **Extended** instead of duplicated: `E2EEGroupRepository` (pending queue, `confirmWelcome`, `saveDecryptedMessage`, `createGroup`, `requestJoin`, `leaveGroup`, `sendMessage`, `approveJoinRequests`) and `DmConversationRepository.ensureActive`. Gift-wrap enqueue reuses `EventQueueRepository`, profile fetch reuses `ProfileRepository.requestProfileFetch` (replacing `MissingProfileTracker` in these paths).
+- **Atomicity kept:** every write that was one `writeTxn` is still one repository call (inbound DM: note + unread + reply edge + wrap consumed; group send: note + edges + queued event; approve: queued Welcome/Commit + requests marked handled). Tests roll each of these back by making the edge write throw.
+- **Same quirks, on purpose:** the inbound conversation lookup is raw (no pubkey normalisation) and its signing is best-effort; a group message whose event id is already stored fails the unique index and stays queued (the old code did the same, so an own message echoed back by the relay stays in the queue); sending the same DM id twice is refused.
+- **Gateway isolate:** it has no DI, so `lib/gateway/gateway.dart` builds the repositories by hand, and `MeshEventSigner.fixed(privkeyHex:, pubkeyHex:)` signs with the keys handed over at spawn. The DM service is now started only when there is a key (before, it started and returned early on every pass).
+- **Moved:** the pure `imeta` tag parsing moved to `lib/core/notes/imeta_tag_parser.dart` so the domain can use it; `ImetaParser` in `data/` keeps its API.
+- **Tests:** new `nip17_repository_impl_test`, `nip17_encryption_service_test` (real NIP-44 round trip and every rejection path), `marmot_transport_service_test` (mocked MLS, real Isar), `mesh_event_signer_test`, plus additions to the group and conversation repository tests. Changed lines are fully covered except two `catch` lines that were already uncovered in `getConversations` and `GetDmUseCase`.
+- **Not done:** other domain files still import `features/` and `flutter/foundation`. No device test was run for this change (no phone was connected): `logout_account_switch_e2e_test` and the DM and private-group device tests should be run once on a phone.
+
+---
+
 ## 2026-10-18 — after v3.1.0: flutter_edge_ai 2.3, note deletion, Shiv regressions, faster embedding
 
 Covers #283, #290, #291, #292, #295, #297 and #298. All device results are from the vivo 1933 (Snapdragon 710, Android 11); no second phone was available.

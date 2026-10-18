@@ -17,14 +17,22 @@ import 'mesh_event_codec.dart';
 /// mid-session doesn't leave a stale codec cached anywhere.
 @lazySingleton
 class MeshEventSigner {
-  MeshEventSigner(this._users);
+  MeshEventSigner(UserRepository this._users) : _fixed = null;
 
-  final UserRepository _users;
+  /// Signer bound to one identity for good, for the gateway isolate, which
+  /// has no DI and gets the raw keys handed over at spawn.
+  MeshEventSigner.fixed({required String privkeyHex, required String pubkeyHex})
+      : _users = null,
+        _fixed = MeshEventCodec(privkeyHex: privkeyHex, pubkeyHex: pubkeyHex);
+
+  final UserRepository? _users;
+  final MeshEventCodec? _fixed;
 
   /// Builds a codec bound to the currently-logged-in identity, or `null`
   /// if there is none. Cheap to call — no secure-storage cache is kept.
   Future<MeshEventCodec?> currentCodec() async {
-    final keys = await _users.getActiveKeysHex();
+    if (_fixed != null) return _fixed;
+    final keys = await _users!.getActiveKeysHex();
     if (keys == null) return null;
     return MeshEventCodec(
       privkeyHex: keys.privkeyHex,

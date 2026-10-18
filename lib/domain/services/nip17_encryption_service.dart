@@ -1,60 +1,46 @@
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
+import 'package:dartz/dartz.dart';
 
-import 'package:isar_community/isar.dart';
 import 'package:nip44/nip44.dart';
 import 'package:nostr_core_dart/nostr.dart';
-import 'package:uniun/core/notes/embedded_note_codec.dart';
-import 'package:uniun/core/notes/note_kinds.dart';
-import 'package:uniun/core/notes/reply_edge.dart';
-import 'package:uniun/features/mesh/sync/bodies/dm_conversation_body.dart';
-import 'package:uniun/features/mesh/sync/mesh_event_codec.dart';
-import 'package:uniun/gateway/inbound/missing_profile_tracker.dart';
-import 'package:uniun/data/models/dm/dm_conversation_model.dart';
-import 'package:uniun/data/models/dm/encrypted_dm_model.dart';
-import 'package:uniun/data/models/notes/media_attachment.dart';
-import 'package:uniun/data/models/notes/note_model.dart';
-import 'package:uniun/data/models/notes/unread_note_model.dart';
-import 'package:uniun/data/models/event_queue_model.dart';
-import 'package:uniun/domain/repositories/note_relation_repository.dart';
-// user_key_model not needed — privkey is injected via constructor
 import 'package:uniun/core/enum/note_type.dart';
-import 'package:uniun/data/models/notes/imeta_parser.dart';
+import 'package:uniun/core/error/failures.dart';
+import 'package:uniun/core/notes/embedded_note_codec.dart';
+import 'package:uniun/core/notes/imeta_tag_parser.dart';
+import 'package:uniun/core/notes/note_kinds.dart';
+import 'package:uniun/domain/entities/media/media_blob_entity.dart';
+import 'package:uniun/domain/entities/media/media_dim.dart';
+import 'package:uniun/domain/entities/note/note_entity.dart';
+import 'package:uniun/domain/repositories/event_queue_repository.dart';
+import 'package:uniun/domain/repositories/nip17_repository.dart';
+import 'package:uniun/domain/repositories/profile_repository.dart';
 
 class Nip17EncryptionService {
-  final Isar _isar;
-  final NoteRelationRepository _relations;
+  final Nip17Repository _repo;
+  final EventQueueRepository _queue;
+  final ProfileRepository _profiles;
 
   /// The active user's private key as raw 32-byte hex.
   /// Passed in from the gateway isolate bootstrap (read from FlutterSecureStorage
   /// in the main isolate before spawn, since SecureStorage is unavailable in isolates).
   final String? _privkeyHex;
 
-  /// Lazily-built mesh codec bound to the active identity, used to sign the
-  /// auto-created DmConversation row when a first-time DM arrives. Nulled
-  /// out when there is no active user (that also nulls out DM decryption
-  /// itself). Cached because DM inbound is bursty.
-  MeshEventCodec? _meshCodec;
-
   Nip17EncryptionService(
-    this._isar,
-    this._relations, {
+    this._repo,
+    this._queue,
+    this._profiles, {
     String? privkeyHex,
   }) : _privkeyHex = privkeyHex;
 
-  MeshEventCodec? _codec() {
-    if (_meshCodec != null) return _meshCodec;
-    if (_privkeyHex == null || _privkeyHex.isEmpty) return null;
-    final pubkey = Keychain(_privkeyHex).public;
-    _meshCodec =
-        MeshEventCodec(privkeyHex: _privkeyHex, pubkeyHex: pubkey);
-    return _meshCodec;
-  }
+  /// The value of [result], or throws its failure message.
+  T _unwrap<T>(Either<Failure, T> result) =>
+      result.fold((f) => throw Exception(f.toMessage()), (v) => v);
 
-  /// Start watching the Isar collection for new incoming encrypted DMs
+  /// Start watching the gift-wrap queue for new incoming encrypted DMs
   /// (e.g., from the gateway's WebSocketService)
   void start() {
-    _isar.encryptedDmModels.watchLazy().listen((_) async {
+    _repo.watchPendingGiftWraps().listen((_) async {
       await processInboundQueue();
     });
     // initial process
@@ -62,7 +48,7 @@ class Nip17EncryptionService {
   }
 
   Future<void> processInboundQueue() async {
-    final pending = await _isar.encryptedDmModels.where().findAll();
+    final pending = _unwrap(await _repo.pendingGiftWraps());
     if (pending.isEmpty) return;
 
     final myPrivkey = _privkeyHex;
@@ -142,51 +128,32 @@ class Nip17EncryptionService {
 
         final otherPubkey = sealSenderPubkey;
 
-        // Materialize (or reactivate) the DmConversation row BEFORE the inner
-        // note-write txn — signing the mesh event is async (NIP-44 encrypt),
-        // so it can't live inside `writeTxn`. The row's unique+replace index
-        // on `otherPubkey` makes this safe against a concurrent second DM
-        // from the same peer.
-        var conv = await _isar.dmConversationModels
-            .where()
-            .otherPubkeyEqualTo(otherPubkey)
-            .findFirst();
-        if (conv == null || conv.removedAt != null) {
-          conv = (conv ?? DmConversationModel())
-            ..otherPubkey = otherPubkey
-            ..removedAt = null;
-          final codec = _codec();
-          if (codec != null) {
-            try {
-              conv.signedNostrEvent = await codec.signRecord(
-                kind: MeshEventKinds.dmConversation,
-                dTag: otherPubkey,
-                content: DmConversationBody.forActive(conv),
-              );
-            } catch (_) {
-              // Non-fatal — the row still lands in Isar; the mesh migration
-              // pass will backfill `signedNostrEvent` on next launch.
-            }
-          }
-          await _isar.writeTxn(() async {
-            await _isar.dmConversationModels.put(conv!);
-          });
-        }
-
         final parsedEventId = chatEvent['id'] as String? ?? '';
         final contentVal = chatEvent['content'] as String? ?? '';
         final type = _inferTypeFromUrl(contentVal); // simple fallback
 
         // NIP-92 imeta — embedded inside the encrypted rumor by sendDm.
-        // Parser is the same one Kind 1/42 handlers use; it just walks
-        // the tag list looking for `imeta` entries.
-        final attachments = ImetaParser.parseAsAttachments(chatEvent);
+        // Same parser the Kind 1/42 handlers use; it just walks the tag list
+        // looking for `imeta` entries.
+        final attachments = [
+          for (final t in ImetaTagParser.parse(chatEvent))
+            MediaBlobEntity(
+              sha256: t.sha256,
+              mime: t.mime,
+              sizeBytes: t.sizeBytes ?? 0,
+              dim: (t.width != null && t.height != null)
+                  ? MediaDim(width: t.width!, height: t.height!)
+                  : null,
+              blurhash: t.blurhash,
+              filename: t.filename,
+              serverUrls: [t.url],
+            ),
+        ];
 
-        final dmModel = NoteModel(
-          eventId: parsedEventId,
+        final dmNote = NoteEntity(
+          id: parsedEventId,
           sig: '', // Has no valid NIP-01 sig because it's deniable.
           authorPubkey: chatEvent['pubkey'] as String? ?? '',
-          conversationId: conv.id,
           pTagRefs: pTagRefs,
           rootEventId: rootTo,
           replyToEventId: replyTo,
@@ -203,54 +170,26 @@ class Nip17EncryptionService {
           attachments: attachments,
         );
 
-        await _isar.writeTxn(() async {
-          // Duplicate collision defense
-          final existingMsg = await _isar.noteModels
-              .where()
-              .eventIdEqualTo(parsedEventId)
-              .findFirst();
-
-          if (existingMsg != null) {
-              // Message exists, just discard the inbound encrypted envelope
-              await _isar.encryptedDmModels.delete(dm.id);
-              return;
-          }
-
-          await _isar.noteModels.put(dmModel);
-          // Unread row for DMs from the other party (own copies are pre-seen).
-          final pk = _privkeyHex;
-          final ownPubkey = pk != null ? Keychain(pk).public : null;
-          if (dmModel.authorPubkey != ownPubkey) {
-            await putUnreadRowInTxn(_isar, dmModel);
-          }
-          // Record reference edges via the shared repo. The unique
-          // (parentId, childId) index keeps re-delivery idempotent.
-          final parents = replyEdgeParentIds(
-            replyToEventId: replyTo,
-            rootEventId: null,
-            eTagRefs: replyTo != null ? [replyTo] : const [],
-          );
-          await _relations.addEdgesInTxn(
-            parents: parents,
-            childId: parsedEventId,
-          );
-          // Consume encrypted wrapper from queue
-          await _isar.encryptedDmModels.delete(dm.id);
-        });
+        // Stores the note, creates the conversation if this is a first-time
+        // peer, and consumes the wrapper from the queue.
+        _unwrap(await _repo.saveInbound(
+          giftWrapId: dm.id,
+          otherPubkey: otherPubkey,
+          message: dmNote,
+          ownPubkey: Keychain(myPrivkey).public,
+        ));
         // Flag the seal-sender for profile fetch if we don't have one yet.
-        await MissingProfileTracker(_isar).trackPubkey(sealSenderPubkey);
+        await _profiles.requestProfileFetch(sealSenderPubkey);
       } catch (e, st) {
         print("Failed to decrypt GiftWrap ${dm.eventId}: $e\n$st");
         // Always delete on failure so we don't indefinitely panic on bad cryptography
-        await _isar.writeTxn(() async {
-          await _isar.encryptedDmModels.delete(dm.id);
-        });
+        await _repo.discardGiftWrap(dm.id);
       }
     }
   }
 
   /// Sends a direct message to a receiver, wrapping it according to NIP-17.
-  Future<void> sendDm(NoteModel unsignedModel, {required String receiverPubkey}) async {
+  Future<void> sendDm(NoteEntity unsignedModel, {required String receiverPubkey}) async {
     final myPrivkey = _privkeyHex;
     if (myPrivkey == null) throw Exception('No private key available.');
     
@@ -261,20 +200,7 @@ class Nip17EncryptionService {
       final myPubkey = Keychain(myPrivkey).public;
 
       // 1. Immediately store unencrypted Dm in local DB + reference edges.
-      await _isar.writeTxn(() async {
-        await _isar.noteModels.put(unsignedModel);
-        final parents = replyEdgeParentIds(
-          replyToEventId: unsignedModel.replyToEventId,
-          rootEventId: null,
-          eTagRefs: unsignedModel.replyToEventId != null
-              ? [unsignedModel.replyToEventId!]
-              : const [],
-        );
-        await _relations.addEdgesInTxn(
-          parents: parents,
-          childId: unsignedModel.eventId,
-        );
-      });
+      _unwrap(await _repo.saveOutgoing(unsignedModel));
 
       final now = DateTime.now();
       final currentSec = now.millisecondsSinceEpoch ~/ 1000;
@@ -304,7 +230,7 @@ class Nip17EncryptionService {
             EmbeddedNoteCodec.tag(unsignedModel.embeddedNoteJson!),
           // NIP-92 imeta — one tag per attachment. The relay never sees this
           // (it's inside the encrypted seal); the receiver decrypts, walks
-          // the tags, and rebuilds NoteModel.attachments.
+          // the tags, and rebuilds the note's attachments.
           for (final a in unsignedModel.attachments) _imetaTag(a),
         ],
         'content': unsignedModel.content,
@@ -353,25 +279,18 @@ class Nip17EncryptionService {
         createdAt: currentSec,
       );
 
-      // 4. Push to EventQueueModel so CentralRelayManager targets it across networks
-      final eventQueueModel = EventQueueModel()
-        ..eventId = giftWrapEvent.id
-        ..authorPubkey = giftWrapEvent.pubkey
-        ..sig = giftWrapEvent.sig
-        ..kind = 1059
-        ..content = giftWrapEvent.content
-        ..eTagRefs = const []
-        ..pTagRefs = [receiverPubkey]
-        ..tTags = const []
-        ..rootEventId = null
-        ..replyToEventId = null
-        ..created = now
-        ..sentCount = 0
-        ..enqueuedAt = now;
-
-      await _isar.writeTxn(() async {
-        await _isar.eventQueueModels.put(eventQueueModel);
-      });
+      // 4. Push to the outbound queue so the gateway targets it across networks
+      _unwrap(await _queue.enqueueSignedEvent(
+        eventId: giftWrapEvent.id,
+        authorPubkey: giftWrapEvent.pubkey,
+        sig: giftWrapEvent.sig,
+        kind: 1059,
+        eTagRefs: const [],
+        pTagRefs: [receiverPubkey],
+        tTags: const [],
+        content: giftWrapEvent.content,
+        created: now,
+      ));
       print('DEBUG sendDm: Success!');
     } catch (e) {
        print('DEBUG sendDm: CRASH at step $step. Error: $e');
@@ -379,17 +298,18 @@ class Nip17EncryptionService {
     }
   }
 
-  /// Builds one NIP-92 `imeta` tag from an embedded [MediaAttachment].
+  /// Builds one NIP-92 `imeta` tag from an attachment.
   /// Shape matches what the relay-facing publishers emit so encrypted and
   /// public surfaces stay byte-identical.
-  static List<String> _imetaTag(MediaAttachment a) {
+  static List<String> _imetaTag(MediaBlobEntity a) {
+    final url = a.serverUrls.isNotEmpty ? a.serverUrls.first : null;
     return [
       'imeta',
-      if (a.url != null) 'url ${a.url}',
+      if (url != null) 'url $url',
       'm ${a.mime}',
       'x ${a.sha256}',
       if (a.sizeBytes > 0) 'size ${a.sizeBytes}',
-      if (a.width != null && a.height != null) 'dim ${a.width}x${a.height}',
+      if (a.dim != null) 'dim ${a.dim!.width}x${a.dim!.height}',
       if (a.blurhash != null) 'blurhash ${a.blurhash}',
       if (a.filename != null && a.filename!.isNotEmpty) 'name ${a.filename}',
     ];

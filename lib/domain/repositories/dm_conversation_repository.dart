@@ -14,5 +14,12 @@ abstract class DmConversationRepository {
     DmConversationEntity entity,
   );
 
+  /// The conversation with [otherPubkey], created or reactivated when it is
+  /// missing or removed. Used when a message arrives from a first-time peer;
+  /// the pubkey is taken as given and signing is best-effort.
+  Future<Either<Failure, DmConversationEntity>> ensureActive(
+    String otherPubkey,
+  );
+
   Future<Either<Failure, Unit>> deleteConversation(String otherPubkey);
 }

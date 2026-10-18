@@ -345,7 +345,7 @@ Read these files for the full picture rather than expanding this section:
 
 ### DMs — Direct Messages (NIP-17)
 
-> Encryption/decryption both live in one class: `Nip17EncryptionService` (`lib/domain/services/nip17_encryption_service.dart`). Full detail: `docs/Messaging/`.
+> Encryption/decryption both live in one class: `Nip17EncryptionService` (`lib/domain/services/nip17_encryption_service.dart`). Full detail: `docs/Messaging/`. The service only does the crypto; every database read and write goes through `Nip17Repository` (gift-wrap queue, inbound/outgoing DM save), `DmConversationRepository.ensureActive` and `EventQueueRepository`. The same holds for Marmot: `MarmotTransportService` stores through `E2EEGroupRepository` (pending queue, group, message and join-request writes). Each write that used to be one Isar transaction is one repository method, so it stays atomic. Signing that depends on a row (the mesh event on a conversation or group) happens inside the repository impl; the gateway isolate has no DI, so `gateway.dart` builds the DM stack by hand with `MeshEventSigner.fixed(...)`.
 
 - Kind 14 = the actual message content (called a "rumor" — it is UNSIGNED).
 - Three-layer encryption: Kind 14 → NIP-44 encrypt → Kind 13 (seal, signed) → NIP-44 encrypt with an ephemeral key → Kind 1059 (gift wrap, the only thing published to relay).
