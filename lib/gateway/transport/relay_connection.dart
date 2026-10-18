@@ -62,14 +62,28 @@ class RelayConnection {
     _socket!.sink.add(frame);
   }
 
+  /// How long [disconnect] waits for a live socket to confirm its close.
+  static const closeWait = Duration(seconds: 2);
+
   Future<void> disconnect() async {
     _disposed = true;
     _reconnectTimer?.cancel();
+    final wasConnected = _socketSub != null;
     await _socketSub?.cancel();
-    await _socket?.sink.close();
+    final socket = _socket;
+    _socket = null;
     _setState(ConnectionState.disconnected);
     await _framesController.close();
     await _statesController.close();
+    if (socket == null) return;
+    // A socket that never connected never reports its close (#281), so it is
+    // closed without waiting; a live one gets [closeWait] at most.
+    final closing = socket.sink.close().then<void>((_) {}, onError: (_) {});
+    if (wasConnected) {
+      await closing.timeout(closeWait, onTimeout: () {});
+    } else {
+      unawaited(closing);
+    }
   }
 
   void _scheduleReconnect() {

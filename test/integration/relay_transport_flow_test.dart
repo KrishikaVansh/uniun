@@ -260,9 +260,77 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 300));
     expect(s.isConnected, isFalse);
     expect(s.connection.state, ConnectionState.disconnected);
-    // disconnect() awaits sink.close() on a socket that never became ready,
-    // which does not complete; cancel the retry timer without awaiting it.
-    unawaited(s.disconnect());
+    await s.disconnect().timeout(const Duration(seconds: 1));
+    session = null;
+  });
+
+  test('disconnecting a relay that never connected finishes at once and '
+      'closes its streams (#281)', () async {
+    final dead = await _LocalRelay.start();
+    final deadUrl = dead.url;
+    await dead.stop();
+
+    final connection = RelayConnection(url: deadUrl);
+    var statesDone = false;
+    var framesDone = false;
+    connection.states.listen((_) {}, onDone: () => statesDone = true);
+    connection.frames.listen((_) {}, onDone: () => framesDone = true);
+    connection.connect();
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+
+    final clock = Stopwatch()..start();
+    await connection.disconnect().timeout(const Duration(seconds: 1));
+
+    expect(clock.elapsed, lessThan(RelayConnection.closeWait));
+    expect(connection.state, ConnectionState.disconnected);
+    expect(statesDone, isTrue);
+    expect(framesDone, isTrue);
+  });
+
+  test('a removed unreachable relay stops retrying, even when it comes back',
+      () async {
+    final dead = await _LocalRelay.start();
+    final port = dead.port;
+    await dead.stop();
+
+    final connection = RelayConnection(url: 'ws://127.0.0.1:$port');
+    connection.connect();
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    await connection.disconnect().timeout(const Duration(seconds: 1));
+
+    // The relay comes back on the same port, past the 1 s and 2 s retries.
+    final back = await _LocalRelay.start(port: port);
+    try {
+      await Future<void>.delayed(const Duration(milliseconds: 3500));
+      expect(back.accepted, 0, reason: 'a disconnected relay must not redial');
+    } finally {
+      await back.stop();
+    }
+  });
+
+  test('disconnecting a relay that dropped and is retrying finishes quickly',
+      () async {
+    final s = open();
+    s.connect();
+    await _until(() => s.isConnected);
+    await relay.stop();
+    await _until(() => !s.isConnected);
+
+    final clock = Stopwatch()..start();
+    await s.disconnect().timeout(const Duration(seconds: 3));
+
+    expect(clock.elapsed, lessThan(const Duration(seconds: 3)));
+    session = null;
+    relay = await _LocalRelay.start();
+  });
+
+  test('disconnecting twice is harmless', () async {
+    final s = open();
+    s.connect();
+    await _until(() => s.isConnected);
+
+    await s.disconnect();
+    await s.disconnect().timeout(const Duration(seconds: 1));
     session = null;
   });
 
@@ -275,7 +343,7 @@ void main() {
     expect(s.connect, returnsNormally);
     await Future<void>.delayed(const Duration(milliseconds: 100));
     expect(s.isConnected, isFalse);
-    unawaited(s.disconnect());
+    await s.disconnect().timeout(const Duration(seconds: 1));
     session = null;
   });
 
@@ -284,7 +352,9 @@ void main() {
     s.connect();
     await _until(() => s.isConnected);
 
+    final clock = Stopwatch()..start();
     await s.disconnect();
+    expect(clock.elapsed, lessThan(RelayConnection.closeWait));
     expect(s.isConnected, isFalse);
 
     s.connect();
