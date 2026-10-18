@@ -75,14 +75,18 @@ class EmbeddingService {
       await _load(shortModelAsset);
     } catch (e) {
       debugPrint('🧠 Embedding: model load failed — $e');
-      _model = null;
-      _loadedAsset = null;
     }
   }
 
   /// Makes [asset] the loaded embedder. The plugin closes the previous one.
+  ///
+  /// On failure nothing is left loaded: the previous model may already be
+  /// closed, and [isReady] must then say false so the note worker keeps its
+  /// queue instead of counting every note as failed.
   Future<void> _load(String asset) async {
     if (_model != null && _loadedAsset == asset) return;
+    _model = null;
+    _loadedAsset = null;
     await _gateway.installEmbedder(
       modelAsset: asset,
       tokenizerAsset: tokenizerAsset,

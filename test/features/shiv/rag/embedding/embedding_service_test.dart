@@ -390,6 +390,37 @@ void main() {
       );
     });
 
+    test('a failed switch leaves the service not ready, so queued notes are '
+        'kept, and the next embed loads again', () async {
+      await service.init();
+      when(() => gateway.getActiveEmbedder(
+            preferredBackend: any(named: 'preferredBackend'),
+          )).thenThrow(Exception('out of memory'));
+
+      expect(await service.embed('LONG text'), isEmpty);
+      expect(service.isReady, isFalse);
+
+      when(() => gateway.getActiveEmbedder(
+            preferredBackend: any(named: 'preferredBackend'),
+          )).thenAnswer((_) async => shortModel);
+      expect(await service.embed('short again'), [1.0, 0.0]);
+      expect(service.isReady, isTrue);
+    });
+
+    test('a failed install also leaves the service not ready', () async {
+      await service.init();
+      when(() => gateway.installEmbedder(
+            modelAsset: any(named: 'modelAsset'),
+            tokenizerAsset: any(named: 'tokenizerAsset'),
+          )).thenThrow(Exception('asset missing'));
+
+      expect(
+        await service.embed('d' * (EmbeddingService.shortModelMaxChars + 1)),
+        isEmpty,
+      );
+      expect(service.isReady, isFalse);
+    });
+
     test('dispose forgets the loaded file, the next embed loads it again',
         () async {
       await service.embed('first');
