@@ -107,6 +107,12 @@ void main() {
 
     when(() => gateway.hasActiveEmbedder()).thenReturn(true);
     when(
+      () => gateway.installEmbedder(
+        modelAsset: any(named: 'modelAsset'),
+        tokenizerAsset: any(named: 'tokenizerAsset'),
+      ),
+    ).thenAnswer((_) async {});
+    when(
       () => gateway.getActiveEmbedder(
         preferredBackend: any(named: 'preferredBackend'),
       ),

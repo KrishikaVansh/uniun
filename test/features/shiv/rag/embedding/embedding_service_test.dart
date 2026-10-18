@@ -30,6 +30,10 @@ void main() {
   setUp(() {
     debugDefaultTargetPlatformOverride = TargetPlatform.iOS; // gpu-preferred
     gateway = _MockGateway();
+    when(() => gateway.installEmbedder(
+          modelAsset: any(named: 'modelAsset'),
+          tokenizerAsset: any(named: 'tokenizerAsset'),
+        )).thenAnswer((_) async {});
     service = EmbeddingService(gateway, EmbeddingQueue());
   });
 
@@ -60,6 +64,10 @@ void main() {
 
       verify(() => gateway.installEmbedder(
             modelAsset: EmbeddingService.modelAsset,
+            tokenizerAsset: EmbeddingService.tokenizerAsset,
+          )).called(1);
+      verify(() => gateway.installEmbedder(
+            modelAsset: EmbeddingService.shortModelAsset,
             tokenizerAsset: EmbeddingService.tokenizerAsset,
           )).called(1);
     });
@@ -255,7 +263,8 @@ void main() {
       expect(calls, 4);
     });
 
-    test('a one-character input that is too long stops at once', () async {
+    test('a one-character input too long for both files stops after the '
+        'long file', () async {
       when(() => gateway.hasActiveEmbedder()).thenReturn(true);
       final model = FakeEmbeddingModel();
       when(() => gateway.getActiveEmbedder(preferredBackend: any(named: 'preferredBackend')))
@@ -267,7 +276,7 @@ void main() {
       });
 
       expect(await service.embed('z'), isEmpty);
-      expect(calls, 1);
+      expect(calls, 2);
     });
 
     test('a generateEmbedding failure degrades to [], not a throw', () async {
@@ -281,6 +290,120 @@ void main() {
       final vec = await service.embed('hello');
 
       expect(vec, isEmpty);
+    });
+  });
+
+  group('short and long Gecko files (#266)', () {
+    late FakeEmbeddingModel shortModel;
+    late FakeEmbeddingModel longModel;
+    late List<String> installs;
+
+    setUp(() {
+      shortModel = FakeEmbeddingModel(maxInputTokens: 256);
+      longModel = FakeEmbeddingModel(maxInputTokens: 1024);
+      installs = [];
+      var active = '';
+      when(() => gateway.installEmbedder(
+            modelAsset: any(named: 'modelAsset'),
+            tokenizerAsset: any(named: 'tokenizerAsset'),
+          )).thenAnswer((i) async {
+        active = i.namedArguments[#modelAsset] as String;
+        installs.add(active == EmbeddingService.shortModelAsset ? 'short' : 'long');
+      });
+      when(() => gateway.getActiveEmbedder(
+            preferredBackend: any(named: 'preferredBackend'),
+          )).thenAnswer((_) async =>
+          active == EmbeddingService.shortModelAsset ? shortModel : longModel);
+      when(() => shortModel.calls.embed(any(), any())).thenAnswer((i) async {
+        final text = i.positionalArguments.first as String;
+        if (text.startsWith('LONG')) {
+          throw const EmbeddingInputTooLongException(
+            'too long',
+            maxInputTokens: 256,
+            actualTokens: 400,
+          );
+        }
+        return [1.0, 0.0];
+      });
+      when(() => longModel.calls.embed(any(), any()))
+          .thenAnswer((_) async => [0.0, 1.0]);
+    });
+
+    test('init loads the short file', () async {
+      await service.init();
+
+      expect(service.isReady, isTrue);
+      expect(installs, ['short']);
+    });
+
+    test('a short text is embedded with the short file, no switch', () async {
+      expect(await service.embed('what is my bike service date?'), [1.0, 0.0]);
+      expect(await service.embed('another question'), [1.0, 0.0]);
+
+      expect(installs, ['short']);
+      verifyNever(() => longModel.calls.embed(any(), any()));
+    });
+
+    test('a text past the character limit goes straight to the long file',
+        () async {
+      final long = 'a' * (EmbeddingService.shortModelMaxChars + 1);
+
+      expect(await service.embed(long, isDocument: true), [0.0, 1.0]);
+
+      expect(installs, ['short', 'long']);
+      verifyNever(() => shortModel.calls.embed(long, any()));
+    });
+
+    test('a text at the character limit is tried on the short file', () async {
+      final atLimit = 'b' * EmbeddingService.shortModelMaxChars;
+
+      expect(await service.embed(atLimit), [1.0, 0.0]);
+      expect(installs, ['short']);
+    });
+
+    test('a text the short file rejects is embedded with the long file',
+        () async {
+      expect(await service.embed('LONG but few characters'), [0.0, 1.0]);
+
+      expect(installs, ['short', 'long']);
+      verify(() => longModel.calls.embed('LONG but few characters', any()))
+          .called(1);
+    });
+
+    test('after a long text the next short one switches back', () async {
+      await service.embed('LONG text');
+      expect(await service.embed('short again'), [1.0, 0.0]);
+
+      expect(installs, ['short', 'long', 'short']);
+    });
+
+    test('the long file failing to load answers [], not a throw', () async {
+      await service.init();
+      when(() => gateway.getActiveEmbedder(
+            preferredBackend: any(named: 'preferredBackend'),
+          )).thenThrow(Exception('cannot open the long file'));
+
+      expect(await service.embed('LONG text'), isEmpty);
+      expect(
+        await service.embed('c' * (EmbeddingService.shortModelMaxChars + 1)),
+        isEmpty,
+      );
+    });
+
+    test('dispose forgets the loaded file, the next embed loads it again',
+        () async {
+      await service.embed('first');
+      when(() => shortModel.calls.close()).thenAnswer((_) async {});
+
+      await service.dispose();
+      await service.embed('second');
+
+      expect(installs, ['short', 'short']);
+    });
+
+    test('unicode and emoji text is embedded like any other', () async {
+      expect(await service.embed('नमस्ते दुनिया 🌟 مرحبا'), [1.0, 0.0]);
+      expect(installs, ['short']);
     });
   });
 

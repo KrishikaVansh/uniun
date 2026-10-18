@@ -374,8 +374,6 @@ What is planned or being looked at, from the open issues. No dates are promised.
   ownership principle as your notes and keys, extended to your income. In line with UNIUN's
   Nostr-native philosophy, this leans on the protocol's own payment rails (zaps) rather than a
   walled-garden payment system.
-- **Faster note embedding.** About 11.5 s a note on a mid-range phone today; a shorter-input model
-  with chunking is being measured first (#266).
 - **Documents in the graph.** Let documents contribute nodes to the knowledge graph (#235) and let a
   Manas-scoped chat reach its notes' attached documents (#236).
 - **Search and highlights over Nostr.** Global search with NIP-50 (#247) and text highlights with

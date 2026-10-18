@@ -19,9 +19,20 @@ import 'package:uniun/data/datasources/llm/flutter_edge_ai_gateway.dart';
 /// TensorFlow Lite in the binary and removes the conflict entirely.
 ///
 /// ## Bundled, not downloaded
-/// The model + tokenizer ship as app assets (see [modelAsset]/[tokenizerAsset]),
-/// so RAG works offline on first launch with no network fetch. `installEmbedder`
-/// copies the asset into flutter_edge_ai's managed storage once (idempotent).
+/// The models + tokenizer ship as app assets (see [shortModelAsset],
+/// [modelAsset], [tokenizerAsset]), so RAG works offline on first launch with
+/// no network fetch. `installEmbedder` copies an asset into flutter_edge_ai's
+/// managed storage once.
+///
+/// ## Two files, one vector space (#266)
+/// Gecko comes as a 256-token and a 1024-token file with the same weights:
+/// for any text that fits both, they return the same vector (cosine 1.0000 on
+/// a phone). Every input is padded to the file's full length, so the short
+/// file is 5.4x faster (2.2 s against 11.7 s an embed on a Snapdragon 710).
+/// Questions, PDF/DOCX chunks and most notes fit it; only text that does not
+/// is embedded with the 1024 file. The plugin keeps one embedder loaded, so a
+/// switch costs about a second; the queue runs one embed at a time, so a
+/// switch never closes a model another embed is using.
 ///
 /// Output: 768-dimensional L2-normalised float vector.
 @lazySingleton
@@ -34,11 +45,22 @@ class EmbeddingService {
   static const int embeddingDim = 768;
 
   /// Bundled asset paths — also referenced by [EmbeddingModelDownloader] so the
-  /// install can be pre-warmed during the LLM download UX.
+  /// install can be pre-warmed during the LLM download UX. [modelAsset] is the
+  /// 1024-token file, used only for text the short file cannot take.
   static const String modelAsset = 'assets/models/embedding/gecko_1024_quant.tflite';
+  static const String shortModelAsset =
+      'assets/models/embedding/gecko_256_quant.tflite';
   static const String tokenizerAsset = 'assets/models/embedding/sentencepiece.model';
 
+  /// Longer text goes straight to the 1024 file. 256 tokens is roughly 1,100
+  /// characters of English; text up to this length is tried on the short file
+  /// first, which rejects a too-long input in about 15 ms without embedding.
+  static const int shortModelMaxChars = 1200;
+
   EmbeddingModel? _model;
+
+  /// The asset [_model] was loaded from.
+  String? _loadedAsset;
 
   bool get isReady => _model != null;
 
@@ -50,33 +72,46 @@ class EmbeddingService {
   Future<void> init() async {
     if (isReady) return;
     try {
-      await ensureInstalled();
-      // Prefer GPU, fall back to CPU on load failure so RAG still works
-      // everywhere.
-      final backend = preferredLlmBackend;
-      try {
-        _model = await _gateway.getActiveEmbedder(preferredBackend: backend);
-      } on Object catch (e) {
-        if (backend == PreferredBackend.cpu) rethrow;
-        debugPrint('🧠 Embedding: GPU load failed ($e) — retrying on CPU');
-        _model = await _gateway.getActiveEmbedder(
-          preferredBackend: PreferredBackend.cpu,
-        );
-      }
+      await _load(shortModelAsset);
     } catch (e) {
       debugPrint('🧠 Embedding: model load failed — $e');
       _model = null;
+      _loadedAsset = null;
     }
   }
 
-  /// Registers the bundled Gecko model + tokenizer as flutter_edge_ai's active
-  /// embedder. Idempotent — returns fast once installed.
-  Future<void> ensureInstalled() async {
-    if (_gateway.hasActiveEmbedder()) return;
+  /// Makes [asset] the loaded embedder. The plugin closes the previous one.
+  Future<void> _load(String asset) async {
+    if (_model != null && _loadedAsset == asset) return;
     await _gateway.installEmbedder(
-      modelAsset: modelAsset,
+      modelAsset: asset,
       tokenizerAsset: tokenizerAsset,
     );
+    // Prefer GPU, fall back to CPU on load failure so RAG still works
+    // everywhere.
+    final backend = preferredLlmBackend;
+    try {
+      _model = await _gateway.getActiveEmbedder(preferredBackend: backend);
+    } on Object catch (e) {
+      if (backend == PreferredBackend.cpu) rethrow;
+      debugPrint('🧠 Embedding: GPU load failed ($e) — retrying on CPU');
+      _model = await _gateway.getActiveEmbedder(
+        preferredBackend: PreferredBackend.cpu,
+      );
+    }
+    _loadedAsset = asset;
+  }
+
+  /// Copies both bundled Gecko files into flutter_edge_ai's storage, leaving
+  /// the short one active. Returns fast once an embedder is installed.
+  Future<void> ensureInstalled() async {
+    if (_gateway.hasActiveEmbedder()) return;
+    for (final asset in const [modelAsset, shortModelAsset]) {
+      await _gateway.installEmbedder(
+        modelAsset: asset,
+        tokenizerAsset: tokenizerAsset,
+      );
+    }
   }
 
   // ── Public API ─────────────────────────────────────────────────────────────
@@ -111,6 +146,14 @@ class EmbeddingService {
     if (!isReady) return [];
     final taskType =
         isDocument ? TaskType.retrievalDocument : TaskType.retrievalQuery;
+    try {
+      await _load(
+        text.length > shortModelMaxChars ? modelAsset : shortModelAsset,
+      );
+    } catch (e) {
+      debugPrint('🧠 Embedding: could not load the embedder — $e');
+      return [];
+    }
     var input = text;
     for (var attempt = 0; attempt < _maxFitAttempts; attempt++) {
       try {
@@ -120,6 +163,17 @@ class EmbeddingService {
         );
         return _l2Normalize(vec);
       } on EmbeddingInputTooLongException catch (e) {
+        // Too long for the short file: the long one gives the same vector.
+        if (_loadedAsset == shortModelAsset) {
+          try {
+            await _load(modelAsset);
+          } catch (loadError) {
+            debugPrint('🧠 Embedding: could not load the long file — $loadError');
+            return [];
+          }
+          attempt--;
+          continue;
+        }
         final ratio = e.actualTokens != null && e.actualTokens! > 0
             ? e.maxInputTokens / e.actualTokens!
             : 0.5;
@@ -143,6 +197,7 @@ class EmbeddingService {
   Future<void> dispose() async {
     await _model?.close();
     _model = null;
+    _loadedAsset = null;
   }
 
   // ── L2 normalisation ──────────────────────────────────────────────────────
