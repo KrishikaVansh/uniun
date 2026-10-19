@@ -6,12 +6,18 @@ import 'package:nostr_core_dart/nostr.dart';
 import 'package:uniun/core/error/failures.dart';
 import 'package:uniun/data/models/event_queue_model.dart';
 import 'package:uniun/data/models/notes/note_model.dart';
+import 'package:uniun/data/repositories/dm_conversation_repository_impl.dart';
+import 'package:uniun/data/repositories/event_queue_repository_impl.dart';
+import 'package:uniun/data/repositories/nip17_repository_impl.dart';
+import 'package:uniun/data/repositories/note_relation_repository_impl.dart';
+import 'package:uniun/data/repositories/profile_repository_impl.dart';
 import 'package:uniun/domain/entities/dm/dm_conversation_entity.dart';
 import 'package:uniun/domain/entities/note/note_entity.dart';
 import 'package:uniun/domain/repositories/dm_conversation_repository.dart';
 import 'package:uniun/domain/repositories/dm_message_repository.dart';
 import 'package:uniun/domain/usecases/dm_usecases.dart';
 import 'package:uniun/domain/usecases/user_usecases.dart';
+import 'package:uniun/features/mesh/sync/mesh_event_signer.dart';
 
 import '../../_helpers/fixtures.dart';
 import '../../_helpers/isar_test_harness.dart';
@@ -29,6 +35,42 @@ class _MockGetActiveUserKeys extends Mock
 /// encrypt/sign anything.
 const _validPrivkeyHex =
     '1111111111111111111111111111111111111111111111111111111111111111';
+
+/// The use case wired to real repositories over [isar]; only the conversation
+/// store is mocked.
+SendDmUseCase _sendDm(
+  Isar isar,
+  GetActiveUserKeysUseCase getKeys,
+  DmConversationRepository convRepo,
+) =>
+    SendDmUseCase(
+      Nip17RepositoryImpl(
+        isar: isar,
+        relations: NoteRelationRepositoryImpl(isar: isar),
+        conversations: convRepo,
+      ),
+      EventQueueRepositoryImpl(isar: isar),
+      ProfileRepositoryImpl(isar: isar),
+      getKeys,
+      convRepo,
+    );
+
+GetDmUseCase _getDm(Isar isar, GetActiveUserKeysUseCase getKeys) => GetDmUseCase(
+      Nip17RepositoryImpl(
+        isar: isar,
+        relations: NoteRelationRepositoryImpl(isar: isar),
+        conversations: DmConversationRepositoryImpl(
+          isar: isar,
+          signer: MeshEventSigner.fixed(
+            privkeyHex: _validPrivkeyHex,
+            pubkeyHex: Keychain(_validPrivkeyHex).public,
+          ),
+        ),
+      ),
+      EventQueueRepositoryImpl(isar: isar),
+      ProfileRepositoryImpl(isar: isar),
+      getKeys,
+    );
 
 void main() {
   setUpAll(() {
@@ -154,7 +196,7 @@ void main() {
       const failure = Failure.errorFailure('no active user');
       when(() => getKeys.call()).thenAnswer((_) async => const Left(failure));
 
-      final result = await SendDmUseCase(isar, getKeys, convRepo).call(
+      final result = await _sendDm(isar, getKeys, convRepo).call(
         SendDmParams(otherPubkey: kSampleTargetPubkeyHex, content: 'hi'),
       );
 
@@ -168,7 +210,7 @@ void main() {
             UserSigningKeys(privkeyHex: 'too-short', pubkeyHex: 'self-pub'),
           ));
 
-      final result = await SendDmUseCase(isar, getKeys, convRepo).call(
+      final result = await _sendDm(isar, getKeys, convRepo).call(
         SendDmParams(otherPubkey: kSampleTargetPubkeyHex, content: 'hi'),
       );
 
@@ -181,7 +223,7 @@ void main() {
             UserSigningKeys(privkeyHex: _validPrivkeyHex, pubkeyHex: 'self-pub'),
           ));
 
-      final result = await SendDmUseCase(isar, getKeys, convRepo)
+      final result = await _sendDm(isar, getKeys, convRepo)
           .call(SendDmParams(otherPubkey: 'not-a-pubkey', content: 'hi'));
 
       expect(result.isLeft(), isTrue);
@@ -197,7 +239,7 @@ void main() {
       when(() => convRepo.saveConversation(any())).thenAnswer(
           (i) async => Right(i.positionalArguments.first as DmConversationEntity));
 
-      final result = await SendDmUseCase(isar, getKeys, convRepo).call(
+      final result = await _sendDm(isar, getKeys, convRepo).call(
         SendDmParams(otherPubkey: kSampleTargetPubkeyHex, content: 'hello there'),
       );
 
@@ -223,7 +265,7 @@ void main() {
       when(() => convRepo.getConversationByOtherPubkey(kSampleTargetPubkeyHex))
           .thenAnswer((_) async => Right(aDmConversation(id: 42, otherPubkey: kSampleTargetPubkeyHex)));
 
-      final result = await SendDmUseCase(isar, getKeys, convRepo).call(
+      final result = await _sendDm(isar, getKeys, convRepo).call(
         SendDmParams(otherPubkey: kSampleTargetPubkeyHex, content: 'hi again'),
       );
 
@@ -243,7 +285,7 @@ void main() {
       when(() => convRepo.getConversationByOtherPubkey(kSampleTargetPubkeyHex))
           .thenAnswer((_) async => Right(aDmConversation(id: 1, otherPubkey: kSampleTargetPubkeyHex)));
 
-      final result = await SendDmUseCase(isar, getKeys, convRepo).call(
+      final result = await _sendDm(isar, getKeys, convRepo).call(
         SendDmParams(otherPubkey: kSampleTargetPubkeyHex, content: 'hi'),
       );
 
@@ -258,7 +300,7 @@ void main() {
       when(() => convRepo.getConversationByOtherPubkey(kSampleTargetPubkeyHex))
           .thenAnswer((_) async => Right(aDmConversation(id: 1, otherPubkey: kSampleTargetPubkeyHex)));
 
-      final result = await SendDmUseCase(isar, getKeys, convRepo).call(
+      final result = await _sendDm(isar, getKeys, convRepo).call(
         SendDmParams(
           otherPubkey: kSampleTargetPubkeyHex,
           content: 'a photo',
@@ -292,7 +334,7 @@ void main() {
             UserSigningKeys(privkeyHex: _validPrivkeyHex, pubkeyHex: 'self-pub'),
           ));
 
-      final result = await GetDmUseCase(isar, getKeys).call();
+      final result = await _getDm(isar, getKeys).call();
 
       expect(result, const Right<Failure, Unit>(unit));
     });
@@ -301,7 +343,7 @@ void main() {
       const failure = Failure.errorFailure('no active user');
       when(() => getKeys.call()).thenAnswer((_) async => const Left(failure));
 
-      final result = await GetDmUseCase(isar, getKeys).call();
+      final result = await _getDm(isar, getKeys).call();
 
       expect(result, const Left<Failure, Unit>(failure));
     });

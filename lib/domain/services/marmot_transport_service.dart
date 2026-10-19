@@ -1,51 +1,41 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:isar_community/isar.dart';
 import 'package:nostr_core_dart/nostr.dart';
 import 'package:uniun/core/enum/note_type.dart';
 import 'package:uniun/core/notes/embedded_note_codec.dart';
 import 'package:uniun/core/notes/note_kinds.dart';
-import 'package:uniun/core/notes/reply_edge.dart';
-import 'package:uniun/data/models/encrypted_message_model.dart';
-import 'package:uniun/gateway/inbound/missing_profile_tracker.dart';
-import 'package:uniun/data/models/notes/media_attachment.dart';
-import 'package:uniun/data/models/notes/note_model.dart';
+import 'package:uniun/domain/entities/event_queue/queued_event_entity.dart';
 import 'package:uniun/domain/entities/media/media_blob_entity.dart';
-import 'package:uniun/data/models/notes/unread_note_model.dart';
-import 'package:uniun/data/models/private_group_join_request_model.dart';
-import 'package:uniun/data/models/private_group_model.dart';
-import 'package:uniun/data/models/event_queue_model.dart';
-import 'package:uniun/domain/repositories/note_relation_repository.dart';
+import 'package:uniun/domain/entities/media/media_dim.dart';
+import 'package:uniun/domain/entities/note/note_entity.dart';
+import 'package:uniun/domain/entities/private_group/private_group_entity.dart';
+import 'package:uniun/domain/repositories/e2ee_group_repository.dart';
+import 'package:uniun/domain/repositories/profile_repository.dart';
 import 'package:uniun/domain/services/marmot_mls_service.dart';
-import 'package:uniun/features/mesh/sync/bodies/private_group_body.dart';
-import 'package:uniun/features/mesh/sync/mesh_event_codec.dart';
-import 'package:uniun/features/mesh/sync/mesh_event_signer.dart';
 
 import 'package:injectable/injectable.dart';
 
 @lazySingleton
 class MarmotTransportService {
-  final Isar _isar;
+  final E2EEGroupRepository _groups;
   final MarmotMlsService _mlsService;
-  final NoteRelationRepository _relations;
-  final MeshEventSigner _signer;
+  final ProfileRepository _profiles;
   StreamSubscription<void>? _subscription;
   Future<void>? _processing;
   bool _again = false;
   bool _stopping = false;
 
   MarmotTransportService(
-    this._isar,
+    this._groups,
     this._mlsService,
-    this._relations,
-    this._signer,
+    this._profiles,
   );
 
   void start() {
     if (_subscription != null) return;
     _stopping = false;
     unawaited(_processLoop());
-    _subscription = _isar.encryptedMessageModels.watchLazy().listen((_) {
+    _subscription = _groups.watchPendingMessages().listen((_) {
       unawaited(_processLoop());
     });
   }
@@ -77,12 +67,11 @@ class MarmotTransportService {
     }
   }
 
-  Future<PrivateGroupModel?> _findGroup(String groupId) {
-    return _isar.privateGroupModels.where().groupIdEqualTo(groupId).findFirst();
-  }
+  Future<PrivateGroupEntity?> _findGroup(String groupId) =>
+      _groups.findGroup(groupId);
 
   Future<void> _processPendingMessages() async {
-    final pending = await _isar.encryptedMessageModels.where().findAll();
+    final pending = await _groups.pendingMessages();
     if (pending.isEmpty) return;
 
     for (final encrypted in pending) {
@@ -91,24 +80,13 @@ class MarmotTransportService {
           final joinedMlsGroupIdB64 = await _mlsService.joinGroupFromWelcome(
             welcomeB64: encrypted.encryptedPayload,
           );
-          final group = await _findGroup(encrypted.groupId);
-          if (group == null) {
-            continue;
-          }
-          // Welcome confirms real membership on THIS device: bind the MLS
-          // group id and re-stamp the mesh event so the confirmed group syncs
-          // to the user's other devices.
-          group.mlsGroupId = joinedMlsGroupIdB64;
-          group.removedAt = null;
-          group.signedNostrEvent = await _signer.sign(
-            kind: MeshEventKinds.privateGroup,
-            dTag: group.groupId,
-            content: PrivateGroupBody.forActive(group),
+          // Confirms real membership on THIS device; stays queued when the
+          // group is not stored yet.
+          await _groups.confirmWelcome(
+            pendingId: encrypted.id,
+            groupId: encrypted.groupId,
+            mlsGroupId: joinedMlsGroupIdB64,
           );
-          await _isar.writeTxn(() async {
-            await _isar.privateGroupModels.put(group);
-            await _isar.encryptedMessageModels.delete(encrypted.id);
-          });
           continue;
         }
 
@@ -123,16 +101,12 @@ class MarmotTransportService {
             base64Payload: encrypted.encryptedPayload,
             groupIdIsBase64: true,
           );
-          await _isar.writeTxn(() async {
-            await _isar.encryptedMessageModels.delete(encrypted.id);
-          });
+          await _groups.discardPendingMessage(encrypted.id);
           continue;
         }
 
         if (encrypted.kind == 9022) {
-          await _isar.writeTxn(() async {
-            await _isar.encryptedMessageModels.delete(encrypted.id);
-          });
+          await _groups.discardPendingMessage(encrypted.id);
           continue;
         }
 
@@ -149,13 +123,13 @@ class MarmotTransportService {
 
         final envelope = _decodeMessageEnvelope(utf8.decode(decryptedBytes));
 
-        final decryptedMsg = NoteModel(
-          eventId: encrypted.eventId,
+        final decryptedMsg = NoteEntity(
+          id: encrypted.eventId,
           sig: '',
           authorPubkey: encrypted.senderPubkey,
           content: envelope.content,
           kind: kPrivateGroupKind,
-          privateGroupId: encrypted.groupId,
+          sourcePrivateGroupId: encrypted.groupId,
           type: envelope.attachments.any((a) => a.mime.startsWith('image/'))
               ? NoteType.image
               : NoteType.text,
@@ -169,36 +143,16 @@ class MarmotTransportService {
           attachments: envelope.attachments,
         );
 
-        await _isar.writeTxn(() async {
-          // Own messages are already in the DB from the local send, so a missing
-          // row means a genuinely new inbound message → mark it unread.
-          final existing = await _isar.noteModels
-              .where()
-              .eventIdEqualTo(decryptedMsg.eventId)
-              .findFirst();
-          await _isar.noteModels.put(decryptedMsg);
-          if (existing == null) {
-            await putUnreadRowInTxn(_isar, decryptedMsg);
-          }
-          // Reference edges via the shared repo. eTagRefs are currently empty
-          // on decrypted MLS payloads, so this is a no-op today, but routes
-          // any future NIP-10-style refs through the single edge table.
-          final parents = replyEdgeParentIds(
-            replyToEventId: null,
-            rootEventId: null,
-            eTagRefs: decryptedMsg.eTagRefs,
-          );
-          await _relations.addEdgesInTxn(
-            parents: parents,
-            childId: decryptedMsg.eventId,
-          );
-          await _isar.encryptedMessageModels.delete(encrypted.id);
-        });
-        // Outside the txn — flag the sender for profile fetch if unknown.
-        // Profiles subscription will pick this up and fill the username so the
-        // NoteCard stops showing the raw pubkey.
-        await MissingProfileTracker(_isar)
-            .trackPubkey(decryptedMsg.authorPubkey);
+        // Reference edges (eTagRefs are currently empty on decrypted MLS
+        // payloads) go through the shared edge table in the same transaction.
+        await _groups.saveDecryptedMessage(
+          pendingId: encrypted.id,
+          message: decryptedMsg,
+        );
+        // Flag the sender for profile fetch if unknown. The profiles
+        // subscription fills the username so the NoteCard stops showing the
+        // raw pubkey.
+        await _profiles.requestProfileFetch(decryptedMsg.authorPubkey);
       } catch (e) {
         // Leave in queue if epoch mismatch or other retryable error.
       }
@@ -214,7 +168,7 @@ class MarmotTransportService {
   /// sent verbatim when there is no metadata (backward compatible); otherwise
   /// a small JSON envelope carries the e-tag ids (`e`), the root marker
   /// (`r`), the reply marker (`y`), the embed-by-value snapshot (`em`), and the
-  /// imeta list (`i`). Receiver-side decryption rebuilds `NoteModel.attachments`
+  /// imeta list (`i`). Receiver-side decryption rebuilds the note's attachments
   /// from `i` and the embed from `em`.
   String _encodeMessageEnvelope(
     String content,
@@ -222,7 +176,7 @@ class MarmotTransportService {
     String? rootEventId,
     String? replyToEventId,
     String? embeddedNoteJson,
-    List<MediaAttachment> attachments = const [],
+    List<MediaBlobEntity> attachments = const [],
   }) {
     if (eTagRefs.isEmpty &&
         rootEventId == null &&
@@ -244,9 +198,9 @@ class MarmotTransportService {
               'x': a.sha256,
               'm': a.mime,
               if (a.sizeBytes > 0) 's': a.sizeBytes,
-              if (a.url != null) 'u': a.url,
-              if (a.width != null) 'w': a.width,
-              if (a.height != null) 'h': a.height,
+              if (a.serverUrls.isNotEmpty) 'u': a.serverUrls.first,
+              if (a.dim != null) 'w': a.dim!.width,
+              if (a.dim != null) 'h': a.dim!.height,
               if (a.blurhash != null) 'b': a.blurhash,
               if (a.filename != null) 'n': a.filename,
             },
@@ -262,7 +216,7 @@ class MarmotTransportService {
     String? rootEventId,
     String? replyToEventId,
     String? embeddedNoteJson,
-    List<MediaAttachment> attachments,
+    List<MediaBlobEntity> attachments,
   }) _decodeMessageEnvelope(String raw) {
     try {
       final decoded = jsonDecode(raw);
@@ -270,22 +224,27 @@ class MarmotTransportService {
           decoded['c'] is String &&
           decoded['e'] is List) {
         final rawImeta = decoded['i'];
-        final attachments = <MediaAttachment>[];
+        final attachments = <MediaBlobEntity>[];
         if (rawImeta is List) {
           for (final m in rawImeta) {
             if (m is! Map) continue;
             final sha = m['x'];
             final mime = m['m'];
             if (sha is! String || mime is! String) continue;
-            attachments.add(MediaAttachment()
-              ..sha256 = sha
-              ..mime = mime
-              ..sizeBytes = (m['s'] as int?) ?? 0
-              ..url = m['u'] as String?
-              ..width = m['w'] as int?
-              ..height = m['h'] as int?
-              ..blurhash = m['b'] as String?
-              ..filename = m['n'] as String?);
+            final url = m['u'] as String?;
+            final width = m['w'] as int?;
+            final height = m['h'] as int?;
+            attachments.add(MediaBlobEntity(
+              sha256: sha,
+              mime: mime,
+              sizeBytes: (m['s'] as int?) ?? 0,
+              serverUrls: url != null ? [url] : const [],
+              dim: (width != null && height != null)
+                  ? MediaDim(width: width, height: height)
+                  : null,
+              blurhash: m['b'] as String?,
+              filename: m['n'] as String?,
+            ));
           }
         }
         final rawEmbed = decoded['em'] as String?;
@@ -309,14 +268,14 @@ class MarmotTransportService {
       rootEventId: null,
       replyToEventId: null,
       embeddedNoteJson: null,
-      attachments: const <MediaAttachment>[],
+      attachments: const <MediaBlobEntity>[],
     );
   }
 
-  /// Builds an [EventQueueModel] from a fully-signed Marmot [Event]. The
-  /// `["h", groupId]` tag is extracted into [EventQueueModel.hTag] so the
-  /// queue's serializer can reproduce the tag at send time.
-  EventQueueModel _buildQueueEntry(Event event) {
+  /// Builds the queue entry for a fully-signed Marmot [Event]. The
+  /// `["h", groupId]` tag is extracted so the queue's serializer can
+  /// reproduce it at send time.
+  QueuedEventEntity _buildQueueEntry(Event event) {
     String? hTag;
     for (final t in event.tags) {
       if (t.isEmpty) continue;
@@ -325,19 +284,15 @@ class MarmotTransportService {
         break;
       }
     }
-    return EventQueueModel()
-      ..eventId = event.id
-      ..kind = event.kind
-      ..content = event.content
-      ..authorPubkey = event.pubkey
-      ..sig = event.sig
-      ..eTagRefs = []
-      ..pTagRefs = []
-      ..tTags = []
-      ..hTag = hTag
-      ..sentCount = 0
-      ..created = DateTime.fromMillisecondsSinceEpoch(event.createdAt * 1000)
-      ..enqueuedAt = DateTime.now();
+    return QueuedEventEntity(
+      eventId: event.id,
+      kind: event.kind,
+      content: event.content,
+      authorPubkey: event.pubkey,
+      sig: event.sig,
+      created: DateTime.fromMillisecondsSinceEpoch(event.createdAt * 1000),
+      hTag: hTag,
+    );
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -378,25 +333,18 @@ class MarmotTransportService {
     final groupId = event.id; // ← groupId = event id of the creation event
 
     // 3. Persist locally + queue for relay
-    final model = PrivateGroupModel()
-      ..groupId = groupId
-      ..mlsGroupId = mlsGroupId
-      ..name = name
-      ..description = description
-      ..relays = relays
-      ..adminPubkey = authorPubkey;
-
-    // Mesh-sync the created group to the user's other devices.
-    model.signedNostrEvent = await _signer.sign(
-      kind: MeshEventKinds.privateGroup,
-      dTag: groupId,
-      content: PrivateGroupBody.forActive(model),
+    await _groups.createGroup(
+      group: PrivateGroupEntity(
+        id: 0, // assigned by the store
+        groupId: groupId,
+        mlsGroupId: mlsGroupId,
+        name: name,
+        description: description,
+        relays: relays,
+        adminPubkey: authorPubkey,
+      ),
+      event: _buildQueueEntry(event),
     );
-
-    await _isar.writeTxn(() async {
-      await _isar.privateGroupModels.put(model);
-      await _isar.eventQueueModels.put(_buildQueueEntry(event));
-    });
 
     return groupId;
   }
@@ -426,42 +374,12 @@ class MarmotTransportService {
       createdAt: DateTime.now().millisecondsSinceEpoch ~/ 1000,
     );
 
-    // Save a local stub so the relay router can find the group's relays.
-    final existing = await _isar.privateGroupModels
-        .where()
-        .groupIdEqualTo(groupId)
-        .findFirst();
-
-    // Build/patch the row outside the txn so the mesh event can be signed
-    // (async NIP-44 crypto) before opening the write transaction.
-    PrivateGroupModel? toPut;
-    if (existing == null) {
-      toPut = PrivateGroupModel()
-        ..groupId = groupId
-        ..mlsGroupId = '' // filled in after Welcome is received
-        ..name = groupId // placeholder until metadata synced
-        ..description = ''
-        ..relays = relays
-        ..adminPubkey = '';
-    } else if (existing.relays.isEmpty && relays.isNotEmpty) {
-      existing.relays = relays;
-      toPut = existing;
-    }
-    if (toPut != null) {
-      toPut.removedAt = null;
-      toPut.signedNostrEvent = await _signer.sign(
-        kind: MeshEventKinds.privateGroup,
-        dTag: groupId,
-        content: PrivateGroupBody.forActive(toPut),
-      );
-    }
-
-    await _isar.writeTxn(() async {
-      if (toPut != null) {
-        await _isar.privateGroupModels.put(toPut);
-      }
-      await _isar.eventQueueModels.put(_buildQueueEntry(event));
-    });
+    // Saves a local stub so the relay router can find the group's relays.
+    await _groups.requestJoin(
+      groupId: groupId,
+      relays: relays,
+      event: _buildQueueEntry(event),
+    );
   }
 
   /// NIP-29 Leave Request.
@@ -493,10 +411,10 @@ class MarmotTransportService {
       }
     }
 
-    await _isar.writeTxn(() async {
-      await _isar.eventQueueModels.put(_buildQueueEntry(event));
-      await _isar.privateGroupModels.where().groupIdEqualTo(groupId).deleteAll();
-    });
+    await _groups.leaveGroup(
+      groupId: groupId,
+      event: _buildQueueEntry(event),
+    );
   }
 
   /// Encrypts an application message (kind 9023) and queues it.
@@ -522,19 +440,6 @@ class MarmotTransportService {
       throw Exception('MLS group is not initialized for groupId: $groupId');
     }
 
-    final imeta = [
-      for (final b in attachments)
-        MediaAttachment()
-          ..sha256 = b.sha256
-          ..mime = b.mime
-          ..sizeBytes = b.sizeBytes
-          ..url = b.serverUrls.isNotEmpty ? b.serverUrls.first : null
-          ..width = b.dim?.width
-          ..height = b.dim?.height
-          ..blurhash = b.blurhash
-          ..filename = b.filename,
-    ];
-
     final encryptedPayload = await _mlsService.encryptMessage(
       groupId: group.mlsGroupId,
       content: _encodeMessageEnvelope(
@@ -543,7 +448,7 @@ class MarmotTransportService {
         rootEventId: rootEventId,
         replyToEventId: replyToEventId,
         embeddedNoteJson: embeddedNoteJson,
-        attachments: imeta,
+        attachments: attachments,
       ),
       groupIdIsBase64: true,
     );
@@ -559,14 +464,14 @@ class MarmotTransportService {
       createdAt: now.millisecondsSinceEpoch ~/ 1000,
     );
 
-    final localMessage = NoteModel(
-      eventId: event.id,
+    final localMessage = NoteEntity(
+      id: event.id,
       sig: '',
       authorPubkey: authorPubkey,
       content: content,
       kind: kPrivateGroupKind,
-      privateGroupId: groupId,
-      type: imeta.any((a) => a.mime.startsWith('image/'))
+      sourcePrivateGroupId: groupId,
+      type: attachments.any((a) => a.mime.startsWith('image/'))
           ? NoteType.image
           : NoteType.text,
       eTagRefs: mentionRefs,
@@ -576,22 +481,13 @@ class MarmotTransportService {
       tTags: const [],
       created: now,
       embeddedNoteJson: embeddedNoteJson,
-      attachments: imeta,
+      attachments: attachments,
     );
 
-    await _isar.writeTxn(() async {
-      await _isar.noteModels.put(localMessage);
-      final parents = replyEdgeParentIds(
-        replyToEventId: null,
-        rootEventId: null,
-        eTagRefs: localMessage.eTagRefs,
-      );
-      await _relations.addEdgesInTxn(
-        parents: parents,
-        childId: localMessage.eventId,
-      );
-      await _isar.eventQueueModels.put(_buildQueueEntry(event));
-    });
+    await _groups.sendMessage(
+      message: localMessage,
+      event: _buildQueueEntry(event),
+    );
   }
 
   /// Admin approves a join request: publishes MLS Welcome (9024) + Commit (9025).
@@ -614,7 +510,7 @@ class MarmotTransportService {
     // approval — otherwise a leftover row could be approved again and OpenMLS
     // would reject the duplicate signature key.
     final senderPubkey =
-        await _senderForKeyPackage(groupId, userKeyPackageB64);
+        await _groups.senderForKeyPackage(groupId, userKeyPackageB64);
 
     try {
       final addResult = await _mlsService.addMembers(
@@ -643,81 +539,29 @@ class MarmotTransportService {
         createdAt: DateTime.now().millisecondsSinceEpoch ~/ 1000,
       );
 
-      await _isar.writeTxn(() async {
-        await _isar.eventQueueModels.putAll([
+      await _groups.approveJoinRequests(
+        groupId: groupId,
+        keyPackageB64: userKeyPackageB64,
+        senderPubkey: senderPubkey,
+        events: [
           _buildQueueEntry(welcomeEvent),
           _buildQueueEntry(commitEvent),
-        ]);
-        await _markRequestsHandledInTxn(
-          groupId,
-          userKeyPackageB64,
-          senderPubkey,
-        );
-      });
+        ],
+      );
     } catch (e) {
       // The member's signature key is already in the group — they were added by
       // a previous commit. Treat as success and mark the stale request(s)
       // handled instead of surfacing "Duplicate signature key" to the admin.
       if (_isAlreadyMemberError(e)) {
-        await _isar.writeTxn(() async {
-          await _markRequestsHandledInTxn(
-            groupId,
-            userKeyPackageB64,
-            senderPubkey,
-          );
-        });
+        await _groups.approveJoinRequests(
+          groupId: groupId,
+          keyPackageB64: userKeyPackageB64,
+          senderPubkey: senderPubkey,
+        );
         return;
       }
       rethrow;
     }
-  }
-
-  /// The pubkey that submitted [keyPackageB64] for [groupId], if a pending
-  /// request row still exists for it.
-  Future<String?> _senderForKeyPackage(
-    String groupId,
-    String keyPackageB64,
-  ) async {
-    final requests = await _isar.privateGroupJoinRequestModels
-        .where()
-        .groupIdEqualTo(groupId)
-        .findAll();
-    return requests
-        .where((request) =>
-            !request.handled && request.keyPackageB64 == keyPackageB64)
-        .map((request) => request.senderPubkey)
-        .firstOrNull;
-  }
-
-  /// Marks every pending join request for [groupId] that either matches the
-  /// approved [keyPackageB64] or was submitted by [senderPubkey] as handled (a
-  /// member may have several outstanding requests sharing one signature key).
-  ///
-  /// The rows are kept rather than deleted: the relay holds the original Kind
-  /// 9021 events permanently, so on the next sync the inbound handler re-offers
-  /// them. Keeping the rows lets the handler's `eventId` idempotency check skip
-  /// the re-insert; the `handled` flag keeps them out of the pending list.
-  Future<void> _markRequestsHandledInTxn(
-    String groupId,
-    String keyPackageB64,
-    String? senderPubkey,
-  ) async {
-    final requests = await _isar.privateGroupJoinRequestModels
-        .where()
-        .groupIdEqualTo(groupId)
-        .findAll();
-    final toMark = requests
-        .where((request) =>
-            !request.handled &&
-            (request.keyPackageB64 == keyPackageB64 ||
-                (senderPubkey != null &&
-                    request.senderPubkey == senderPubkey)))
-        .toList();
-    if (toMark.isEmpty) return;
-    for (final request in toMark) {
-      request.handled = true;
-    }
-    await _isar.privateGroupJoinRequestModels.putAll(toMark);
   }
 
   bool _isAlreadyMemberError(Object error) {

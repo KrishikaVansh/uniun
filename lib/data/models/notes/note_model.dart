@@ -293,3 +293,28 @@ extension MediaBlobEntityMapper on MediaBlobEntity {
     ..blurhash = blurhash
     ..filename = filename;
 }
+
+extension NoteEntityMapper on NoteEntity {
+  /// Domain entity → Isar row, for a message authored or decrypted on this
+  /// device. Pass [conversationId] when the entity does not carry one yet.
+  NoteModel toModel({int? conversationId}) => NoteModel(
+        eventId: id,
+        sig: sig,
+        authorPubkey: authorPubkey,
+        content: content,
+        subject: subject,
+        kind: kind,
+        type: type,
+        eTagRefs: List<String>.from(eTagRefs),
+        rootEventId: rootEventId,
+        replyToEventId: replyToEventId,
+        pTagRefs: List<String>.from(pTagRefs),
+        tTags: List<String>.from(tTags),
+        created: created,
+        conversationId: conversationId ?? this.conversationId,
+        groupId: sourceGroupId,
+        privateGroupId: sourcePrivateGroupId,
+        embeddedNoteJson: embeddedNoteJson,
+        attachments: [for (final a in attachments) a.toAttachment()],
+      );
+}

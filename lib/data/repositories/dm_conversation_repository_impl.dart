@@ -94,6 +94,41 @@ class DmConversationRepositoryImpl extends DmConversationRepository {
   }
 
   @override
+  Future<Either<Failure, DmConversationEntity>> ensureActive(
+    String otherPubkey,
+  ) async {
+    try {
+      var conv = await isar.dmConversationModels
+          .where()
+          .otherPubkeyEqualTo(otherPubkey)
+          .findFirst();
+      if (conv == null || conv.removedAt != null) {
+        conv = (conv ?? DmConversationModel())
+          ..otherPubkey = otherPubkey
+          ..removedAt = null;
+        try {
+          final signed = await _signer.sign(
+            kind: MeshEventKinds.dmConversation,
+            dTag: otherPubkey,
+            content: DmConversationBody.forActive(conv),
+          );
+          if (signed != null) conv.signedNostrEvent = signed;
+        } catch (_) {
+          // Non-fatal: the row still lands; the mesh migration pass backfills
+          // `signedNostrEvent` on the next launch.
+        }
+        final row = conv;
+        await isar.writeTxn(() async {
+          await isar.dmConversationModels.put(row);
+        });
+      }
+      return Right(conv.toDomain());
+    } catch (e) {
+      return Left(Failure.errorFailure(e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, Unit>> deleteConversation(String otherPubkey) async {
     try {
       final normalizedPubkey = normalizeNostrPubkey(otherPubkey);

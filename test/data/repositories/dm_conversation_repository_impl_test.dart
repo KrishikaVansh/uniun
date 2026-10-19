@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:isar_community/isar.dart';
 import 'package:nostr_core_dart/nostr.dart';
@@ -172,4 +174,104 @@ void main() {
       expect(r.isLeft(), isTrue);
     });
   });
+
+  group('ensureActive', () {
+    late DmConversationRepositoryImpl signing;
+    final selfPub = Keychain(kTestPrivHex).public;
+
+    setUp(() {
+      signing = DmConversationRepositoryImpl(
+        isar: isar,
+        signer: MeshEventSigner.fixed(
+          privkeyHex: kTestPrivHex,
+          pubkeyHex: selfPub,
+        ),
+      );
+    });
+
+    test('creates a signed conversation for a first-time peer', () async {
+      final r = await signing.ensureActive(kAlicePub);
+
+      final e = r.getOrElse(() => throw 'unreachable');
+      expect(e.otherPubkey, kAlicePub);
+      final row = (await isar.dmConversationModels.where().findFirst())!;
+      expect(row.id, e.id);
+      expect(row.removedAt, isNull);
+      final signed = jsonDecode(row.signedNostrEvent!) as Map<String, dynamic>;
+      expect(signed['pubkey'], selfPub);
+    });
+
+    test('stores the pubkey as given, without normalizing it', () async {
+      await signing.ensureActive('MiXeD-Peer');
+
+      final row = (await isar.dmConversationModels.where().findFirst())!;
+      expect(row.otherPubkey, 'MiXeD-Peer');
+    });
+
+    test('returns an active conversation untouched', () async {
+      final first = (await signing.ensureActive(kAlicePub)).getOrElse(() => throw 'x');
+      final signedBefore =
+          (await isar.dmConversationModels.where().findFirst())!.signedNostrEvent;
+
+      final again = (await signing.ensureActive(kAlicePub)).getOrElse(() => throw 'x');
+
+      expect(again.id, first.id);
+      expect(await isar.dmConversationModels.count(), 1);
+      expect((await isar.dmConversationModels.where().findFirst())!.signedNostrEvent,
+          signedBefore);
+    });
+
+    test('reactivates a removed conversation and keeps its id and relays',
+        () async {
+      final first = (await signing.ensureActive(kAlicePub)).getOrElse(() => throw 'x');
+      await isar.writeTxn(() async {
+        final row = (await isar.dmConversationModels.where().findFirst())!;
+        row.removedAt = DateTime(2026);
+        row.relays = ['wss://keep'];
+        await isar.dmConversationModels.put(row);
+      });
+
+      await signing.ensureActive(kAlicePub);
+
+      final row = (await isar.dmConversationModels.where().findFirst())!;
+      expect(row.id, first.id);
+      expect(row.removedAt, isNull);
+      expect(row.relays, ['wss://keep']);
+    });
+
+    test('with no identity the row is still created, unsigned', () async {
+      final r = await repo.ensureActive(kAlicePub);
+
+      expect(r.isRight(), isTrue);
+      final row = (await isar.dmConversationModels.where().findFirst())!;
+      expect(row.signedNostrEvent, isNull);
+    });
+
+    test('a signing failure does not stop the conversation being created',
+        () async {
+      final throwing = DmConversationRepositoryImpl(
+        isar: isar,
+        signer: MeshEventSigner(_ThrowingUsers()),
+      );
+
+      final r = await throwing.ensureActive(kAlicePub);
+
+      expect(r.isRight(), isTrue);
+      expect((await isar.dmConversationModels.where().findFirst())!.signedNostrEvent,
+          isNull);
+    });
+
+    test('a closed database surfaces as Left', () async {
+      await isar.close();
+
+      expect((await signing.ensureActive(kAlicePub)).isLeft(), isTrue);
+      isar = await openTestIsar();
+    });
+  });
+}
+
+class _ThrowingUsers extends StubUserRepository {
+  @override
+  Future<({String privkeyHex, String pubkeyHex})?> getActiveKeysHex() =>
+      throw StateError('keystore unavailable');
 }

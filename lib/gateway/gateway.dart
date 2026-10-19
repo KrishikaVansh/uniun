@@ -11,7 +11,13 @@ import 'package:uniun/gateway/gateway_init_message.dart';
 import 'package:uniun/gateway/orchestrator/gateway_orchestrator.dart';
 import 'package:uniun/gateway/subscriptions/sync_window.dart';
 import 'package:uniun/data/datasources/isar_schemas.dart';
+import 'package:uniun/data/repositories/dm_conversation_repository_impl.dart';
+import 'package:uniun/data/repositories/event_queue_repository_impl.dart';
+import 'package:uniun/data/repositories/nip17_repository_impl.dart';
 import 'package:uniun/data/repositories/note_relation_repository_impl.dart';
+import 'package:uniun/data/repositories/profile_repository_impl.dart';
+import 'package:uniun/features/mesh/sync/mesh_event_signer.dart';
+import 'package:nostr_core_dart/nostr.dart';
 import 'package:uniun/domain/services/nip17_encryption_service.dart';
 
 /// Entry point for the Gateway isolate (Isolate 2).
@@ -44,14 +50,30 @@ Future<void> gatewayEntryPoint(GatewayInitMessage init) async {
       activePrivkey: init.privkeyHex,
       recentSyncWindow: recentSyncWindow,
     );
-    final nip17Service = Nip17EncryptionService(
-      isar,
-      NoteRelationRepositoryImpl(isar: isar),
-      privkeyHex: init.privkeyHex,
-    );
-
     await orchestrator.start();
-    nip17Service.start();
+
+    // No DI in this isolate: build the DM stack by hand, signing with the raw
+    // keys handed over at spawn. Without an identity there is nothing to
+    // decrypt, so the service is not started.
+    final privkeyHex = init.privkeyHex;
+    if (privkeyHex != null && privkeyHex.isNotEmpty) {
+      Nip17EncryptionService(
+        Nip17RepositoryImpl(
+          isar: isar,
+          relations: NoteRelationRepositoryImpl(isar: isar),
+          conversations: DmConversationRepositoryImpl(
+            isar: isar,
+            signer: MeshEventSigner.fixed(
+              privkeyHex: privkeyHex,
+              pubkeyHex: Keychain(privkeyHex).public,
+            ),
+          ),
+        ),
+        EventQueueRepositoryImpl(isar: isar),
+        ProfileRepositoryImpl(isar: isar),
+        privkeyHex: privkeyHex,
+      ).start();
+    }
 
     final retention = init.autoDeleteOldNotesDays != null
         ? Duration(days: init.autoDeleteOldNotesDays!)

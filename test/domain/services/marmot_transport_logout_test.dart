@@ -5,18 +5,18 @@ import 'package:isar_community/isar.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:uniun/data/models/encrypted_message_model.dart';
 import 'package:uniun/data/models/private_group_model.dart';
-import 'package:uniun/domain/repositories/note_relation_repository.dart';
+import 'package:uniun/data/repositories/e2ee_group_repository_impl.dart';
+import 'package:uniun/data/repositories/note_attachments_enricher.dart';
+import 'package:uniun/data/repositories/note_relation_repository_impl.dart';
+import 'package:uniun/data/repositories/profile_repository_impl.dart';
 import 'package:uniun/domain/services/marmot_mls_service.dart';
 import 'package:uniun/domain/services/marmot_transport_service.dart';
 import 'package:uniun/features/mesh/sync/mesh_event_signer.dart';
 
+import '../../_helpers/fixtures.dart';
 import '../../_helpers/isar_test_harness.dart';
 
 class _Mls extends Mock implements MarmotMlsService {}
-
-class _Relations extends Mock implements NoteRelationRepository {}
-
-class _Signer extends Mock implements MeshEventSigner {}
 
 /// Logout waits for active Marmot message processing before clearing Isar.
 void main() {
@@ -56,10 +56,14 @@ void main() {
       });
 
       final transport = MarmotTransportService(
-        isar,
+        E2EEGroupRepositoryImpl(
+          isar,
+          NoteAttachmentsEnricher(isar: isar),
+          NoteRelationRepositoryImpl(isar: isar),
+          MeshEventSigner.fixed(privkeyHex: kTestPrivHex, pubkeyHex: kTestPubHex),
+        ),
         mls,
-        _Relations(),
-        _Signer(),
+        ProfileRepositoryImpl(isar: isar),
       );
       transport.start();
       transport.start();
