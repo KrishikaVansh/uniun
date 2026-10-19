@@ -69,6 +69,7 @@ import 'package:uniun/features/shiv/rag/extraction/page_ocr_plan.dart';
 import 'package:uniun/data/models/documents/document_chunk_model.dart';
 import 'package:uniun/data/models/documents/document_index_model.dart';
 import 'package:uniun/data/models/media/media_cache_model.dart';
+import 'package:uniun/data/models/manas_note_link_model.dart';
 import 'package:uniun/data/models/saved_note_model.dart';
 import 'package:uniun/data/models/notes/media_attachment.dart';
 import 'package:uniun/core/enum/note_type.dart';
@@ -78,6 +79,7 @@ import 'package:uniun/data/repositories/isar_document_vector_repository_impl.dar
 import 'package:uniun/domain/repositories/document_vector_repository.dart';
 import 'package:uniun/features/shiv/rag/embedding/embedding_service.dart';
 import 'package:uniun/features/shiv/rag/indexing/document_indexer.dart';
+import 'package:uniun/features/shiv/rag/pipeline/rag_pipeline.dart';
 import 'package:uniun/features/shiv/rag/prompt/prompt_budget.dart';
 
 /// Two pages (or sections) on plainly different subjects, so a semantic query
@@ -266,6 +268,76 @@ void main() {
     );
     await purge(sha);
   }, timeout: const Timeout(Duration(minutes: 5)));
+
+  test('a Manas-scoped question reaches only the documents attached to its '
+      'notes, with the real Gecko embedder', () async {
+    await expectModelLoaded();
+    // Both documents answer the tomato question, so only the Manas scope can
+    // keep the other one out of the prompt.
+    final pdfSha = await index(
+      (await tempFile('scoped_a.pdf', _twoPagePdf())).path,
+      DocumentKind.pdf,
+    );
+    final docxSha = await index(
+      (await tempFile('scoped_b.docx', _twoSectionDocx())).path,
+      DocumentKind.docx,
+    );
+    final stamp = DateTime.now().microsecondsSinceEpoch;
+    final withPdf = 'e2e-manas-pdf-$stamp';
+    final withDocx = 'e2e-manas-docx-$stamp';
+    await isar.writeTxn(
+      () => isar.manasNoteLinkModels.putAll([
+        ManasNoteLinkModel()
+          ..manasId = withPdf
+          ..noteId = 'e2e-saved-$pdfSha'
+          ..addedAt = DateTime.now(),
+        ManasNoteLinkModel()
+          ..manasId = withDocx
+          ..noteId = 'e2e-saved-$docxSha'
+          ..addedAt = DateTime.now(),
+      ]),
+    );
+    final rag = getIt<RagPipeline>();
+    const question = 'how should I water and support tomato plants?';
+
+    final unscoped = await rag.buildMessage(userQuestion: question);
+    final inPdf = await rag.buildMessage(
+      userQuestion: question,
+      manasIds: [withPdf],
+    );
+    final inDocx = await rag.buildMessage(
+      userQuestion: question,
+      manasIds: [withDocx],
+    );
+
+    bool from(RagMessage m, String sha) =>
+        m.sourceChunkIds.any((id) => id.startsWith('$sha:'));
+    // ignore: avoid_print
+    print(
+      'E2E MANAS SCOPE — unscoped pdf=${from(unscoped, pdfSha)} '
+      'docx=${from(unscoped, docxSha)} | pdf-manas '
+      'pdf=${from(inPdf, pdfSha)} docx=${from(inPdf, docxSha)} | docx-manas '
+      'pdf=${from(inDocx, pdfSha)} docx=${from(inDocx, docxSha)}',
+    );
+    expect(
+      from(unscoped, pdfSha) && from(unscoped, docxSha),
+      isTrue,
+      reason: 'the control: with no scope both documents answer',
+    );
+    expect(from(inPdf, pdfSha), isTrue);
+    expect(from(inPdf, docxSha), isFalse, reason: 'the DOCX is not in this Manas');
+    expect(from(inDocx, docxSha), isTrue);
+    expect(from(inDocx, pdfSha), isFalse, reason: 'the PDF is not in this Manas');
+
+    await isar.writeTxn(
+      () => isar.manasNoteLinkModels.deleteAllByManasIdNoteId(
+        [withPdf, withDocx],
+        ['e2e-saved-$pdfSha', 'e2e-saved-$docxSha'],
+      ),
+    );
+    await purge(pdfSha);
+    await purge(docxSha);
+  }, timeout: const Timeout(Duration(minutes: 8)));
 
   test('document chunk relevance: scores of answering vs unrelated '
       'questions (calibrates the small-model chunk cut-off)', () async {
