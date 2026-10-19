@@ -20,7 +20,7 @@ Why three layers and not one: the seal proves *who really sent it* (it's signed 
 
 ## The real class: `Nip17EncryptionService`
 
-Everything above is implemented in one class — `lib/domain/services/nip17_encryption_service.dart` (412 lines). There is no separate "GiftWrapService"; this is it.
+Everything above is implemented in one class — `lib/domain/services/nip17_encryption_service.dart`. There is no separate "GiftWrapService"; this is it. The class only does the crypto: it holds no Isar handle and reads and writes through `Nip17Repository` (the gift-wrap queue, the inbound and outgoing DM save), `DmConversationRepository.ensureActive` (creates or revives the conversation for a first-time peer, signed best-effort) and `EventQueueRepository` (the outgoing gift wrap). Each former single transaction is one repository call: the inbound save writes the note, its unread row and reply edge and consumes the wrapper together. The gateway isolate has no DI, so `lib/gateway/gateway.dart` builds these repositories by hand and signs with `MeshEventSigner.fixed(...)`.
 
 ### Sending (`sendDm`)
 
