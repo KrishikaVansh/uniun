@@ -217,7 +217,9 @@ class ManasContextLoader {
         minScore: 0.0, // filter by Manas membership, not score
         allowedNoteIds: allowedNoteIds,
       );
-      if (hits.isEmpty) return const [];
+      // No scoped vector at all (notes saved before the embedding queue, or
+      // still queued): newest-first is the only way to give the model context.
+      if (hits.isEmpty) return null;
 
       // Intersect with the Manas set, preserving search order (score desc),
       // then resolve all survivors in a single batch.
@@ -227,7 +229,7 @@ class ManasContextLoader {
         if (!allowedNoteIds.contains(h.noteId)) continue;
         if (seen.add(h.noteId)) orderedIds.add(h.noteId);
       }
-      if (orderedIds.isEmpty) return const [];
+      if (orderedIds.isEmpty) return null;
 
       final byId = await _resolveMany(isar, orderedIds);
       final ordered = [

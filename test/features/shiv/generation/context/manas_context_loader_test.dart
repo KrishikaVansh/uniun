@@ -372,31 +372,39 @@ void main() {
           ));
     });
 
-    test('no scoped vector hits return empty instead of unrelated fallback',
-        () async {
-      final t1 = DateTime(2026, 1, 1);
-      await isar.writeTxn(() async {
-        await isar.noteModels.put(_ownNote('n1', 'x', t1));
-        await isar.manasNoteLinkModels.put(_link('m1', 'n1', t1));
+    for (final hits in <String, List<ScoredNote>>{
+      'no scoped vector hits': const [],
+      'only hits outside the Manas': const [
+        ScoredNote(noteId: 'outside', score: 0.9, content: 'nope'),
+      ],
+    }.entries) {
+      test('${hits.key}: the Manas notes without vectors still reach the '
+          'prompt, newest first', () async {
+        final t1 = DateTime(2026, 1, 1);
+        await isar.writeTxn(() async {
+          await isar.noteModels.put(_ownNote('n1', 'older', t1));
+          await isar.noteModels
+              .put(_ownNote('n2', 'newer', t1.add(const Duration(days: 1))));
+          await isar.manasNoteLinkModels.put(_link('m1', 'n1', t1));
+          await isar.manasNoteLinkModels.put(_link('m1', 'n2', t1));
+        });
+        when(() => embedder.embed(any())).thenAnswer((_) async => [1.0]);
+        when(() => searcher.search(
+              queryVector: any(named: 'queryVector'),
+              topK: any(named: 'topK'),
+              minScore: any(named: 'minScore'),
+              allowedNoteIds: any(named: 'allowedNoteIds'),
+            )).thenAnswer((_) async => hits.value);
+
+        final result = await loader.merge(
+          manasIds: const ['m1'],
+          budget: 1000,
+          relevanceQuery: 'q',
+        );
+
+        expect(result.map((n) => n.id), ['n2', 'n1']);
       });
-      when(() => embedder.embed(any())).thenAnswer((_) async => [1.0]);
-      when(() => searcher.search(
-            queryVector: any(named: 'queryVector'),
-            topK: any(named: 'topK'),
-            minScore: any(named: 'minScore'),
-            allowedNoteIds: any(named: 'allowedNoteIds'),
-          )).thenAnswer((_) async => const [
-            ScoredNote(noteId: 'outside', score: 0.9, content: 'nope'),
-          ]);
-
-      final result = await loader.merge(
-        manasIds: const ['m1'],
-        budget: 1000,
-        relevanceQuery: 'q',
-      );
-
-      expect(result, isEmpty);
-    });
+    }
 
     test('embedder throws — degrades to newest-first, not an uncaught error',
         () async {
