@@ -488,6 +488,50 @@ void main() {
       );
     });
 
+    test('a Manas whose notes were never embedded still puts them in the '
+        'prompt beside its cited document', () async {
+      final at = DateTime(2026, 1, 1);
+      await isar.writeTxn(() async {
+        await isar.noteModels.putAll([
+          noteRow(
+            'old-note',
+            content: 'Quarterly cloud budget review, saved long ago',
+            attachments: [
+              mediaAttachmentRow(sha256: sha, mime: DocumentKind.pdf.mime),
+            ],
+          ),
+          noteRow('other-note', content: 'Grocery list for the weekend'),
+        ]);
+        await isar.manasNoteLinkModels.putAll([
+          manasNoteLinkRow('m1', 'old-note', addedAt: at),
+          manasNoteLinkRow('m2', 'other-note', addedAt: at),
+        ]);
+      });
+      await indexer.reconcile();
+      final target =
+          (await isar.documentChunkModels
+                  .where()
+                  .sha256EqualToAnyOrdinal(sha)
+                  .findAll())
+              .firstWhere(
+                (chunk) => chunk.text
+                    .toLowerCase()
+                    .contains('cloud computing is a model'),
+              );
+      final scoped = buildPipeline(
+        loader: ManasContextLoader(isar, embedding, searchService),
+      );
+
+      final msg = await scoped.buildMessage(
+        userQuestion: target.text,
+        manasIds: const ['m1'],
+      );
+
+      expect(msg.sourceNoteIds, contains('old-note'));
+      expect(msg.sourceNoteIds, isNot(contains('other-note')));
+      expect(msg.sourceChunkIds, contains(chunkIdOf(sha, target.ordinal)));
+    });
+
     test(
       'a DOCX passage reaches the prompt under its heading, not a page',
       () async {
