@@ -1,5 +1,5 @@
 #define MyAppName "UNIUN"
-#define MyAppVersion "3.1.0"
+#define MyAppVersion "3.2.0"
 #define MyAppPublisher "UNIUN"
 #define MyAppURL "https://www.uniun.in"
 #define MyAppExeName "uniun.exe"
@@ -76,6 +76,7 @@ Source: "{#SourceDir}\tbbmalloc_proxy.dll"; DestDir: "{app}"; Flags: ignoreversi
 Source: "{#SourceDir}\bonsoir_windows_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\connectivity_plus_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\file_selector_windows_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourceDir}\flutter_edge_ai_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\flutter_gemma_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\flutter_secure_storage_windows_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\isar_community_flutter_libs_plugin.dll"; DestDir: "{app}"; Flags: ignoreversion
