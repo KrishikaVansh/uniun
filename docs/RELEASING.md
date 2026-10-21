@@ -189,8 +189,14 @@ flutter pub run build_runner build --delete-conflicting-outputs   # if models/fr
 Output: `build\windows\x64\runner\Release\`
 
 **Build the installer** using [Inno Setup](https://jrsoftware.org/isdl.php) (install once,
-free). The script is at `installer\uniun_installer.iss`. Update the `#define MyAppVersion`
-line at the top to match the new version, then compile:
+free). The script is at `installer\uniun_installer.iss`. Open the file and update **two things**
+before compiling:
+1. `#define MyAppVersion "X.Y.Z"` — set to the new version (e.g. `"3.2.0"`).
+2. If a Flutter plugin DLL was renamed (e.g. `flutter_gemma_plugin.dll` → `flutter_edge_ai_plugin.dll`),
+   update the matching `Source:` line under `; Flutter plugin DLLs`. After building, run
+   `Get-ChildItem build\windows\x64\runner\Release\*.dll` to see the exact names.
+
+Then compile:
 
 ```powershell
 & "C:\Users\<you>\AppData\Local\Programs\Inno Setup 6\ISCC.exe" installer\uniun_installer.iss
