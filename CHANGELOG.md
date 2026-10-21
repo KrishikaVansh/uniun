@@ -15,6 +15,74 @@ user-facing changelog.
 
 ---
 
+## [3.2.0] — 2026-10-19
+
+Closes milestone [V3.2](https://github.com/basictech01/uniun/milestone/5). **Shiv is faster
+at remembering your notes, answers a Manas question from its documents too, and stops giving
+one reply to every question. Deleted notes now really disappear from Shiv.**
+
+### Added
+- **A Manas-scoped chat now reaches the documents attached to its notes.** Ask Shiv inside a
+  Manas and the PDFs and Word files attached to that Manas's notes are searched and cited by
+  page or heading, and documents of other Manases stay out of the answer. A Manas whose
+  notes were saved before the embedding queue still puts its newest notes in the prompt
+  (#236, thanks to @Mayukhga83 for the first version in #289).
+
+### Changed
+- **Embedding a note takes about 2 seconds instead of 12.** Most text (a question, a short
+  note, a document passage) now uses a smaller embedding model; only a long note switches
+  to the bigger one. Both give the same result, so nothing is re-embedded. The app download
+  is about 114 MB larger because it carries both model files (#266).
+- **Shiv's AI engine was upgraded to `flutter_edge_ai` 2.3** (the renamed `flutter_gemma`).
+  Qwen3 0.6B uses a new model file, so anyone on that model downloads it again (329 MB)
+  (#257).
+- **Under the hood, the direct-message and private-group code no longer touches the
+  database directly.** It goes through the same repositories as the rest of the app,
+  keeping each save in one step. Nothing changes on screen (#163).
+
+### Fixed
+- **Shiv gave the same answer to every question.** With the small Qwen3 0.6B model, an
+  unrelated note was handed to the model for any question and it copied it back. Notes and
+  document passages must now really match the question for that model (#199).
+- **Deleted notes lingered in Shiv.** Deleting a note now also removes its search vector, its
+  summary and its graph links, so old notes no longer take the place of new ones in
+  answers (#95, #288).
+- **A Shiv reply that ended with no text showed a blank bubble.** It now says "No response
+  from the model.", and "stopped" and "interrupted" are translated too (#123).
+- **Queued knowledge extraction could stall for minutes on an idle phone** (#287).
+- **Removing an unreachable relay in Settings could hang** and leave other removed relays
+  open (#281).
+- **A failed switch between the two embedding models** could make the note queue drop
+  notes; it now keeps them for the next try.
+
+### Under the hood
+- **Test coverage rose from 75 % to 80 %** with gateway, relay-transport and widget tests
+  and new flow tests; the work found the relay hang above (#283).
+- **New tests for the DM and private-group paths:** a real NIP-44 send-and-receive round
+  trip, every rejection path, and the MLS group flow, plus device tests for the
+  Manas-scoped documents with the real embedder.
+- **Known device-test failures were written up, not hidden:** the Vishnu feed case of the
+  Manas membership test (#300) and the blank-picture OCR case (#301) fail on a phone that
+  already holds notes or labels a blank image.
+
+### All 12 issues in milestone [V3.2](https://github.com/basictech01/uniun/milestone/5)
+| # | What it was | Where it landed |
+|---|---|---|
+| #94 | Own saved notes embedded again | Closed, out of scope: you can no longer save your own notes |
+| #95 | Embedded notes were not removed with the note | Fixed (same cause as #288) |
+| #123 | No "thinking" dots or stop button; blank reply bubble | Fixed: "No response from the model." |
+| #139 | iOS crash in Nataraj and Ganas | Closed, not reproduced; a guard test was added |
+| #163 | Domain layer imported Isar directly in 3 files | Changed: DM and private-group code use repositories |
+| #199 | Shiv gave one reply to every question | Fixed |
+| #236 | A Manas chat should reach its notes' documents | Added |
+| #257 | Move from `flutter_gemma` to `flutter_edge_ai` | Changed |
+| #266 | Faster note embedding | Changed: about 2 s instead of 12 |
+| #281 | Relay disconnect hung when it never connected | Fixed |
+| #287 | Queued extract stalled for minutes | Fixed |
+| #288 | Deleted vectors still returned by search | Fixed |
+
+---
+
 ## [3.1.0] — 2026-10-11
 
 Closes milestone [V3.1](https://github.com/basictech01/uniun/milestone/4). **Gujarati and

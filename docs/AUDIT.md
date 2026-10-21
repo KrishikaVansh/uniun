@@ -6,69 +6,39 @@ Format: one dated section per audit pass, newest first. Each item states what wa
 
 ---
 
-## 2026-10-18 — domain layer no longer imports Isar (#163)
+## Open items carried into v3.2.0
 
-`nip17_encryption_service.dart`, `marmot_transport_service.dart` and `dm_usecases.dart` imported `isar_community` and `lib/data/` directly, breaking the layer rule and making the DM and private-group paths untestable without a real database. They now reach storage only through repositories; behaviour is meant to be identical.
-
-- **New:** `Nip17Repository` (gift-wrap queue, inbound save, outgoing save) and plain entities `EncryptedDmEntity`, `EncryptedGroupMessageEntity`, `QueuedEventEntity`. **Extended** instead of duplicated: `E2EEGroupRepository` (pending queue, `confirmWelcome`, `saveDecryptedMessage`, `createGroup`, `requestJoin`, `leaveGroup`, `sendMessage`, `approveJoinRequests`) and `DmConversationRepository.ensureActive`. Gift-wrap enqueue reuses `EventQueueRepository`, profile fetch reuses `ProfileRepository.requestProfileFetch` (replacing `MissingProfileTracker` in these paths).
-- **Atomicity kept:** every write that was one `writeTxn` is still one repository call (inbound DM: note + unread + reply edge + wrap consumed; group send: note + edges + queued event; approve: queued Welcome/Commit + requests marked handled). Tests roll each of these back by making the edge write throw.
-- **Same quirks, on purpose:** the inbound conversation lookup is raw (no pubkey normalisation) and its signing is best-effort; a group message whose event id is already stored fails the unique index and stays queued (the old code did the same, so an own message echoed back by the relay stays in the queue); sending the same DM id twice is refused.
-- **Gateway isolate:** it has no DI, so `lib/gateway/gateway.dart` builds the repositories by hand, and `MeshEventSigner.fixed(privkeyHex:, pubkeyHex:)` signs with the keys handed over at spawn. The DM service is now started only when there is a key (before, it started and returned early on every pass).
-- **Moved:** the pure `imeta` tag parsing moved to `lib/core/notes/imeta_tag_parser.dart` so the domain can use it; `ImetaParser` in `data/` keeps its API.
-- **Tests:** new `nip17_repository_impl_test`, `nip17_encryption_service_test` (real NIP-44 round trip and every rejection path), `marmot_transport_service_test` (mocked MLS, real Isar), `mesh_event_signer_test`, plus additions to the group and conversation repository tests. Changed lines are fully covered except two `catch` lines that were already uncovered in `getConversations` and `GetDmUseCase`.
-- **Not done:** other domain files still import `features/` and `flutter/foundation`. No device test was run for this change (no phone was connected): `logout_account_switch_e2e_test` and the DM and private-group device tests should be run once on a phone.
-
----
-
-## 2026-10-18 — after v3.1.0: flutter_edge_ai 2.3, note deletion, Shiv regressions, faster embedding
-
-Covers #283, #290, #291, #292, #295, #297 and #298. All device results are from the vivo 1933 (Snapdragon 710, Android 11); no second phone was available.
-
-**Test coverage (#283).** Line coverage 74.99 % → 80.03 % with gateway, transport and widget tests and two new `test/integration/` flows. Writing them found two real bugs: the relay disconnect hang (#281, fixed in #298 below) and a flaky vector test (#282).
-
-**flutter_edge_ai 2.3 (#290).** `flutter_gemma` became `flutter_edge_ai` 2.3.2 (`_litertlm` 1.13.2, native LiteRT-LM 0.18.0-e, `_embeddings` 2.3.0, `_mediapipe` 1.2.2, dev `_diagnostics`). API changes handled: `enableThinking`, `embed(EmbeddingInput.text(..), taskType:)`, `embeddingTokenizers` at init, and over-long embedding input now throws `EmbeddingInputTooLongException` (the service shrinks and retries). **Qwen3 0.6B's plain `.litertlm` no longer loads** ("Failed to create engine" on GPU and CPU, every `maxTokens`): LiteRT-LM ≥0.17 links SentencePiece 0.2.2, which rejects a NUL-byte piece in that file (upstream flutter_edge_ai#659, LiteRT-LM#3865, confirmed by the maintainer). The catalog now uses `Qwen3-0.6B_dynamic_wi4b32_afp32.litertlm` (329 MB, Hugging Face tokenizer); users of the old file re-download. Verified on the phone with both models: notes Q&A, stop mid-reply, repeated chats (memory within limits), model switch, long-note embedding. Same PR: an extract-only queue no longer stalls on the T2 soft budget (#287; the cap now applies only while T3/T4 work waits). One Gemma 4 E2B stall right after a Qwen → Gemma engine switch happened once and did not reproduce in two re-runs (noted on #659).
-
-**Deleting a note removes everything derived from it (#291, #288).** Root cause found on the phone: tostore keeps deleted vectors in its search index (236 ghost hits for one stored vector), and no deletion path removed vectors, memory summaries or graph edges, so old notes kept taking top-K slots and old summaries leaked into answers. Now every deletion goes through `purgeNotesInTxn` (one transaction: note, unread and relation rows, memory, graph edges with shared concepts kept, pending rows, and a `PendingVectorDelete` row); `NoteVectorCleanupWorker` drains that queue, sweeps vectors with no note on launch, and the store rebuilds its index 30 s after a burst of deletes. A still-saved note keeps its vector. Purging 3,000 notes with knowledge takes about 2 s (index lookups, not scans). Verified on the phone: 7 leftover ghost hits gone after the launch pass; a note embedded for real, then deleted, is gone from the store and from search without a restart.
-
-**Shiv regressions (#292).**
-- **#199 "the same reply to every question" was reproduced and fixed.** With one unrelated note on the phone, Qwen3 0.6B answered "Marmalade" to every capital question, in a new chat too. Cause: any note scores ~0.6-0.7 against any question with Gecko, so the 0.3 cut-off fed the closest note into every prompt, and the 0.6B model copies it. Qwen3 0.6B now needs 0.72 (other models and cloud keep 0.3), for notes, document chunks and the composer-chat "All notes" search. Calibrated on the phone: answering notes 0.74-0.85 against unrelated ≤0.70 (one vague question 0.64); chunks 0.78-0.85 against ≤0.71. Device calibration tests fail if the gap closes.
-- **#123:** a reply that ended with no visible text was saved as a blank bubble; it now shows a localized "No response from the model." `(stopped)` / `(interrupted)` are shown localized too.
-- **#139:** no crash seen; a device guard fills Nataraj three times with flat memory (Android only).
-- The UNIUN Cloud free model returned empty or HTTP 500 during this work, so no cloud test was written (#293).
-
-**Faster embedding (#295, #266).** The 256-token Gecko file is now bundled next to the 1024 one (both byte-identical to `litert-community/Gecko-110m-en`). For the same text the two files return the same vector (cosine 1.0000), so the index needs no re-embedding. Measured: one embed 2.2 s (256) against 11.7 s (1024); a switch between files ~1.1 s; a too-long input rejected in ~15 ms. A question, a short note and a PDF chunk now take 2.2 s instead of 11.7 s; a long note 13.1 s (switch plus one 1024 embed). The earlier noisy numbers in #266 came from the old measuring test, which skipped the install when any embedder was active. Chunking long notes to fit the short file was measured and not done: 700-character chunks found parts of long notes slightly better (27/28 vs 25/28 first) but pushed a short note out of the top 3 (15/16) and let one note fill the top results for 32/44 questions. Dropping the 1024 file with chunking is tracked in #296.
-
-**A failed embedder switch (#297).** Found reviewing #295 after merge: if loading the other Gecko file failed, the service kept the already-closed model and reported ready, so the note worker counted every queued note as failed and dropped it after three tries. A failed load now leaves the service not ready (the worker keeps the queue).
-
-**Relay disconnect hang (#298, #281).** `RelayConnection.disconnect()` waited for a socket that never connected to confirm its close, which never happens. Reconnecting was never affected (backoff 1 s … 60 s, forever). In the app it hit removing an unreachable relay in Settings: that sync call stayed stuck and relays removed in the same change could stay open. Logout and the Gateway stop were not affected (the isolate is killed directly), contrary to the issue text. A never-connected socket is now closed without waiting, a live one is given 2 s at most, and the streams always close. Covered against a real loopback relay; 4 tests fail with the old code.
-
----
-
-## Open items carried into v3.1.0
-
-The detailed entries up to v3.1.0 were cleared when it shipped; they remain in git history
-(`git log -p -- docs/AUDIT.md`). These are the things from them, and from the v3.0.0 list
-before them, that were not resolved:
+The detailed entries up to v3.2.0 were cleared when it shipped; they remain in git history
+(`git log -p -- docs/AUDIT.md`). These are the things from them, and from the v3.0.0 and
+v3.1.0 lists before them, that were not resolved. All device results were measured on one
+phone, a vivo 1933 (Snapdragon 710, Android 11).
 
 **Still open from v3.0.0**
 - **Android GPU crash on one device class.** On a vivo 1933 / Android 11 / Adreno phone, creating the GPU engine intermittently kills the process inside the vendor GPU driver (`SIGSEGV` in `libgsl.so`). Shipped deliberately with GPU preferred; no fix upstream yet.
-- **The graph's drag and simulation feel is untested on a device** after the Obsidian rewrite. Its performance test is `integration_test/graph_simulation_perf_test.dart`. (Tapping a node and adding it to a Manas was exercised on a vivo 1933 in 3.1, #261.)
+- **The graph's drag and simulation feel is untested on a device** after the Obsidian rewrite. Its performance test is `integration_test/graph_simulation_perf_test.dart`.
 - **Hindi/Hinglish retrieval on real scans is still weak** (the English-centred embedder and noisy Devanagari OCR); the keyword-side fix is in, the rest needs a better embedder or OCR.
-- `maxOutputTokens` is unused in `InferenceScheduler`, so a runaway one-shot generation runs until the KV cache fills. (The T2 soft-budget stall listed here was fixed in #287/#290.)
+- `maxOutputTokens` is unused in `InferenceScheduler`, so a runaway one-shot generation runs until the KV cache fills.
 - The OCR and chart-reading thresholds in `page_ocr_plan.dart` (50 %, 25 %, 20 characters, the Word picture sizes) are unmeasured on real documents.
 
-**New in 3.1**
-- **iOS is unverified for everything in this release** (it cannot be built from the Linux dev machine): Gujarati and Japanese layouts, the chat open-at-first-unread list, the unread trail, Gana dashboard and Brahma/No-knowledge scopes, image input in chat, logout reset, and the background Gana tick. The CI iOS build only proves it compiles.
+**Still open from 3.1**
+- **iOS is unverified for everything in 3.1 and 3.2** (it cannot be built from the Linux dev machine): Gujarati and Japanese layouts, the chat open-at-first-unread list, the unread trail, the Gana dashboard, image input in chat, logout reset, the background Gana tick, and the new DM and private-group repositories. The CI iOS build only proves it compiles.
 - **Gujarati is machine-assisted**; a native review of phrasing is still wanted (#271). Japanese was not natively reviewed either.
-- **Embedding speed** was fixed in #295 (2.2 s for most text, see the entry above). Left: the app is 114 MB larger for the second Gecko file; notes over ~4,500 characters are still cut to fit; dropping the 1024 file needs note chunking and a re-measure (#296); only the Snapdragon 710 was measured.
 - **Notes saved before the embedding queue (3.1) were never backfilled**: they have no vector until they are saved again (#232). Re-embedding now costs about 2.2 s a note (11.7 s if long).
 - **Image input in chat**: the photo is not shown in the sent bubble or kept in the conversation, one image per message, Gemma 4 E4B and prefill time/memory with a large photo were not measured, and the engine rebuild on the first image turn is untimed.
 - **Unread rules differ by surface.** Groups, private groups and DMs mark a note read when it is on screen; the Vishnu feed and the surrounding feed still mark on scroll-out (the older rule).
-- **Gana**: dark theme and non-English dashboard layouts are not checked on a device; the form keeps only the first Manas when an old multi-Manas Gana is edited and saved; `gana_local_engine_e2e_test.dart` (part of `all_tests.dart`) publishes one permanent note to the relay on every run; a counter write racing an edit in another isolate can lose a count (same race the cursor has).
+- **Gana**: dark theme and non-English dashboard layouts are not checked on a device; the form keeps only the first Manas when an old multi-Manas Gana is edited and saved; `gana_local_engine_e2e_test.dart` (part of `all_tests.dart`) publishes one permanent note to the relay on every run; a counter write racing an edit in another isolate can lose a count.
 - **Device tests**: `scheduler_model_switch_test` failed once straight after another test and passed on re-run (cause not found); its second case needs two models; the cloud device tests still need an API key; the whole `all_tests.dart` has not been run in one go.
+- **Cloud**: no device test covers the UNIUN Cloud calls (#293); the free model was failing when 3.1 was written.
+- **Release builds for Android, iOS and Windows run in CI** (#268), but nothing is uploaded, so store signing and a real install are still manual.
+
+**New in 3.2**
+- **The app is about 114 MB larger** because both Gecko files are bundled. Dropping the 1024 file needs note chunking and a re-measure (#296); notes over ~4,500 characters are still cut to fit; only the Snapdragon 710 was measured.
 - **Note deletion (#291)**: un-saving a note whose original is already gone, and mesh sync removing saved rows, do not go through `purgeNotesInTxn`; their vectors are only removed by the next launch sweep.
-- **Cloud**: no device test covers the UNIUN Cloud calls (#293); the free model was failing when this was written.
-- **Release builds for Android, iOS and Windows now run in CI** (#268), but their first runs were on #277/#278 and nothing is uploaded, so store signing and a real install are still manual.
+- **The small-model cut-off (0.72) is tuned for Qwen3 0.6B only** on one phone and 20 questions; other models and cloud keep 0.3. A Manas-scoped search still gives its notes score 1.0 with no cut-off (only the document side uses it), and a Manas whose notes have no vector falls back to newest-first, so unrelated notes from that Manas can appear until #232 is done.
+- **A scoped search over every note id (`mergeAll`, Gana's "all notes") was timed on a development machine only** (115 ms for 3,000 notes); it was not timed on the phone.
+- **Two device tests fail on a phone that already holds data**: the Vishnu feed case of `manas_membership_e2e_test` (#300, a test that assumes an empty feed) and the blank-picture case of `document_rag_e2e_test` (#301, a blank image gets indexed; cause not diagnosed). Neither is a regression of 3.2.
+- **The DM and private-group repository refactor (#163) was checked by unit and flow tests and by the unread and logout device tests**, not by a live two-account DM or group conversation on a device. Behaviour was kept on purpose, including that a private-group message whose id is already stored stays in the queue.
+- **The domain layer still imports `features/` and `flutter/foundation` in other files**; #163 only removed Isar and `data/` from the three DM and Marmot files.
 
 ---
 
