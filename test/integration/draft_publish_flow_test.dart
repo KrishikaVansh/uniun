@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:isar_community/isar.dart';
+import 'package:mocktail/mocktail.dart';
 import 'package:nostr_core_dart/nostr.dart';
 import 'package:uniun/core/enum/note_type.dart';
 import 'package:uniun/core/error/failures.dart';
@@ -12,6 +13,13 @@ import 'package:uniun/data/repositories/note_relation_repository_impl.dart';
 import 'package:uniun/data/repositories/note_repository_impl.dart';
 import 'package:uniun/data/repositories/note_resolver_repository_impl.dart';
 import 'package:uniun/domain/entities/draft/draft_entity.dart';
+import 'package:uniun/domain/usecases/draft_usecases.dart';
+import 'package:uniun/domain/usecases/post_reply_usecase.dart';
+import 'package:uniun/domain/usecases/profile_usecases.dart';
+import 'package:uniun/domain/usecases/saved_note_usecases.dart';
+import 'package:uniun/domain/usecases/unread_usecases.dart';
+import 'package:uniun/domain/usecases/followed_note_usecases.dart';
+import 'package:uniun/features/thread/bloc/thread_bloc.dart';
 import 'package:uniun/domain/entities/media/media_blob_entity.dart';
 import 'package:uniun/domain/entities/note/note_entity.dart';
 import 'package:uniun/domain/entities/user_key/user_key_entity.dart';
@@ -740,6 +748,165 @@ void main() {
 
   // ── 5. Property check: graph integrity post-chain ────────────────────────
 
+  group('Scenario: reply to a draft from its thread', () {
+    late NoteResolverRepositoryImpl resolverA;
+
+    ThreadBloc threadBloc() {
+      resolverA = NoteResolverRepositoryImpl(
+        isar: deviceA,
+        relations: NoteRelationRepositoryImpl(isar: deviceA),
+        attachments: NoteAttachmentsEnricher(isar: deviceA),
+      );
+      final getProfile = _MockGetProfile();
+      when(() => getProfile.call(any())).thenAnswer(
+        (_) async => const Left(Failure.errorFailure('no profile')),
+      );
+      final getAllSaved = _MockGetAllSaved();
+      when(() => getAllSaved.call()).thenAnswer((_) async => const Right([]));
+      final markSeen = _MockMarkSeen();
+      when(() => markSeen.call(any())).thenAnswer((_) async => const Right(unit));
+      final watch = _MockWatchMarkers();
+      when(() => watch.call(any())).thenAnswer((_) => const Stream.empty());
+      return ThreadBloc(
+        resolverA,
+        _MockPostReply(),
+        getProfile,
+        getAllSaved,
+        _MockGetSavedReplies(),
+        _MockGetSavedReferences(),
+        markSeen,
+        watch,
+        GetDraftByIdUseCase(draftsA),
+        GetDraftRepliesUseCase(draftsA),
+        SaveDraftUseCase(draftsA),
+        _StubActiveUser(me),
+      );
+    }
+
+    /// Waits until [done] holds (polling), so a slow machine cannot race the
+    /// bloc's async load/save.
+    Future<void> until(bool Function() done) async {
+      final end = DateTime.now().add(const Duration(seconds: 10));
+      while (!done()) {
+        if (DateTime.now().isAfter(end)) fail('condition not met in 10s');
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+    }
+
+    Future<ThreadBloc> openThread(String id, {bool draft = false}) async {
+      final bloc = threadBloc();
+      bloc.add(LoadThreadEvent(id, draft: draft));
+      await until(() => bloc.state.status == ThreadStatus.loaded);
+      return bloc;
+    }
+
+    /// Opens the draft thread on `parent` and writes `text` as a reply from the
+    /// composer, the way the screen does.
+    Future<void> replyFromThread(String parent, String text) async {
+      final bloc = await openThread(parent, draft: true);
+      final before = bloc.state.replies.length;
+      bloc.add(PostReplyEvent(text));
+      await until(() => bloc.state.replies.length == before + 1);
+      await bloc.close();
+    }
+
+    Future<String> onlyReplyOf(String parent) async {
+      final replies = (await draftsA.getDraftsReferencing(parent))
+          .getOrElse(() => throw 'left');
+      expect(replies, hasLength(1));
+      return replies.single.draftId;
+    }
+
+    test('the reply is saved as a draft linked to its parent and shows in the '
+        "parent's draft thread", () async {
+      await draftsA.saveDraft(buildDraft(draftId: 'parent'));
+
+      await replyFromThread('parent', 'sounds good');
+
+      final replyId = await onlyReplyOf('parent');
+      final reply = (await draftsA.getDraftById(replyId)).getOrElse(() => throw 'x');
+      expect(reply.content, 'sounds good');
+      expect(reply.draftRefIds, ['parent']);
+
+      final bloc = await openThread('parent', draft: true);
+      expect(bloc.state.replies.map((r) => r.content), ['sounds good']);
+      expect(bloc.state.draftIds, {'parent', replyId});
+      await bloc.close();
+    });
+
+    test('a reply to a reply nests: each draft thread shows its own replies',
+        () async {
+      await draftsA.saveDraft(buildDraft(draftId: 'parent'));
+      await replyFromThread('parent', 'first');
+      final first = await onlyReplyOf('parent');
+
+      await replyFromThread(first, 'second');
+
+      expect(await onlyReplyOf(first), isNot(first));
+      expect(await onlyReplyOf('parent'), first);
+    });
+
+    test('publishing the parent relinks the reply: the link becomes a real '
+        'event id and the published reply mentions the published parent',
+        () async {
+      await draftsA.saveDraft(buildDraft(draftId: 'parent'));
+      await replyFromThread('parent', 'sounds good');
+      final replyId = await onlyReplyOf('parent');
+
+      final parentEvent = await publishDraft('parent');
+
+      final reply = (await draftsA.getDraftById(replyId)).getOrElse(() => throw 'x');
+      expect(reply.draftRefIds, isEmpty);
+      expect(reply.eTagRefs, [parentEvent]);
+
+      final replyEvent = await publishDraft(replyId);
+      expect(await mentionsOf(replyEvent), [parentEvent]);
+
+      // The published parent's normal thread now lists the reply.
+      final published = await openThread(parentEvent);
+      expect(published.state.replies.map((r) => r.id), [replyEvent]);
+      await published.close();
+    });
+
+    test('publishing the reply with its chain publishes the parent first and '
+        'keeps the link', () async {
+      await draftsA.saveDraft(buildDraft(draftId: 'parent'));
+      await replyFromThread('parent', 'sounds good');
+      final replyId = await onlyReplyOf('parent');
+
+      final resolved = await publishChain(replyId);
+
+      expect(await mentionsOf(resolved[replyId]!), [resolved['parent']!]);
+    });
+
+    test('publishing only the reply drops the link instead of breaking it',
+        () async {
+      await draftsA.saveDraft(buildDraft(draftId: 'parent'));
+      await replyFromThread('parent', 'sounds good');
+      final replyId = await onlyReplyOf('parent');
+
+      final replyEvent = await publishDraft(replyId);
+
+      expect(await mentionsOf(replyEvent), isEmpty);
+      expect((await draftsA.getDraftById('parent')).isRight(), isTrue,
+          reason: 'the parent stays a draft');
+    });
+
+    test('a reply left unpublished after its parent was deleted still opens',
+        () async {
+      await draftsA.saveDraft(buildDraft(draftId: 'parent'));
+      await replyFromThread('parent', 'orphan');
+      final replyId = await onlyReplyOf('parent');
+      await draftsA.deleteDraft('parent');
+
+      final bloc = await openThread(replyId, draft: true);
+
+      expect(bloc.state.status, ThreadStatus.loaded);
+      expect(bloc.state.root!.content, 'orphan');
+      await bloc.close();
+    });
+  });
+
   group('Property: every chain leaves the graph self-consistent', () {
     test(
       'After chain publish of A → B → C: each note\'s mentions == its real children',
@@ -773,6 +940,36 @@ void main() {
 }
 
 // ── Test doubles ─────────────────────────────────────────────────────────
+
+class _MockPostReply extends Mock implements PostReplyUseCase {}
+
+class _MockGetProfile extends Mock implements GetProfileUseCase {}
+
+class _MockGetAllSaved extends Mock implements GetAllSavedNotesUseCase {}
+
+class _MockGetSavedReplies extends Mock implements GetSavedRepliesUseCase {}
+
+class _MockGetSavedReferences extends Mock
+    implements GetSavedReferencesUseCase {}
+
+class _MockMarkSeen extends Mock implements MarkUnreadSeenUseCase {}
+
+class _MockWatchMarkers extends Mock
+    implements WatchThreadUnreadMarkersUseCase {}
+
+class _StubActiveUser extends GetActiveUserUseCase {
+  _StubActiveUser(this._kc) : super(_UnusedUserRepo());
+  final Keychain _kc;
+  @override
+  Future<Either<Failure, UserKeyEntity>> call() async => Right(
+    UserKeyEntity(
+      pubkeyHex: _kc.public,
+      npub: 'npub-${_kc.public}',
+      nsec: 'nsec',
+      createdAt: DateTime(2026),
+    ),
+  );
+}
 
 class _StubActiveKeys extends GetActiveUserKeysUseCase {
   _StubActiveKeys(this._kc) : super(_UnusedUserRepo());

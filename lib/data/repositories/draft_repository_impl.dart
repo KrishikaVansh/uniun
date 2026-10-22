@@ -105,6 +105,25 @@ class DraftRepositoryImpl extends DraftRepository {
   }
 
   @override
+  Future<Either<Failure, List<DraftEntity>>> getDraftsReferencing(
+    String draftId,
+  ) async {
+    try {
+      final drafts = await isar.draftModels
+          .filter()
+          .draftRefIdsElementEqualTo(draftId)
+          .publishedAsEventIdIsNull()
+          .sortByCreatedAt()
+          .findAll();
+      return Right([
+        for (final d in drafts) await _enrich(d.toDomain()),
+      ]);
+    } catch (e) {
+      return Left(Failure.errorFailure(e.toString()));
+    }
+  }
+
+  @override
   Future<Either<Failure, DraftEntity>> getDraftById(String draftId) async {
     try {
       final draft =

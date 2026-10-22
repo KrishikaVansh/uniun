@@ -53,6 +53,7 @@ Every domain entity has a factory there. **Never hand-roll a
 | `aThread(depth: ...)` | Linear reply chain root → r1 → r2 → … |
 | `aProfile(...)`, `anAnonymousProfile()` | Profile entities |
 | `aSavedNote(...)`, `aManas(...)`, `manyManas(n)` | Other entities |
+| `aDraft(...)` | Local draft (`draftRefIds` link it to other drafts) |
 | `aUserKey(...)` | Active-user key entity |
 | `aMediaBlob(...)`, `aPdfBlob()`, `aVideoBlob()` | Media attachments |
 

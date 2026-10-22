@@ -54,6 +54,16 @@ void main() {
     verify(() => repo.getDraftById('draft-1')).called(1);
   });
 
+  test('GetDraftRepliesUseCase delegates to getDraftsReferencing', () async {
+    when(() => repo.getDraftsReferencing('draft-1'))
+        .thenAnswer((_) async => Right([_aDraft()]));
+
+    final result = await GetDraftRepliesUseCase(repo).call('draft-1');
+
+    expect(result.getOrElse(() => []), hasLength(1));
+    verify(() => repo.getDraftsReferencing('draft-1')).called(1);
+  });
+
   test('DeleteDraftUseCase delegates to deleteDraft', () async {
     when(() => repo.deleteDraft('draft-1')).thenAnswer((_) async => const Right(unit));
 

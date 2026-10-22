@@ -960,6 +960,18 @@ abstract class AppLocalizations {
   /// **'Reply to this note…'**
   String get threadReplyToThis;
 
+  /// Reply composer hint when the thread is a local draft
+  ///
+  /// In en, this message translates to:
+  /// **'Reply to this draft…'**
+  String get threadReplyToThisDraft;
+
+  /// Main button of the reply composer when replying to a draft: saves the reply as a draft
+  ///
+  /// In en, this message translates to:
+  /// **'Create draft'**
+  String get threadCreateDraft;
+
   /// Reply composer hint when replying to a specific user
   ///
   /// In en, this message translates to:

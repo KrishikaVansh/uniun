@@ -6,10 +6,13 @@ sealed class ThreadEvent {
 
 /// Loads (or reloads) the thread for [noteId], resolving it from whichever
 /// collection holds it. [savedOnly] filters replies to saved notes (feed only).
+/// With [draft] the id is a local draft's and its replies are the drafts that
+/// reference it.
 final class LoadThreadEvent extends ThreadEvent {
-  const LoadThreadEvent(this.noteId, {this.savedOnly = false});
+  const LoadThreadEvent(this.noteId, {this.savedOnly = false, this.draft = false});
   final String noteId;
   final bool savedOnly;
+  final bool draft;
 }
 
 /// Posts a reply to the current root, routed by source via [PostReplyUseCase].

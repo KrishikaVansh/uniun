@@ -2,19 +2,24 @@ import 'package:bloc/bloc.dart';
 import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:injectable/injectable.dart';
 import 'package:uniun/core/error/failures.dart';
+import 'package:uniun/features/brahma/utils/nostr_event_utils.dart';
 import 'dart:async';
 
+import 'package:uniun/domain/entities/draft/draft_entity.dart';
 import 'package:uniun/domain/entities/followed_note/thread_unread_marker.dart';
 import 'package:uniun/domain/entities/media/media_blob_entity.dart';
 import 'package:uniun/domain/entities/note/note_entity.dart';
 import 'package:uniun/domain/entities/profile/profile_entity.dart';
 import 'package:uniun/domain/entities/saved_note/saved_note_entity.dart';
 import 'package:uniun/domain/repositories/note_resolver_repository.dart';
+import 'package:uniun/domain/usecases/draft_usecases.dart';
 import 'package:uniun/domain/usecases/followed_note_usecases.dart';
 import 'package:uniun/domain/usecases/post_reply_usecase.dart';
 import 'package:uniun/domain/usecases/profile_usecases.dart';
 import 'package:uniun/domain/usecases/saved_note_usecases.dart';
 import 'package:uniun/domain/usecases/unread_usecases.dart';
+import 'package:uniun/domain/usecases/user_usecases.dart';
+import 'package:uuid/uuid.dart';
 
 part 'thread_event.dart';
 part 'thread_state.dart';
@@ -34,6 +39,10 @@ class ThreadBloc extends Bloc<ThreadEvent, ThreadState> {
   final GetSavedReferencesUseCase _getSavedReferences;
   final MarkUnreadSeenUseCase _markSeen;
   final WatchThreadUnreadMarkersUseCase _watchMarkers;
+  final GetDraftByIdUseCase _getDraft;
+  final GetDraftRepliesUseCase _getDraftReplies;
+  final SaveDraftUseCase _saveDraft;
+  final GetActiveUserUseCase _getActiveUser;
   StreamSubscription<Map<String, ThreadUnreadMarker>>? _markersSub;
 
   ThreadBloc(
@@ -45,6 +54,10 @@ class ThreadBloc extends Bloc<ThreadEvent, ThreadState> {
     this._getSavedReferences,
     this._markSeen,
     this._watchMarkers,
+    this._getDraft,
+    this._getDraftReplies,
+    this._saveDraft,
+    this._getActiveUser,
   ) : super(const ThreadState()) {
     on<LoadThreadEvent>(_onLoad, transformer: droppable());
     on<PostReplyEvent>(_onPost, transformer: droppable());
@@ -60,6 +73,7 @@ class ThreadBloc extends Bloc<ThreadEvent, ThreadState> {
   }
 
   Future<void> _onLoad(LoadThreadEvent event, Emitter<ThreadState> emit) async {
+    if (event.draft) return _onLoadDraft(event, emit);
     // Show the full-screen spinner only on the first load. A reload (e.g. after
     // posting a reply) keeps the current thread visible to avoid a jarring
     // full-page refresh.
@@ -189,11 +203,122 @@ class ThreadBloc extends Bloc<ThreadEvent, ThreadState> {
     });
   }
 
+  /// Opens a thread on a local draft: the draft is the root, its parent and
+  /// mentions are resolved as for any note, and its replies are the drafts that
+  /// reference it. Nothing here is a published note, so there are no unread
+  /// markers to watch and the root is not marked seen.
+  Future<void> _onLoadDraft(
+    LoadThreadEvent event,
+    Emitter<ThreadState> emit,
+  ) async {
+    if (state.status != ThreadStatus.loaded) {
+      emit(state.copyWith(status: ThreadStatus.loading));
+    }
+
+    final draftResult = await _getDraft.call(event.noteId);
+    final draft = draftResult.fold((_) => null, (d) => d);
+    if (draft == null) {
+      emit(state.copyWith(
+        status: ThreadStatus.error,
+        errorMessage: draftResult.fold((f) => f.toMessage(), (_) => ''),
+      ));
+      return;
+    }
+
+    final userResult = await _getActiveUser.call();
+    final authorPubkey = userResult.fold((_) => '', (u) => u.pubkeyHex);
+    final root = draft.toNoteEntity(authorPubkey: authorPubkey);
+
+    final parentNotes = <NoteEntity>[];
+    if (root.replyToEventId != null) {
+      final p = await _resolver.resolveNoteById(root.replyToEventId!);
+      p.fold((_) {}, (note) {
+        if (note != null) parentNotes.add(note);
+      });
+    }
+
+    final mentionIds = root.eTagRefs
+        .where((id) => id != root.rootEventId && id != root.replyToEventId)
+        .toList();
+    final mentionedNotes = mentionIds.isEmpty
+        ? <NoteEntity>[]
+        : (await _resolver.resolveMany(mentionIds))
+            .fold((_) => <NoteEntity>[], (n) => n);
+
+    final repliesResult = await _getDraftReplies.call(root.id);
+    final replies = [
+      for (final d in repliesResult.fold((_) => <DraftEntity>[], (r) => r))
+        d.toNoteEntity(authorPubkey: authorPubkey),
+    ];
+
+    final profiles = <String, ProfileEntity>{};
+    final pubkeys = {
+      root.authorPubkey,
+      for (final n in parentNotes) n.authorPubkey,
+      for (final n in mentionedNotes) n.authorPubkey,
+    }..removeWhere((pk) => pk.isEmpty);
+    await Future.wait(pubkeys.map((pk) async {
+      final pr = await _getProfile.call(pk);
+      pr.fold((_) {}, (p) => profiles[p.pubkey] = p);
+    }));
+
+    await _markersSub?.cancel();
+    _markersSub = null;
+    emit(state.copyWith(
+      status: ThreadStatus.loaded,
+      root: root,
+      parentNotes: parentNotes,
+      mentionedNotes: mentionedNotes,
+      replies: replies,
+      profiles: profiles,
+      savedOnly: false,
+      draftIds: {root.id, for (final r in replies) r.id},
+      unreadMarkers: const {},
+    ));
+  }
+
+  /// Saves [content] as a new draft that references the draft being viewed.
+  /// When that draft is published the reference is rewritten to its event id
+  /// (or dropped, if the user publishes the reply alone).
+  Future<void> _onPostDraft(
+    PostReplyEvent event,
+    NoteEntity root,
+    Emitter<ThreadState> emit,
+  ) async {
+    emit(state.copyWith(postStatus: ThreadPostStatus.posting));
+    final content = event.content.trim();
+    final now = DateTime.now();
+    final result = await _saveDraft.call(DraftEntity(
+      draftId: const Uuid().v4(),
+      content: content,
+      eTagRefs: event.mentionRefs,
+      pTagRefs: const [],
+      tTags: extractHashtags(content),
+      draftRefIds: [root.id],
+      createdAt: now,
+      updatedAt: now,
+    ));
+    result.fold(
+      (f) => emit(state.copyWith(
+        postStatus: ThreadPostStatus.error,
+        errorMessage: f.toMessage(),
+      )),
+      (_) {
+        emit(state.copyWith(postStatus: ThreadPostStatus.idle));
+        add(LoadThreadEvent(root.id, draft: true));
+      },
+    );
+  }
+
   Future<void> _onPost(PostReplyEvent event, Emitter<ThreadState> emit) async {
     final root = state.root;
     if (root == null ||
         (event.content.trim().isEmpty && event.attachments.isEmpty)) {
       return;
+    }
+    if (state.draftIds.contains(root.id)) {
+      if (event.content.trim().isEmpty) return;
+      return _onPostDraft(event, root, emit);
     }
 
     emit(state.copyWith(postStatus: ThreadPostStatus.posting));

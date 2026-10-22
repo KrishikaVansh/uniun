@@ -28,6 +28,7 @@ class MessageThreadPage extends StatelessWidget {
     this.replyCount,
     this.unreadMarkers = const {},
     this.isSending = false,
+    this.draftIds = const {},
     this.appBar,
     this.title,
   });
@@ -40,6 +41,10 @@ class MessageThreadPage extends StatelessWidget {
   final int? replyCount;
   final Map<String, ThreadUnreadMarker> unreadMarkers;
   final bool isSending;
+
+  /// Ids of the notes in this thread that are local drafts. When [root] is one,
+  /// the composer saves a draft reply instead of publishing.
+  final Set<String> draftIds;
 
   /// Custom app bar. When null, a default back + [title] bar is shown.
   final PreferredSizeWidget? appBar;
@@ -71,11 +76,15 @@ class MessageThreadPage extends StatelessWidget {
         replyCount: replyCount,
         unreadMarkers: unreadMarkers,
         onOpenThread: onOpenThread,
+        draftIds: draftIds,
       ),
       bottomNavigationBar: ComposerHost(
-        hintText: AppLocalizations.of(context)!.threadReplyToThis,
+        hintText: draftIds.contains(root.id)
+            ? AppLocalizations.of(context)!.threadReplyToThisDraft
+            : AppLocalizations.of(context)!.threadReplyToThis,
         isSending: isSending,
         onSend: onSendReply,
+        draftMode: draftIds.contains(root.id),
         // Manas-chat (WS4) context: the thread, oldest-first.
         entityContext: entityContextLines([...parentNotes, root, ...replies]),
       ),

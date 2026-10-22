@@ -506,6 +506,12 @@ class AppLocalizationsGu extends AppLocalizations {
   String get threadReplyToThis => 'આ નોંધનો જવાબ આપો...';
 
   @override
+  String get threadReplyToThisDraft => 'આ ડ્રાફ્ટનો જવાબ આપો...';
+
+  @override
+  String get threadCreateDraft => 'ડ્રાફ્ટ બનાવો';
+
+  @override
   String threadReplyTo(String name) {
     return '@$name ને જવાબ આપો…';
   }

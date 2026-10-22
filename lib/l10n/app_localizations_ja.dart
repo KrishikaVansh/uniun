@@ -495,6 +495,12 @@ class AppLocalizationsJa extends AppLocalizations {
   String get threadReplyToThis => 'このノートに返信…';
 
   @override
+  String get threadReplyToThisDraft => 'この下書きに返信…';
+
+  @override
+  String get threadCreateDraft => '下書きを作成';
+
+  @override
   String threadReplyTo(String name) {
     return '@$nameに返信…';
   }

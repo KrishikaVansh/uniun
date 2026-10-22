@@ -15,6 +15,7 @@ import 'package:uniun/core/enum/gana_output_type.dart';
 import 'package:uniun/core/enum/gana_run_status.dart';
 import 'package:uniun/core/enum/gana_trigger_mode.dart';
 import 'package:uniun/domain/entities/dm/dm_conversation_entity.dart';
+import 'package:uniun/domain/entities/draft/draft_entity.dart';
 import 'package:uniun/domain/entities/gana/gana_entity.dart';
 import 'package:uniun/domain/entities/gana/gana_run_entity.dart';
 import 'package:uniun/domain/entities/graph_edge/graph_edge_entity.dart';
@@ -327,6 +328,36 @@ GroupEntity aGroup({
     createdAt: createdAt,
     updatedAt: updatedAt,
     lastMetaEvent: lastMetaEvent,
+  );
+}
+
+// ── DraftEntity ──────────────────────────────────────────────────────────────
+
+DraftEntity aDraft({
+  String draftId = 'draft-1',
+  String content = 'a draft',
+  String? rootEventId,
+  String? replyToEventId,
+  List<String> eTagRefs = const [],
+  List<String> draftRefIds = const [],
+  List<String> tTags = const [],
+  List<MediaBlobEntity> attachments = const [],
+  String? publishedAsEventId,
+  DateTime? createdAt,
+}) {
+  return DraftEntity(
+    draftId: draftId,
+    content: content,
+    rootEventId: rootEventId,
+    replyToEventId: replyToEventId,
+    eTagRefs: eTagRefs,
+    pTagRefs: const [],
+    tTags: tTags,
+    draftRefIds: draftRefIds,
+    attachments: attachments,
+    publishedAsEventId: publishedAsEventId,
+    createdAt: createdAt ?? tT0,
+    updatedAt: createdAt ?? tT0,
   );
 }
 

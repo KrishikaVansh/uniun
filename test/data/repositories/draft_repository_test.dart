@@ -213,6 +213,84 @@ void main() {
     });
   });
 
+  // ── getDraftsReferencing ──────────────────────────────────────────────────
+
+  group('getDraftsReferencing', () {
+    Future<List<String>> repliesTo(String id) async => (await repo
+            .getDraftsReferencing(id))
+        .getOrElse(() => throw 'left')
+        .map((d) => d.draftId)
+        .toList();
+
+    test('returns only the drafts that reference the id, oldest first',
+        () async {
+      await repo.saveDraft(draft(draftId: 'parent'));
+      await repo.saveDraft(draft(
+          draftId: 'late',
+          draftRefIds: ['parent'],
+          createdAt: DateTime(2026, 6, 3)));
+      await repo.saveDraft(draft(
+          draftId: 'early',
+          draftRefIds: ['other', 'parent'],
+          createdAt: DateTime(2026, 6, 2)));
+      await repo.saveDraft(draft(draftId: 'unrelated', draftRefIds: ['other']));
+
+      expect(await repliesTo('parent'), ['early', 'late']);
+    });
+
+    test('a reply that was already published is no longer a draft reply',
+        () async {
+      await repo.saveDraft(draft(draftId: 'parent'));
+      await repo.saveDraft(draft(
+          draftId: 'sent', draftRefIds: ['parent'], publishedAsEventId: 'e1'));
+
+      expect(await repliesTo('parent'), isEmpty);
+    });
+
+    test('an id nothing references, or an empty id, has no replies', () async {
+      await repo.saveDraft(draft(draftId: 'parent'));
+
+      expect(await repliesTo('parent'), isEmpty);
+      expect(await repliesTo(''), isEmpty);
+    });
+
+    test('replies keep their staged attachments', () async {
+      await repo.saveDraft(draft(draftId: 'parent'));
+      await repo.saveDraft(draft(
+          draftId: 'pic',
+          draftRefIds: ['parent'],
+          attachments: [
+            const MediaBlobEntity(
+                sha256: 'sha-1', mime: 'image/png', sizeBytes: 3),
+          ]));
+
+      final reply = (await repo.getDraftsReferencing('parent'))
+          .getOrElse(() => throw 'left')
+          .single;
+      expect(reply.attachments.single.sha256, 'sha-1');
+    });
+
+    test('publishing the parent turns the reference into a real event id, so '
+        'the reply stops being a draft reply', () async {
+      await repo.saveDraft(draft(draftId: 'parent'));
+      await repo.saveDraft(draft(draftId: 'reply', draftRefIds: ['parent']));
+
+      await repo.markPublished(draftId: 'parent', eventId: 'evt-parent');
+
+      expect(await repliesTo('parent'), isEmpty);
+      final reply = (await repo.getDraftById('reply')).getOrElse(() => throw 'x');
+      expect(reply.draftRefIds, isEmpty);
+      expect(reply.eTagRefs, ['evt-parent']);
+    });
+
+    test('a closed database surfaces as Left', () async {
+      await isar.close();
+
+      expect((await repo.getDraftsReferencing('parent')).isLeft(), isTrue);
+      isar = await openTestIsar();
+    });
+  });
+
   // ── deleteDraft ───────────────────────────────────────────────────────────
 
   group('deleteDraft', () {

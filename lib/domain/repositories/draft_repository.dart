@@ -8,6 +8,12 @@ abstract class DraftRepository {
   Future<Either<Failure, DraftEntity>> getDraftById(String draftId);
   Future<Either<Failure, Unit>> deleteDraft(String draftId);
 
+  /// Unpublished drafts that reference [draftId] in their `draftRefIds`, i.e.
+  /// the drafts written as replies to it, oldest first.
+  Future<Either<Failure, List<DraftEntity>>> getDraftsReferencing(
+    String draftId,
+  );
+
   /// Marks the draft as published — sets `publishedAsEventId`, keeps the row
   /// as a brief tombstone, and republishes a NIP-37 wrap that carries
   /// `["published-as", eventId]` so other devices learn the UUID→event-id

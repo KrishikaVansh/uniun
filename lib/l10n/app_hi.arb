@@ -143,6 +143,8 @@
   "threadNoReferencesDetail": "अभी तक किसी नोट ने इसका संदर्भ नहीं दिया है।",
   "threadPost": "पोस्ट करें",
   "threadReplyToThis": "इस नोट का उत्तर दें…",
+  "threadReplyToThisDraft": "इस ड्राफ़्ट का उत्तर दें…",
+  "threadCreateDraft": "ड्राफ़्ट बनाएँ",
   "threadReplyTo": "@{name} को उत्तर दें…",
   "threadReplyingTo": "@{name} को उत्तर दे रहे हैं",
   "threadContinuation": "थ्रेड निरंतरता",
