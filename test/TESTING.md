@@ -429,6 +429,12 @@ flutter test --no-uninstall integration_test/<file>.dart
 also keeps the screen on and unlocked (a sleeping screen runs the app on slow
 cores, several times slower).
 
+No phone? Start an Android emulator with GPU acceleration using the launcher
+`android-emulator-gpu` (any AVD: `android-emulator-gpu <avd-name>`, e.g.
+`android-emulator-gpu Pixel_9_Pro`), then run the same `scripts/device_test.sh`
+commands against it. Timings and GPU/driver behaviour on an emulator say nothing
+about a real phone; measure those on the device.
+
 The Gana input/output matrix can run on a device without a model or live
 publishing: `scripts/device_test.sh run integration_test/gana_routing_matrix_e2e_test.dart`.
 It covers all five input types against all four output types using isolated
