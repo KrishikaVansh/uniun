@@ -504,6 +504,12 @@ class AppLocalizationsHi extends AppLocalizations {
   String get threadReplyToThis => 'इस नोट का उत्तर दें…';
 
   @override
+  String get threadReplyToThisDraft => 'इस ड्राफ़्ट का उत्तर दें…';
+
+  @override
+  String get threadCreateDraft => 'ड्राफ़्ट बनाएँ';
+
+  @override
   String threadReplyTo(String name) {
     return '@$name को उत्तर दें…';
   }

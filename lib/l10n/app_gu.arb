@@ -619,6 +619,14 @@
   "@threadReplyToThis": {
     "description": "Reply composer hint when no specific target"
   },
+  "threadReplyToThisDraft": "આ ડ્રાફ્ટનો જવાબ આપો...",
+  "@threadReplyToThisDraft": {
+    "description": "Reply composer hint when the thread is a local draft"
+  },
+  "threadCreateDraft": "ડ્રાફ્ટ બનાવો",
+  "@threadCreateDraft": {
+    "description": "Main button of the reply composer when replying to a draft: saves the reply as a draft"
+  },
   "threadReplyTo": "@{name} ને જવાબ આપો…",
   "@threadReplyTo": {
     "description": "Reply composer hint when replying to a specific user",

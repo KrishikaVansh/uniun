@@ -503,6 +503,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get threadReplyToThis => 'Reply to this note…';
 
   @override
+  String get threadReplyToThisDraft => 'Reply to this draft…';
+
+  @override
+  String get threadCreateDraft => 'Create draft';
+
+  @override
   String threadReplyTo(String name) {
     return 'Reply to @$name…';
   }

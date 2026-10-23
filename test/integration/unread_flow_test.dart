@@ -21,11 +21,13 @@ import 'package:uniun/data/repositories/note_attachments_enricher.dart';
 import 'package:uniun/data/repositories/note_relation_repository_impl.dart';
 import 'package:uniun/data/repositories/note_resolver_repository_impl.dart';
 import 'package:uniun/data/repositories/unread_repository_impl.dart';
+import 'package:uniun/domain/usecases/draft_usecases.dart';
 import 'package:uniun/domain/usecases/followed_note_usecases.dart';
 import 'package:uniun/domain/usecases/post_reply_usecase.dart';
 import 'package:uniun/domain/usecases/profile_usecases.dart';
 import 'package:uniun/domain/usecases/saved_note_usecases.dart';
 import 'package:uniun/domain/usecases/unread_usecases.dart';
+import 'package:uniun/domain/usecases/user_usecases.dart';
 import 'package:uniun/features/mesh/sync/mesh_event_signer.dart';
 import 'package:uniun/features/thread/bloc/thread_bloc.dart';
 import 'package:uniun/l10n/app_localizations.dart';
@@ -36,6 +38,14 @@ import '../_helpers/isar_test_harness.dart';
 import '../_helpers/stub_user_repository.dart';
 
 class _MockPostReply extends Mock implements PostReplyUseCase {}
+
+class _MockGetDraft extends Mock implements GetDraftByIdUseCase {}
+
+class _MockGetDraftReplies extends Mock implements GetDraftRepliesUseCase {}
+
+class _MockSaveDraft extends Mock implements SaveDraftUseCase {}
+
+class _MockGetActiveUser extends Mock implements GetActiveUserUseCase {}
 
 class _MockGetProfile extends Mock implements GetProfileUseCase {}
 
@@ -693,6 +703,10 @@ void main() {
         refs,
         MarkUnreadSeenUseCase(unreadRepo),
         WatchThreadUnreadMarkersUseCase(followed),
+        _MockGetDraft(),
+        _MockGetDraftReplies(),
+        _MockSaveDraft(),
+        _MockGetActiveUser(),
       );
     });
 

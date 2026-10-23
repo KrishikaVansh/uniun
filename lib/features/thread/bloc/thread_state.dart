@@ -17,6 +17,7 @@ class ThreadState {
     this.savedOnly = false,
     this.savedOnlyIds = const {},
     this.unreadMarkers = const {},
+    this.draftIds = const {},
   });
 
   final ThreadStatus status;
@@ -39,6 +40,10 @@ class ThreadState {
   /// note's tree.
   final Map<String, ThreadUnreadMarker> unreadMarkers;
 
+  /// Ids of the notes in this thread that are local drafts (the root and its
+  /// draft replies) when the thread was opened on a draft; empty otherwise.
+  final Set<String> draftIds;
+
   NoteEntity? get rootNote => root;
 
   ThreadState copyWith({
@@ -53,6 +58,7 @@ class ThreadState {
     bool? savedOnly,
     Set<String>? savedOnlyIds,
     Map<String, ThreadUnreadMarker>? unreadMarkers,
+    Set<String>? draftIds,
   }) {
     return ThreadState(
       status: status ?? this.status,
@@ -66,6 +72,7 @@ class ThreadState {
       savedOnly: savedOnly ?? this.savedOnly,
       savedOnlyIds: savedOnlyIds ?? this.savedOnlyIds,
       unreadMarkers: unreadMarkers ?? this.unreadMarkers,
+      draftIds: draftIds ?? this.draftIds,
     );
   }
 }

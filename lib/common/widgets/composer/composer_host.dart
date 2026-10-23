@@ -32,6 +32,7 @@ class ComposerHost extends StatefulWidget {
     this.replyingToPreview,
     this.onClearReply,
     this.entityContext = const [],
+    this.draftMode = false,
   });
 
   final String hintText;
@@ -59,6 +60,12 @@ class ComposerHost extends StatefulWidget {
   ) onSend;
 
   final bool applyBottomInset;
+
+  /// The thread being replied to is a local draft, so the reply is saved as a
+  /// draft: the main button reads "Create draft" and sends nothing to a relay.
+  /// References and media are not offered, since a draft reply links to its
+  /// parent draft on its own.
+  final bool draftMode;
 
   @override
   State<ComposerHost> createState() => _ComposerHostState();
@@ -298,15 +305,19 @@ class _ComposerHostState extends State<ComposerHost> {
               ? null
               : (id) =>
                   setState(() => _mentionRefs.removeWhere((r) => r.id == id)),
-          onAddReference: inChat ? null : _openReferencePicker,
-          onAttachMedia: inChat ? null : _attachMedia,
+          onAddReference:
+              inChat || widget.draftMode ? null : _openReferencePicker,
+          onAttachMedia: inChat || widget.draftMode ? null : _attachMedia,
           attachments: inChat ? const [] : _pending,
           isAttachingMedia: inChat ? false : _isAttaching,
           onRemoveAttachment: inChat
               ? null
               : (sha) => setState(
                   () => _pending.removeWhere((m) => m.sha256 == sha)),
-          onSend: _send,
+          onSend: widget.draftMode && !inChat ? null : _send,
+          onDraft: widget.draftMode && !inChat ? _send : null,
+          draftLabel: AppLocalizations.of(context)!.threadCreateDraft,
+          draftIsPrimary: widget.draftMode && !inChat,
         );
       },
     );

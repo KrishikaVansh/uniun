@@ -1,5 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:uniun/core/enum/note_type.dart';
 import 'package:uniun/domain/entities/media/media_blob_entity.dart';
+import 'package:uniun/domain/entities/note/note_entity.dart';
 
 part 'draft_entity.freezed.dart';
 
@@ -34,4 +36,25 @@ abstract class DraftEntity with _$DraftEntity {
     /// published, at which point the bytes are uploaded and `imeta` is built.
     @Default(<MediaBlobEntity>[]) List<MediaBlobEntity> attachments,
   }) = _DraftEntity;
+}
+
+extension DraftAsNote on DraftEntity {
+  /// The draft shaped as a note so the thread screen can render it. Its id is
+  /// the draft UUID, not a Nostr event id, and it has no signature.
+  NoteEntity toNoteEntity({required String authorPubkey}) => NoteEntity(
+        id: draftId,
+        sig: '',
+        authorPubkey: authorPubkey,
+        content: content,
+        type: attachments.any((a) => a.mime.startsWith('image/'))
+            ? NoteType.image
+            : NoteType.text,
+        eTagRefs: eTagRefs,
+        pTagRefs: pTagRefs,
+        tTags: tTags,
+        created: createdAt,
+        rootEventId: rootEventId,
+        replyToEventId: replyToEventId,
+        attachments: attachments,
+      );
 }

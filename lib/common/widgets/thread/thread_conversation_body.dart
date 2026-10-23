@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:uniun/common/widgets/thread/unread_trail_mark.dart';
 import 'package:uniun/domain/entities/followed_note/thread_unread_marker.dart';
+import 'package:uniun/common/widgets/note_card/draft_note_tile.dart';
 import 'package:uniun/common/widgets/note_card/large_note_card.dart';
 import 'package:uniun/common/widgets/note_card/note_card.dart';
 import 'package:uniun/domain/entities/note/note_entity.dart';
@@ -25,6 +26,7 @@ class ThreadConversationBody extends StatelessWidget {
     this.mentionedNotes = const [],
     this.replyCount,
     this.unreadMarkers = const {},
+    this.draftIds = const {},
   });
 
   final NoteEntity root;
@@ -40,6 +42,30 @@ class ThreadConversationBody extends StatelessWidget {
 
   /// Unread dots for notes inside a followed note's tree, by note id.
   final Map<String, ThreadUnreadMarker> unreadMarkers;
+
+  /// Ids of the notes in this thread that are local drafts. They render as a
+  /// [DraftNoteTile] (no save / share / report actions) instead of a note card.
+  final Set<String> draftIds;
+
+  Widget _draftTile(
+    BuildContext context,
+    NoteEntity note, {
+    VoidCallback? onTap,
+  }) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: DraftNoteTile(
+          draftId: note.id,
+          content: note.content,
+          draftLabel: AppLocalizations.of(context)!.graphLegendDraft,
+          authorPubkey: note.authorPubkey,
+          profile: profiles[note.authorPubkey],
+          created: note.created,
+          attachments: note.attachments,
+          tTags: note.tTags,
+          onTap: onTap,
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -85,11 +111,13 @@ class ThreadConversationBody extends StatelessWidget {
         // Flat full-bleed (no card) so references → root → replies read as one
         // continuous surface — its own internal padding handles the gutter.
         SliverToBoxAdapter(
-          child: LargeNoteCard(
-            note: root,
-            replyCount: replyCount ?? replies.length,
-            contained: false,
-          ),
+          child: draftIds.contains(root.id)
+              ? _draftTile(context, root)
+              : LargeNoteCard(
+                  note: root,
+                  replyCount: replyCount ?? replies.length,
+                  contained: false,
+                ),
         ),
 
         // ── Replies ───────────────────────────────────────────────────────────
@@ -121,11 +149,21 @@ class ThreadConversationBody extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       UnreadTrailMark(marker: unreadMarkers[reply.id]),
-                      NoteCard(
-                        key: ValueKey(reply.id),
-                        note: reply,
-                        onTap: () => onOpenThread(reply.id),
-                      ),
+                      if (draftIds.contains(reply.id))
+                        KeyedSubtree(
+                          key: ValueKey(reply.id),
+                          child: _draftTile(
+                            ctx,
+                            reply,
+                            onTap: () => onOpenThread(reply.id),
+                          ),
+                        )
+                      else
+                        NoteCard(
+                          key: ValueKey(reply.id),
+                          note: reply,
+                          onTap: () => onOpenThread(reply.id),
+                        ),
                     ],
                   );
                 },

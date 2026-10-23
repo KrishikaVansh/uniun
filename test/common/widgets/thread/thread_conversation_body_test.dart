@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:uniun/common/widgets/note_card/cubit/note_card_cubit.dart';
+import 'package:uniun/common/widgets/note_card/draft_note_tile.dart';
+import 'package:uniun/common/widgets/note_card/large_note_card.dart';
 import 'package:uniun/common/widgets/note_card/note_card.dart';
 import 'package:uniun/common/widgets/thread/thread_conversation_body.dart';
 import 'package:uniun/common/widgets/thread/unread_trail_mark.dart';
@@ -136,5 +138,54 @@ void main() {
     await t.pumpWidget(host(replies: const []));
 
     expect(find.byType(UnreadTrailMark), findsNothing);
+  });
+
+  group('a thread opened on a draft', () {
+    Widget draftHost({
+      Set<String> draftIds = const {'root', 'r1'},
+      void Function(String id)? onOpen,
+    }) => MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: Scaffold(
+        body: ThreadConversationBody(
+          root: aNote(id: 'root', content: 'draft root'),
+          profiles: const {},
+          replies: [
+            aNote(id: 'r1', content: 'draft reply'),
+            aNote(id: 'r2', content: 'published reply'),
+          ],
+          onOpenThread: onOpen ?? (_) {},
+          draftIds: draftIds,
+        ),
+      ),
+    );
+
+    testWidgets('the root and draft replies are draft tiles; a published '
+        'reply stays a note card', (t) async {
+      await t.pumpWidget(draftHost());
+
+      expect(find.byType(DraftNoteTile), findsNWidgets(2));
+      expect(find.byType(LargeNoteCard), findsNothing);
+      expect(find.byType(NoteCard), findsOneWidget);
+      expect(find.textContaining('draft root'), findsOneWidget);
+    });
+
+    testWidgets('tapping a draft reply opens it', (t) async {
+      final opened = <String>[];
+      await t.pumpWidget(draftHost(onOpen: opened.add));
+
+      await t.tap(find.textContaining('draft reply'));
+
+      expect(opened, ['r1']);
+    });
+
+    testWidgets('without draft ids everything is a normal note', (t) async {
+      await t.pumpWidget(draftHost(draftIds: const {}));
+
+      expect(find.byType(DraftNoteTile), findsNothing);
+      expect(find.byType(LargeNoteCard), findsOneWidget);
+      expect(find.byType(NoteCard), findsNWidgets(2));
+    });
   });
 }

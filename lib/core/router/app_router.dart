@@ -136,6 +136,14 @@ final GoRouter appRouter = GoRouter(
       ),
     ),
     GoRoute(
+      name: AppRoutes.draftThread,
+      path: '/draft-thread/:draftId',
+      builder: (_, state) => ThreadPage(
+        noteId: state.pathParameters['draftId']!,
+        isDraft: true,
+      ),
+    ),
+    GoRoute(
       name: AppRoutes.aiModelSelection,
       path: '/ai-model-selection',
       builder: (_, __) => const AIModelSelectionPage(),

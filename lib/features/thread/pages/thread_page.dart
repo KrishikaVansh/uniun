@@ -12,9 +12,18 @@ import 'package:uniun/common/widgets/thread/message_thread_page.dart';
 /// The single thread screen for every note, regardless of which collection
 /// holds it. [ThreadBloc] resolves the id across all collections.
 class ThreadPage extends StatelessWidget {
-  const ThreadPage({super.key, required this.noteId, this.savedOnly = false});
+  const ThreadPage({
+    super.key,
+    required this.noteId,
+    this.savedOnly = false,
+    this.isDraft = false,
+  });
   final String noteId;
   final bool savedOnly;
+
+  /// [noteId] is a draft id: the thread shows the draft and the drafts written
+  /// as replies to it, and the composer saves a draft instead of publishing.
+  final bool isDraft;
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +31,7 @@ class ThreadPage extends StatelessWidget {
       providers: [
         BlocProvider(
           create: (_) => getIt<ThreadBloc>()
-            ..add(LoadThreadEvent(noteId, savedOnly: savedOnly)),
+            ..add(LoadThreadEvent(noteId, savedOnly: savedOnly, draft: isDraft)),
         ),
       ],
       child: _ThreadView(noteId: noteId),
@@ -74,16 +83,25 @@ class _ThreadViewState extends State<_ThreadView> {
     }
     final bloc = context.read<ThreadBloc>();
     final savedOnly = bloc.state.savedOnly;
+    final isDraft = bloc.state.draftIds.contains(noteId);
     // Reload this thread when the child pops so new nested replies are reflected.
-    ctx
-        .pushNamed(
-      AppRoutes.thread,
-      pathParameters: {'noteId': noteId},
-      extra: savedOnly ? true : null,
-    )
+    (isDraft
+            ? ctx.pushNamed(
+                AppRoutes.draftThread,
+                pathParameters: {'draftId': noteId},
+              )
+            : ctx.pushNamed(
+                AppRoutes.thread,
+                pathParameters: {'noteId': noteId},
+                extra: savedOnly ? true : null,
+              ))
         .then((_) {
       if (mounted) {
-        bloc.add(LoadThreadEvent(widget.noteId, savedOnly: savedOnly));
+        bloc.add(LoadThreadEvent(
+          widget.noteId,
+          savedOnly: savedOnly,
+          draft: bloc.state.draftIds.contains(widget.noteId),
+        ));
       }
     });
   }
@@ -140,6 +158,7 @@ class _ThreadViewState extends State<_ThreadView> {
                 mentionRefs: refs, attachments: attachments),
           ),
           onOpenThread: (id) => _openThread(context, id),
+          draftIds: state.draftIds,
         );
       },
     );

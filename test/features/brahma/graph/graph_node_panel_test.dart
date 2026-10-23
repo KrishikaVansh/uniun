@@ -6,10 +6,12 @@ import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:uniun/common/widgets/note_card/cubit/note_card_cubit.dart';
+import 'package:uniun/common/widgets/note_card/draft_note_tile.dart';
 import 'package:uniun/common/widgets/note_card/note_card.dart';
 import 'package:uniun/common/widgets/note_card/note_card_menu.dart';
 import 'package:uniun/core/router/app_routes.dart';
 import 'package:uniun/domain/entities/note/note_entity.dart';
+import 'package:uniun/features/brahma/bloc/brahma_create_bloc.dart';
 import 'package:uniun/features/brahma/graph/bloc/graph_bloc.dart';
 import 'package:uniun/features/brahma/graph/models/graph_node_type.dart';
 import 'package:uniun/features/brahma/graph/widgets/graph_node_panel.dart';
@@ -19,6 +21,9 @@ import '../../../_helpers/fixtures.dart';
 
 class _MockGraphBloc extends MockBloc<GraphEvent, GraphState>
     implements GraphBloc {}
+
+class _MockBrahmaBloc extends MockBloc<BrahmaCreateEvent, BrahmaCreateState>
+    implements BrahmaCreateBloc {}
 
 class _MockNoteCardCubit extends MockCubit<NoteCardState>
     implements NoteCardCubit {}
@@ -294,5 +299,106 @@ void main() {
     await t.pumpAndSettle();
 
     verifyNever(() => bloc.add(any(that: isA<SelectGraphNodeEvent>())));
+  });
+
+  group('a draft node', () {
+    late _MockBrahmaBloc brahma;
+
+    setUp(() {
+      brahma = _MockBrahmaBloc();
+      when(() => brahma.state).thenReturn(const BrahmaCreateState());
+    });
+
+    /// Panel on a draft at `/`, a stub draft-thread page pushed on tap that
+    /// shows the id it was opened with.
+    Widget draftHost() {
+      when(() => bloc.state)
+          .thenReturn(const GraphState(status: GraphStatus.loaded));
+      final router = GoRouter(
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (_, __) => MultiBlocProvider(
+              providers: [
+                BlocProvider<GraphBloc>.value(value: bloc),
+                BlocProvider<BrahmaCreateBloc>.value(value: brahma),
+              ],
+              child: Scaffold(
+                body: GraphNodePanel(
+                  node: _node(id: 'draft-uuid', type: GraphNodeType.draft),
+                  onClose: () {},
+                ),
+              ),
+            ),
+          ),
+          GoRoute(
+            path: '/draft-thread/:draftId',
+            name: AppRoutes.draftThread,
+            builder: (ctx, state) => Scaffold(
+              body: TextButton(
+                onPressed: () => ctx.pop(),
+                child: Text('draft thread ${state.pathParameters['draftId']}'),
+              ),
+            ),
+          ),
+        ],
+      );
+      return MaterialApp.router(
+        routerConfig: router,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+      );
+    }
+
+    testWidgets('shows the draft card, not a published note card', (t) async {
+      await t.pumpWidget(draftHost());
+
+      expect(find.byType(DraftNoteTile), findsOneWidget);
+      expect(find.byType(NoteCard), findsNothing);
+    });
+
+    testWidgets('tapping the draft opens its thread by draft id', (t) async {
+      await t.pumpWidget(draftHost());
+      await t.tap(find.byType(DraftNoteTile));
+      await t.pumpAndSettle();
+
+      expect(find.text('draft thread draft-uuid'), findsOneWidget);
+    });
+
+    testWidgets('returning from the draft thread reloads the graph with its '
+        'Manas scope', (t) async {
+      when(() => bloc.state).thenReturn(const GraphState(
+        status: GraphStatus.loaded,
+        scopedManasId: 'm1',
+        scopedManasName: 'Work',
+      ));
+      await t.pumpWidget(draftHost());
+      when(() => bloc.state).thenReturn(const GraphState(
+        status: GraphStatus.loaded,
+        scopedManasId: 'm1',
+        scopedManasName: 'Work',
+      ));
+      await t.tap(find.byType(DraftNoteTile));
+      await t.pumpAndSettle();
+      await t.tap(find.text('draft thread draft-uuid'));
+      await t.pumpAndSettle();
+
+      final load = loadsOn(bloc).single;
+      expect(load.manasId, 'm1');
+      expect(load.manasName, 'Work');
+    });
+
+    testWidgets('a bloc closed while the draft thread was open is not '
+        'dispatched to', (t) async {
+      await t.pumpWidget(draftHost());
+      await t.tap(find.byType(DraftNoteTile));
+      await t.pumpAndSettle();
+
+      when(() => bloc.isClosed).thenReturn(true);
+      await t.tap(find.text('draft thread draft-uuid'));
+      await t.pumpAndSettle();
+
+      verifyNever(() => bloc.add(any(that: isA<LoadGraphEvent>())));
+    });
   });
 }

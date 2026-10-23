@@ -44,6 +44,23 @@ class GetDraftByIdUseCase extends UseCase<Either<Failure, DraftEntity>, String> 
   }
 }
 
+/// Drafts written as replies to the draft with the given id, oldest first.
+@lazySingleton
+class GetDraftRepliesUseCase
+    extends UseCase<Either<Failure, List<DraftEntity>>, String> {
+  final DraftRepository repository;
+
+  GetDraftRepliesUseCase(this.repository);
+
+  @override
+  Future<Either<Failure, List<DraftEntity>>> call(
+    String draftId, {
+    bool cached = false,
+  }) {
+    return repository.getDraftsReferencing(draftId);
+  }
+}
+
 /// Delete a draft.
 @lazySingleton
 class DeleteDraftUseCase extends UseCase<Either<Failure, Unit>, String> {

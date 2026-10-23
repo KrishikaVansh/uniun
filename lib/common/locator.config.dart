@@ -896,6 +896,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i537.GetDraftByIdUseCase>(
       () => _i537.GetDraftByIdUseCase(gh<_i170.DraftRepository>()),
     );
+    gh.lazySingleton<_i537.GetDraftRepliesUseCase>(
+      () => _i537.GetDraftRepliesUseCase(gh<_i170.DraftRepository>()),
+    );
     gh.lazySingleton<_i537.DeleteDraftUseCase>(
       () => _i537.DeleteDraftUseCase(gh<_i170.DraftRepository>()),
     );
@@ -1769,6 +1772,17 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i63.WatchFollowedUsersUseCase>(),
       ),
     );
+    gh.factory<_i11.LogoutRuntime>(
+      () => _i1023.LogoutRuntimeImpl(
+        gh<_i761.MarmotTransportService>(),
+        gh<_i421.MeshService>(),
+        gh<_i426.GanaEngine>(),
+        gh<_i1026.DocumentIndexer>(),
+        gh<_i491.NoteEmbeddingTrigger>(),
+        gh<_i609.NoteVectorCleanupWorker>(),
+        gh<_i918.PreemptBackgroundWorkUseCase>(),
+      ),
+    );
     gh.factory<_i807.ThreadBloc>(
       () => _i807.ThreadBloc(
         gh<_i789.NoteResolverRepository>(),
@@ -1779,17 +1793,10 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i858.GetSavedReferencesUseCase>(),
         gh<_i719.MarkUnreadSeenUseCase>(),
         gh<_i561.WatchThreadUnreadMarkersUseCase>(),
-      ),
-    );
-    gh.factory<_i11.LogoutRuntime>(
-      () => _i1023.LogoutRuntimeImpl(
-        gh<_i761.MarmotTransportService>(),
-        gh<_i421.MeshService>(),
-        gh<_i426.GanaEngine>(),
-        gh<_i1026.DocumentIndexer>(),
-        gh<_i491.NoteEmbeddingTrigger>(),
-        gh<_i609.NoteVectorCleanupWorker>(),
-        gh<_i918.PreemptBackgroundWorkUseCase>(),
+        gh<_i537.GetDraftByIdUseCase>(),
+        gh<_i537.GetDraftRepliesUseCase>(),
+        gh<_i537.SaveDraftUseCase>(),
+        gh<_i799.GetActiveUserUseCase>(),
       ),
     );
     gh.factory<_i241.LogoutSessionRepository>(
