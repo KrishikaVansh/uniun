@@ -1,6 +1,7 @@
 // Covers Manas membership from Brahma, Vishnu, thread, and both group feeds on a device.
 import 'package:flutter/material.dart';
-import 'package:flutter_edge_ai_embeddings/flutter_edge_ai_embeddings.dart' show GemmaEmbeddingTokenizers;
+import 'package:flutter_edge_ai_embeddings/flutter_edge_ai_embeddings.dart'
+    show GemmaEmbeddingTokenizers;
 import 'package:flutter_edge_ai/flutter_edge_ai.dart';
 import 'package:flutter_edge_ai_litertlm/flutter_edge_ai_litertlm.dart';
 import 'package:flutter_edge_ai_mediapipe/flutter_edge_ai_mediapipe.dart';
@@ -10,6 +11,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:isar_community/isar.dart';
 import 'package:uniun/common/locator.dart';
 import 'package:uniun/common/widgets/note_card/note_card_menu.dart';
+import 'package:uniun/common/widgets/note_card/note_card.dart';
 import 'package:uniun/common/widgets/safe_interactive_viewer.dart';
 import 'package:uniun/common/widgets/floating_nav.dart';
 import 'package:uniun/core/router/app_routes.dart';
@@ -349,7 +351,25 @@ void main() {
         expect(find.text(content), findsOneWidget);
       }
 
-      await tester.tap(find.byType(NoteCardMenu));
+      final noteCard = find.ancestor(
+        of: find.text(content),
+        matching: find.byType(NoteCard),
+      );
+
+      expect(
+        noteCard,
+        findsOneWidget,
+        reason: 'Expected exactly one NoteCard for the seeded note: $content',
+      );
+
+      final noteMenu = find.descendant(
+        of: noteCard,
+        matching: find.byType(NoteCardMenu),
+      );
+
+      expect(noteMenu, findsOneWidget);
+
+      await tester.tap(noteMenu);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Add to Manas'));
       await tester.pumpAndSettle();
