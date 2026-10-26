@@ -351,9 +351,10 @@ void main() {
         expect(find.text(content), findsOneWidget);
       }
 
+      final cardType = surface == _Surface.thread ? LargeNoteCard : NoteCard;
       final noteCard = find.ancestor(
         of: find.text(content),
-        matching: find.byType(NoteCard),
+        matching: find.byType(cardType),
       );
 
       expect(
